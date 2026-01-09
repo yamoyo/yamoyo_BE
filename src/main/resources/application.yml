@@ -1,0 +1,123 @@
+# Spring Boot OAuth2 Application Configuration
+# Role: OAuth2 클라이언트 설정 및 Nginx 프록시 환경 대응
+# Complexity: Nginx를 통해 접근할 때 OAuth2 redirect URI가 올바르게 생성되도록 forwarded headers 전략 설정
+
+spring:
+  application:
+    name: oauth2-template
+
+  # JPA 설정
+  jpa:
+    hibernate:
+      ddl-auto: update  # 개발: update, 프로덕션: validate
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  # H2 Database (개발용, 프로덕션에서는 MySQL/PostgreSQL 사용 권장)
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  h2:
+    console:
+      enabled: true  # H2 콘솔: http://localhost:8080/h2-console
+
+  # OAuth2 Client Configuration
+  # Role: Google, Kakao 등 여러 OAuth2 Provider 설정
+  # Complexity: client-id와 client-secret은 환경변수로 주입받아 보안 강화
+  security:
+    oauth2:
+      client:
+        registration:
+          # ===== Google OAuth2 Provider =====
+          google:
+            # Google Cloud Console에서 발급받은 Client ID
+            # 환경변수: GOOGLE_CLIENT_ID (docker-compose.yml에서 주입)
+            client-id: ${GOOGLE_CLIENT_ID}
+
+            # Google Cloud Console에서 발급받은 Client Secret
+            # 환경변수: GOOGLE_CLIENT_SECRET (docker-compose.yml에서 주입)
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+
+            # OAuth2 scope (프로필 정보 및 이메일 접근 권한)
+            scope:
+              - profile
+              - email
+
+          # ===== Kakao OAuth2 Provider =====
+          # Kakao Developers Console: https://developers.kakao.com/
+          kakao:
+            # Kakao REST API 키
+            # 환경변수: KAKAO_CLIENT_ID (선택사항)
+            client-id: ${KAKAO_CLIENT_ID}
+
+            # Kakao Client Secret (보안 강화 시 사용, 선택사항)
+            # 환경변수: KAKAO_CLIENT_SECRET (선택사항)
+            client-secret: ${KAKAO_CLIENT_SECRET}
+
+            # Redirect URI (Custom Provider는 필수 설정)
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+
+            # OAuth2 인가 방식
+            authorization-grant-type: authorization_code
+
+            # Kakao는 Client ID/Secret을 Body에 담아 보내는 방식을 사용해야 함 (기본값은 Basic Auth Header)
+            client-authentication-method: client_secret_post
+
+            # Kakao OAuth2 scope
+            # profile_nickname: 닉네임 접근
+            # account_email: 이메일 접근 (사용자 동의 필요)
+            scope:
+              - profile_nickname
+              - profile_image
+              - account_email
+
+            # Provider 표시 이름
+            client-name: Kakao
+
+        # ===== Provider 설정 (Kakao는 수동 설정 필요) =====
+        provider:
+          kakao:
+            # Kakao OAuth2 인가 엔드포인트
+            authorization-uri: https://kauth.kakao.com/oauth/authorize
+
+            # Kakao OAuth2 토큰 엔드포인트
+            token-uri: https://kauth.kakao.com/oauth/token
+
+            # Kakao 사용자 정보 엔드포인트
+            user-info-uri: https://kapi.kakao.com/v2/user/me
+
+            # 사용자 이름을 가져올 attribute key
+            # Kakao는 "id" 필드를 사용자 식별자로 사용
+            user-name-attribute: id
+
+
+# Server Configuration
+# Role: 내부 포트 설정 및 Nginx 프록시 헤더 인식 전략
+# Complexity: Nginx가 전달한 X-Forwarded-* 헤더를 Spring이 인식하여
+#             OAuth2 redirect URI를 http://localhost:80/login/oauth2/code/google 형태로 생성
+server:
+  port: 8080
+
+  # Forwarded Headers Strategy
+  # Role: Nginx가 전달한 X-Forwarded-Proto, X-Forwarded-Host 헤더를 신뢰하고 사용
+  # Complexity:
+  #   - 'framework': Spring Framework의 ForwardedHeaderFilter를 사용하여 헤더 처리
+  #   - OAuth2 redirect URI 생성 시 클라이언트가 접근한 원본 주소(http://localhost:80)를 기준으로 생성
+  #   - 이 설정이 없으면 Spring Boot는 내부 주소(http://spring-boot:8080)로 redirect URI를 생성하여 OAuth2 콜백 실패
+  forward-headers-strategy: framework
+
+# Logging (개발용, 프로덕션에서는 레벨 조정 필요)
+logging:
+  level:
+    org.springframework.security: DEBUG
+    org.springframework.security.oauth2: DEBUG
+
+jwt:
+  secret-key: ${SECRET_KEY} #openssl rand -hex 32
+  access-token-expiration: 600000 # 10분
+  refresh-token-expiration: 604800000 # 7일
+  issuer: yamoyo-application

@@ -1,0 +1,67 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.5.9'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.yamoyo'
+version = '0.0.1-SNAPSHOT'
+description = 'yamoyo_BE'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // 운영 환경 모니터링 및 관리 (Health check, Metrics 등)
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+    // JPA를 이용한 데이터베이스 접근
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+
+    // 인증 및 권한 부여 (Spring Security)
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+
+    // Jwt
+    implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
+
+    // 웹 애플리케이션 개발 (Tomcat, Spring MVC)
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+
+    // 롬복: Getter, Setter 등 반복 코드 자동 생성
+    compileOnly 'org.projectlombok:lombok'
+
+    // 프로메테우스 모니터링 시스템 연동
+    runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    // 테스트 라이브러리 (JUnit, Mockito 등)
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+
+    // 스프링 시큐리티 테스트 지원
+    testImplementation 'org.springframework.security:spring-security-test'
+
+    // H2 데이터베이스 (인메모리, 개발/테스트용)
+    runtimeOnly 'com.h2database:h2'
+
+    // JUnit 플랫폼 런처
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
