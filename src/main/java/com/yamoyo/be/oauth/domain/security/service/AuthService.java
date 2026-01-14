@@ -1,13 +1,13 @@
 package com.yamoyo.be.oauth.domain.security.service;
 
-import com.example.oauth.domain.security.exception.RefreshTokenException;
-import com.example.oauth.domain.security.jwt.JwtTokenClaims;
-import com.example.oauth.domain.security.jwt.JwtTokenDto;
-import com.example.oauth.domain.security.jwt.JwtTokenProvider;
-import com.example.oauth.domain.security.refreshtoken.RefreshToken;
-import com.example.oauth.domain.security.refreshtoken.RefreshTokenRepository;
-import com.example.oauth.domain.user.entity.User;
-import com.example.oauth.domain.user.repository.UserRepository;
+import com.yamoyo.be.oauth.domain.security.exception.RefreshTokenException;
+import com.yamoyo.be.oauth.domain.security.jwt.JwtTokenClaims;
+import com.yamoyo.be.oauth.domain.security.jwt.JwtTokenDto;
+import com.yamoyo.be.oauth.domain.security.jwt.JwtTokenProvider;
+import com.yamoyo.be.oauth.domain.security.refreshtoken.RefreshToken;
+import com.yamoyo.be.oauth.domain.security.refreshtoken.RefreshTokenRepository;
+import com.yamoyo.be.oauth.domain.user.entity.User;
+import com.yamoyo.be.oauth.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;

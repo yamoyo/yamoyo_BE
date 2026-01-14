@@ -1,12 +1,12 @@
 package com.yamoyo.be.oauth.domain.security.oauth.handler;
 
-import com.example.oauth.domain.security.jwt.JwtTokenDto;
-import com.example.oauth.domain.security.jwt.JwtTokenProvider;
-import com.example.oauth.domain.security.oauth.CustomOAuth2User;
-import com.example.oauth.domain.security.refreshtoken.RefreshToken;
-import com.example.oauth.domain.security.refreshtoken.RefreshTokenRepository;
-import com.example.oauth.domain.user.entity.User;
-import com.example.oauth.domain.user.repository.UserRepository;
+import com.yamoyo.be.oauth.domain.security.jwt.JwtTokenDto;
+import com.yamoyo.be.oauth.domain.security.jwt.JwtTokenProvider;
+import com.yamoyo.be.oauth.domain.security.oauth.CustomOAuth2User;
+import com.yamoyo.be.oauth.domain.security.refreshtoken.RefreshToken;
+import com.yamoyo.be.oauth.domain.security.refreshtoken.RefreshTokenRepository;
+import com.yamoyo.be.oauth.domain.user.entity.User;
+import com.yamoyo.be.oauth.domain.user.repository.UserRepository;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

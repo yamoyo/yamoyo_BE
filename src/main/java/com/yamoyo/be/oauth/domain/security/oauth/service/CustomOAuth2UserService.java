@@ -1,11 +1,11 @@
 package com.yamoyo.be.oauth.domain.security.oauth.service;
 
-import com.example.oauth.domain.security.oauth.CustomOAuth2User;
-import com.example.oauth.domain.security.oauth.OAuth2Provider;
-import com.example.oauth.domain.security.oauth.OAuth2UserInfo;
-import com.example.oauth.domain.user.entity.Role;
-import com.example.oauth.domain.user.entity.User;
-import com.example.oauth.domain.user.repository.UserRepository;
+import com.yamoyo.be.oauth.domain.security.oauth.CustomOAuth2User;
+import com.yamoyo.be.oauth.domain.security.oauth.OAuth2Provider;
+import com.yamoyo.be.oauth.domain.security.oauth.OAuth2UserInfo;
+import com.yamoyo.be.oauth.domain.user.entity.Role;
+import com.yamoyo.be.oauth.domain.user.entity.User;
+import com.yamoyo.be.oauth.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;

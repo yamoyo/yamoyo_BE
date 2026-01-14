@@ -1,6 +1,6 @@
 package com.yamoyo.be.oauth.domain.security.oauth;
 
-import com.example.oauth.domain.user.entity.Role;
+import com.yamoyo.be.oauth.domain.user.entity.Role;
 import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
