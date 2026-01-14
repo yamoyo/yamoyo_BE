@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home - OAuth2 Template</title>
+    <style>
+        /* 간단한 프로필 카드 스타일 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .profile-container {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .profile-picture {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-bottom: 20px;
+            border: 4px solid #667eea;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .email {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+
+        .info-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .info-item {
+            margin: 10px 0;
+            font-size: 14px;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #495057;
+            margin-right: 8px;
+        }
+
+        .info-value {
+            color: #6c757d;
+        }
+
+        .logout-btn {
+            display: inline-block;
+            background: #dc3545;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 16px;
+            font-weight: 500;
+            transition: background 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background: #c82333;
+        }
+
+        .success-badge {
+            display: inline-block;
+            background: #28a745;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .footer {
+            margin-top: 30px;
+            color: #6c757d;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="profile-container">
+        <div class="success-badge">✓ 로그인 성공</div>
+
+        <!-- 프로필 이미지 -->
+        <!-- Role: Google OAuth2로부터 받은 프로필 이미지 표시 -->
+        <!-- Complexity: Thymeleaf의 th:src로 동적 이미지 URL 바인딩 -->
+        <img th:src="${picture}"
+             alt="Profile Picture"
+             class="profile-picture"
+             onerror="this.src='https://via.placeholder.com/100'">
+
+        <!-- 사용자 이름 -->
+        <!-- Role: Google OAuth2로부터 받은 사용자 이름 표시 -->
+        <!-- Complexity: Thymeleaf의 th:text로 서버에서 전달받은 name 속성 렌더링 -->
+        <h1 th:text="${name}">사용자 이름</h1>
+
+        <!-- 이메일 주소 -->
+        <!-- Role: Google OAuth2로부터 받은 이메일 주소 표시 -->
+        <p class="email" th:text="${email}">user@example.com</p>
+
+        <!-- OAuth2 인증 정보 섹션 -->
+        <div class="info-section">
+            <div class="info-item">
+                <span class="info-label">인증 방식:</span>
+                <span class="info-value" th:text="${provider} + ' OAuth 2.0'">OAuth 2.0</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Provider:</span>
+                <span class="info-value" th:text="${provider}">Provider</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Architecture:</span>
+                <span class="info-value">Spring Boot 3.x + Nginx Reverse Proxy</span>
+            </div>
+        </div>
+
+        <!-- 로그아웃 버튼 -->
+        <!-- Role: 세션을 종료하고 로그아웃 처리 -->
+        <!-- Complexity:
+             - /logout은 Spring Security가 자동으로 제공하는 로그아웃 엔드포인트
+             - POST 요청으로 CSRF 토큰과 함께 전송해야 하므로 form 사용
+             - 로그아웃 후 /login?logout으로 리다이렉트됨
+        -->
+        <form action="/logout" method="post" style="margin-top: 20px;">
+            <button type="submit" class="logout-btn">로그아웃</button>
+        </form>
+
+        <div class="footer">
+            Powered by Spring Security 6.x & OAuth2 Client
+        </div>
+    </div>
+</body>
+</html>
