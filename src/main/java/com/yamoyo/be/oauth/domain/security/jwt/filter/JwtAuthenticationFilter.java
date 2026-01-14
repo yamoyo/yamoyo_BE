@@ -1,8 +1,8 @@
 package com.yamoyo.be.oauth.domain.security.jwt.filter;
 
-import com.example.oauth.domain.security.jwt.JwtTokenClaims;
-import com.example.oauth.domain.security.jwt.JwtTokenProvider;
-import com.example.oauth.domain.security.jwt.authentication.JwtAuthenticationToken;
+import com.yamoyo.be.oauth.domain.security.jwt.JwtTokenClaims;
+import com.yamoyo.be.oauth.domain.security.jwt.JwtTokenProvider;
+import com.yamoyo.be.oauth.domain.security.jwt.authentication.JwtAuthenticationToken;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

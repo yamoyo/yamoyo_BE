@@ -1,8 +1,8 @@
 package com.yamoyo.be.oauth.domain.security.controller;
 
-import com.example.oauth.domain.security.jwt.JwtTokenClaims;
-import com.example.oauth.domain.security.jwt.JwtTokenDto;
-import com.example.oauth.domain.security.service.AuthService;
+import com.yamoyo.be.oauth.domain.security.jwt.JwtTokenClaims;
+import com.yamoyo.be.oauth.domain.security.jwt.JwtTokenDto;
+import com.yamoyo.be.oauth.domain.security.service.AuthService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;

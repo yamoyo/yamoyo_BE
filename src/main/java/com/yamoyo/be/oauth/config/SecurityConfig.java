@@ -1,8 +1,8 @@
 package com.yamoyo.be.oauth.config;
 
-import com.example.oauth.domain.security.jwt.filter.JwtAuthenticationFilter;
-import com.example.oauth.domain.security.oauth.handler.OAuth2AuthenticationSuccessHandler;
-import com.example.oauth.domain.security.oauth.service.CustomOAuth2UserService;
+import com.yamoyo.be.oauth.domain.security.jwt.filter.JwtAuthenticationFilter;
+import com.yamoyo.be.oauth.domain.security.oauth.handler.OAuth2AuthenticationSuccessHandler;
+import com.yamoyo.be.oauth.domain.security.oauth.service.CustomOAuth2UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

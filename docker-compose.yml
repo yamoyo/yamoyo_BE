@@ -96,7 +96,8 @@ services:
 
       ## ==== OAuth 설정 ====
       # JWT 설정
-      JWT_SECRET: ${JWT_SECRET:-local-dev-secret-key-must-be-at-least-256-bits-long-for-hs256}
+      # 기본값은 'local-dev-secret-key-for-yamoyo-project'를 Base64 인코딩한 값입니다.
+      JWT_SECRET: ${JWT_SECRET:-bG9jYWwtZGV2LXNlY3JldC1rZXktZm9yLXlhbW95by1wcm9qZWN0}
       JWT_ACCESS_EXPIRATION: ${JWT_ACCESS_EXPIRATION:-3600000}
       JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION:-604800000}
       # OAuth2 - Kakao
@@ -122,5 +123,3 @@ networks:
   yamoyo-network:
     name: yamoyo-network
     driver: bridge
-
-
