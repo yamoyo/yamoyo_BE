@@ -26,7 +26,7 @@ import java.time.LocalDateTime;
 @Getter
 @Builder
 @NoArgsConstructor
-@AllArgsConstructor // JPA 스펙을 위한 기본 생성자, 접근 레벨은 PROTECTED로 제한
+@AllArgsConstructor
 public class RefreshToken {
 
     @Id
