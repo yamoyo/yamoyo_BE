@@ -174,7 +174,10 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         refreshTokenRepository.findByUserId(userId)
                 .ifPresentOrElse(
                         // 기존 토큰 업데이트
-                        existingToken -> existingToken.updateToken(refreshToken, expiryDate),
+                        existingToken -> {
+                            existingToken.updateToken(refreshToken, expiryDate);
+                            refreshTokenRepository.save(existingToken);
+                        },
                         // 새 토큰 생성
                         () -> refreshTokenRepository.save(RefreshToken.builder()
                                 .userId(userId)
