@@ -3,6 +3,8 @@ package com.yamoyo.be.domain.security.controller;
 import com.yamoyo.be.domain.security.jwt.JwtTokenClaims;
 import com.yamoyo.be.domain.security.jwt.JwtTokenDto;
 import com.yamoyo.be.domain.security.service.AuthService;
+import com.yamoyo.be.exception.ErrorCode;
+import com.yamoyo.be.exception.YamoyoException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -88,7 +90,7 @@ public class AuthController {
         log.info("POST /api/auth/refresh - Access Token 재발급 요청");
 
         if (refreshToken == null) {
-            throw new IllegalArgumentException("Refresh Token이 쿠키에 존재하지 않습니다.");
+            throw new YamoyoException(ErrorCode.BAD_REQUEST);
         }
 
         JwtTokenDto tokens = authService.refresh(refreshToken);

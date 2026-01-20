@@ -1,6 +1,5 @@
 package com.yamoyo.be.domain.security.service;
 
-import com.yamoyo.be.domain.security.exception.RefreshTokenException;
 import com.yamoyo.be.domain.security.jwt.JwtTokenClaims;
 import com.yamoyo.be.domain.security.jwt.JwtTokenDto;
 import com.yamoyo.be.domain.security.jwt.JwtTokenProvider;
@@ -8,6 +7,8 @@ import com.yamoyo.be.domain.security.refreshtoken.RefreshToken;
 import com.yamoyo.be.domain.security.refreshtoken.RefreshTokenRepository;
 import com.yamoyo.be.domain.user.entity.User;
 import com.yamoyo.be.domain.user.repository.UserRepository;
+import com.yamoyo.be.exception.ErrorCode;
+import com.yamoyo.be.exception.YamoyoException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -69,13 +70,13 @@ public class AuthService {
      *    - 보안 강화: Refresh Token 탈취 시에도 사용 횟수 제한
      *
      * 3. 예외 처리:
-     *    - Refresh Token이 DB에 없는 경우 → RefreshTokenException
-     *    - Refresh Token이 만료된 경우 → RefreshTokenException
-     *    - 사용자를 찾을 수 없는 경우 → RefreshTokenException
+     *    - Refresh Token이 DB에 없는 경우 → YamoyoException(INVALID_REFRESH_TOKEN)
+     *    - Refresh Token이 만료된 경우 → YamoyoException(INVALID_REFRESH_TOKEN)
+     *    - 사용자를 찾을 수 없는 경우 → YamoyoException(USER_NOT_FOUND)
      *
      * @param refreshToken Refresh Token 문자열
      * @return JwtTokenDto 새로운 Access Token + Refresh Token
-     * @throws RefreshTokenException Refresh Token 검증 실패 시
+     * @throws YamoyoException Refresh Token 검증 실패 시
      */
     @Transactional
     public JwtTokenDto refresh(String refreshToken) {
@@ -83,13 +84,13 @@ public class AuthService {
 
         // 1. DB에서 Refresh Token 조회
         RefreshToken storedRefreshToken = refreshTokenRepository.findByToken(refreshToken)
-                .orElseThrow(() -> new RefreshTokenException("유효하지 않은 Refresh Token입니다."));
+                .orElseThrow(() -> new YamoyoException(ErrorCode.INVALID_REFRESH_TOKEN));
 
         // 2. Refresh Token 만료 여부 확인
         if (storedRefreshToken.isExpired()) {
             // 만료된 Refresh Token은 DB에서 삭제
             refreshTokenRepository.delete(storedRefreshToken);
-            throw new RefreshTokenException("만료된 Refresh Token입니다. 다시 로그인해주세요.");
+            throw new YamoyoException(ErrorCode.INVALID_REFRESH_TOKEN);
         }
 
         // 3. Refresh Token에서 사용자 정보 추출
@@ -99,7 +100,7 @@ public class AuthService {
 
         // 4. DB에서 사용자 조회
         User user = userRepository.findById(claims.userId())
-                .orElseThrow(() -> new RefreshTokenException("사용자를 찾을 수 없습니다. UserId: " + claims.userId()));
+                .orElseThrow(() -> new YamoyoException(ErrorCode.USER_NOT_FOUND));
 
         log.info("Refresh Token 검증 완료 - UserId: {}, Email: {}", user.getId(), user.getEmail());
 

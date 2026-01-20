@@ -64,6 +64,9 @@ dependencies {
     // H2 데이터베이스 (인메모리, 개발/테스트용)
     runtimeOnly 'com.h2database:h2'
 
+    // MySQL 데이터베이스 드라이버
+    runtimeOnly 'com.mysql:mysql-connector-j'
+
     // JUnit 플랫폼 런처
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
