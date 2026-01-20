@@ -1,10 +1,7 @@
 package com.yamoyo.be.domain.security.refreshtoken;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
@@ -26,7 +23,7 @@ import java.time.LocalDateTime;
 @Getter
 @Builder
 @NoArgsConstructor
-@AllArgsConstructor
+@AllArgsConstructor // JPA 스펙을 위한 기본 생성자, 접근 레벨은 PROTECTED로 제한
 public class RefreshToken {
 
     @Id
