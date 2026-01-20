@@ -15,15 +15,13 @@ spring:
       hibernate:
         format_sql: true
 
-  # H2 Database (개발용, 프로덕션에서는 MySQL/PostgreSQL 사용 권장)
+  # Database Configuration (MySQL)
+  # 환경변수(DB_URL 등)가 있으면 그것을 사용(Docker), 없으면 기본값 사용(Local IDE)
   datasource:
-    url: jdbc:h2:mem:testdb
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
-  h2:
-    console:
-      enabled: true  # H2 콘솔: http://localhost:8080/h2-console
+    url: ${DB_URL:jdbc:mysql://localhost:3306/yamoyo?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=utf8}
+    username: ${DB_USERNAME:yamoyo}
+    password: ${DB_PASSWORD:yamoyo123}
+    driver-class-name: com.mysql.cj.jdbc.Driver
 
   # OAuth2 Client Configuration
   # Role: Google, Kakao 등 여러 OAuth2 Provider 설정
