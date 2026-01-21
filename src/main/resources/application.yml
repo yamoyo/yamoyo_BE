@@ -9,11 +9,17 @@ spring:
   # JPA 설정
   jpa:
     hibernate:
-      ddl-auto: update  # 개발: update, 프로덕션: validate
+      ddl-auto: validate  # Flyway가 스키마 관리, Hibernate는 검증만
     show-sql: true
     properties:
       hibernate:
         format_sql: true
+
+  # Flyway 설정
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
 
   # Database Configuration (MySQL)
   # 환경변수(DB_URL 등)가 있으면 그것을 사용(Docker), 없으면 기본값 사용(Local IDE)

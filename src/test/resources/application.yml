@@ -15,6 +15,10 @@ spring:
       ddl-auto: create-drop
     show-sql: false
 
+  # 테스트에서는 Flyway 비활성화 (H2 + ddl-auto: create-drop 사용)
+  flyway:
+    enabled: false
+
   # OAuth2 테스트용 더미 설정
   security:
     oauth2:
