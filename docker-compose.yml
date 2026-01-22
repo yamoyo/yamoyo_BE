@@ -16,6 +16,12 @@
 #
 #   5. 로그 확인:
 #      docker compose logs -f mysql
+#
+#   6. 이미지 재빌드 후 실행
+#      docker compose --profile full up -d --build
+#
+#   7. 볼륨까지 삭제 및 컨테이너 종료:
+#      docker compose --profile full down -v
 # ========================================
 
 services:
