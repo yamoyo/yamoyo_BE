@@ -35,7 +35,11 @@ class RefreshTokenRepositoryTest {
         String token = "test-refresh-token";
         LocalDateTime expiryDate = LocalDateTime.now().plusDays(7);
 
-        RefreshToken refreshToken = RefreshToken.create(userId, token, expiryDate);
+        RefreshToken refreshToken = RefreshToken.builder()
+                .userId(userId)
+                .token(token)
+                .expiryDate(expiryDate)
+                .build();
 
         // when
         RefreshToken savedToken = refreshTokenRepository.save(refreshToken);
@@ -56,7 +60,11 @@ class RefreshTokenRepositoryTest {
         String token = "test-refresh-token";
         LocalDateTime expiryDate = LocalDateTime.now().plusDays(7);
 
-        RefreshToken refreshToken = RefreshToken.create(userId, token, expiryDate);
+        RefreshToken refreshToken = RefreshToken.builder()
+                .userId(userId)
+                .token(token)
+                .expiryDate(expiryDate)
+                .build();
         refreshTokenRepository.save(refreshToken);
 
         // when
@@ -89,7 +97,11 @@ class RefreshTokenRepositoryTest {
         String token = "test-refresh-token-string";
         LocalDateTime expiryDate = LocalDateTime.now().plusDays(7);
 
-        RefreshToken refreshToken = RefreshToken.create(userId, token, expiryDate);
+        RefreshToken refreshToken = RefreshToken.builder()
+                .userId(userId)
+                .token(token)
+                .expiryDate(expiryDate)
+                .build();
         refreshTokenRepository.save(refreshToken);
 
         // when
@@ -122,7 +134,11 @@ class RefreshTokenRepositoryTest {
         String token = "test-refresh-token";
         LocalDateTime expiryDate = LocalDateTime.now().plusDays(7);
 
-        RefreshToken refreshToken = RefreshToken.create(userId, token, expiryDate);
+        RefreshToken refreshToken = RefreshToken.builder()
+                .userId(userId)
+                .token(token)
+                .expiryDate(expiryDate)
+                .build();
         refreshTokenRepository.save(refreshToken);
 
         // when
@@ -141,7 +157,11 @@ class RefreshTokenRepositoryTest {
         String oldToken = "old-refresh-token";
         LocalDateTime oldExpiryDate = LocalDateTime.now().plusDays(7);
 
-        RefreshToken refreshToken = RefreshToken.create(userId, oldToken, oldExpiryDate);
+        RefreshToken refreshToken = RefreshToken.builder()
+                .userId(userId)
+                .token(oldToken)
+                .expiryDate(oldExpiryDate)
+                .build();
         refreshTokenRepository.save(refreshToken);
 
         // when
@@ -162,7 +182,11 @@ class RefreshTokenRepositoryTest {
     @DisplayName("RefreshToken 만료 여부 확인 - 만료된 토큰")
     void isExpired_True() {
         // given
-        RefreshToken expiredToken = RefreshToken.create(1L, "expired-token", LocalDateTime.now().minusDays(1));
+        RefreshToken expiredToken = RefreshToken.builder()
+                .userId(1L)
+                .token("expired-token")
+                .expiryDate(LocalDateTime.now().minusDays(1))
+                .build();
 
         // when & then
         assertThat(expiredToken.isExpired()).isTrue();
@@ -172,7 +196,11 @@ class RefreshTokenRepositoryTest {
     @DisplayName("RefreshToken 만료 여부 확인 - 유효한 토큰")
     void isExpired_False() {
         // given
-        RefreshToken validToken = RefreshToken.create(1L, "valid-token", LocalDateTime.now().plusDays(7));
+        RefreshToken validToken = RefreshToken.builder()
+                .userId(1L)
+                .token("valid-token")
+                .expiryDate(LocalDateTime.now().plusDays(7))
+                .build();
 
         // when & then
         assertThat(validToken.isExpired()).isFalse();

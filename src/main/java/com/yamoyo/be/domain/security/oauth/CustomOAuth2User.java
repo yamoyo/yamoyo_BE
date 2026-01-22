@@ -1,6 +1,5 @@
 package com.yamoyo.be.domain.security.oauth;
 
-import com.yamoyo.be.domain.user.entity.UserRole;
 import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.core.user.OAuth2User;
@@ -90,27 +89,5 @@ public class CustomOAuth2User implements OAuth2User {
     @Override
     public String getName() {
         return String.valueOf(attributes.get(nameAttributeKey));
-    }
-
-    /**
-     * 사용자 ID 반환 (편의 메서드)
-     */
-    public Long getUserId() {
-        Object val = attributes.get("userId");
-        return val instanceof Long ? (Long) val : null;
-    }
-
-    /**
-     * 사용자 이메일 반환 (편의 메서드)
-     */
-    public String getEmail() {
-        return (String) attributes.get("email");
-    }
-
-    /**
-     * 사용자 권한 반환 (편의 메서드)
-     */
-    public UserRole getRole() {
-        return (UserRole) attributes.get("userRole");
     }
 }
