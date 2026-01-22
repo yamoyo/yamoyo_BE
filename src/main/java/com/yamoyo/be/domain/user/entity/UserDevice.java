@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
  * - 푸시 알림, 다중 기기 로그인 관리 등에 활용
  */
 @Table(name = "user_devices",
-        uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "device_id"}))
+        uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "fcm_token"}))
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
