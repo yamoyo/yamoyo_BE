@@ -1,85 +1,108 @@
 package com.yamoyo.be.domain.user.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * User Entity
  *
  * Role:
- * - OAuth2 소셜 로그인 사용자 정보를 저장하는 엔티티
- * - Google, Kakao 등 여러 Provider의 사용자를 통합 관리
- *
- * Complexity/Rationale:
- * - provider + providerId 조합으로 사용자를 고유하게 식별
- * - email은 Provider마다 제공 여부가 다를 수 있으므로 nullable
- * - 같은 이메일이라도 다른 Provider면 다른 사용자로 처리
+ * - 사용자 기본 정보를 저장하는 엔티티
+ * - email을 기준으로 사용자를 고유하게 식별
+ * - 여러 소셜 계정(SocialAccount)이 하나의 User에 연결될 수 있음
  */
 @Table(name = "users")
 @Entity
-@Builder
-@AllArgsConstructor
-@NoArgsConstructor
 @Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(updatable = false, nullable = false)
+    @Column(name = "user_id", updatable = false, nullable = false)
     private Long id;
 
-    /**
-     * OAuth2 Provider에서 제공하는 사용자 이름
-     * 예: Google의 경우 "홍길동", Kakao의 경우 닉네임
-     */
+    @Column(nullable = false, unique = true)
+    private String email;
+
     @Column(nullable = false)
     private String name;
 
-    /**
-     * OAuth2 Provider에서 제공하는 이메일 주소
-     * 주의: Kakao는 이메일 제공 동의가 선택사항이므로 nullable
-     */
-    @Column
-    private String email;
+    @Column(name = "profile_image_id")
+    private Long profileImageId;
+
+    @Column(name = "major")
+    private String major;
+
+    @Column(name = "mbti", columnDefinition = "CHAR(4)")
+    private String mbti;
+
+    @Column(name = "is_alarm_on")
+    private boolean isAlarmOn;
+
+    @Enumerated(EnumType.STRING)
+    private UserRole userRole = UserRole.GUEST;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<SocialAccount> socialAccounts = new ArrayList<>();
+
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
+    }
 
     /**
-     * OAuth2 Provider 식별자
-     * 예: "google", "kakao", "naver"
+     * 정적 팩토리 메서드 - 신규 사용자 생성
      */
-    @Column(nullable = false)
-    private String provider;
+    public static User create(String email, String name, Long profileImageId) {
+        User user = new User();
+        user.email = email;
+        user.name = name;
+        user.profileImageId = profileImageId;
+        return user;
+    }
+
+    public void updateName(String name) {
+        if(name != null && !name.equals(this.name)){
+            this.name = name;
+        }
+    }
+
+    public void updateMajor(String major) {
+        if(major != null && !major.equals(this.major)) {
+            this.major = major;
+        }
+    }
+
+    public void updateMBTI(String mbti) {
+        if (mbti != null && !mbti.equals(this.mbti)) {
+            this.mbti = mbti;
+        }
+    }
 
     /**
-     * OAuth2 Provider에서 제공하는 사용자 고유 ID
-     * 예: Google의 "sub", Kakao의 "id"
+     * 소셜 계정 추가
      */
-    @Column(nullable = false)
-    private String providerId;
-
-    /**
-     * 프로필 이미지 URL
-     */
-    @Column
-    private String picture;
-
-    /**
-     * 사용자 정보 업데이트
-     *
-     * Role:
-     * - OAuth2 로그인 시 Provider에서 받은 최신 정보로 업데이트
-     *
-     * @param name 사용자 이름
-     * @param email 이메일 주소
-     * @param picture 프로필 이미지 URL
-     * @return 업데이트된 User 객체
-     */
-    public User update(String name, String email, String picture) {
-        this.name = name;
-        this.email = email;
-        this.picture = picture;
-        return this;
+    public void addSocialAccount(SocialAccount socialAccount) {
+        this.socialAccounts.add(socialAccount);
+        socialAccount.setUser(this);
     }
 }
