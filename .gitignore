@@ -38,3 +38,5 @@ out/
 
 ### Environment Variables ###
 .env
+
+.claude
