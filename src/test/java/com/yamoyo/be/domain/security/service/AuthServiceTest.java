@@ -69,20 +69,11 @@ class AuthServiceTest {
     @DisplayName("refresh() - 유효한 RefreshToken으로 AccessToken 재발급 성공")
     void refresh_ValidRefreshToken_Success() {
         // given
-        RefreshToken storedRefreshToken = RefreshToken.builder()
-                .id(1L)
-                .userId(USER_ID)
-                .token(OLD_REFRESH_TOKEN)
-                .expiryDate(LocalDateTime.now().plusDays(7))
-                .build();
+        RefreshToken storedRefreshToken = RefreshToken.create(USER_ID, OLD_REFRESH_TOKEN, LocalDateTime.now().plusDays(7));
+        ReflectionTestUtils.setField(storedRefreshToken, "id", 1L);
 
-        User user = User.builder()
-                .id(USER_ID)
-                .email(USER_EMAIL)
-                .name("Test User")
-                .provider(PROVIDER)
-                .providerId("12345")
-                .build();
+        User user = User.create(USER_EMAIL, "Test User", null);
+        ReflectionTestUtils.setField(user, "id", USER_ID);
 
         JwtTokenClaims claims = new JwtTokenClaims(USER_ID, USER_EMAIL, PROVIDER);
         JwtTokenDto newTokens = new JwtTokenDto("Bearer", NEW_ACCESS_TOKEN, NEW_REFRESH_TOKEN, 600000L);
@@ -125,12 +116,8 @@ class AuthServiceTest {
     @DisplayName("refresh() - 만료된 RefreshToken으로 재발급 시도 시 예외 발생")
     void refresh_ExpiredRefreshToken_ThrowsException() {
         // given
-        RefreshToken expiredRefreshToken = RefreshToken.builder()
-                .id(1L)
-                .userId(USER_ID)
-                .token(OLD_REFRESH_TOKEN)
-                .expiryDate(LocalDateTime.now().minusDays(1)) // 만료됨
-                .build();
+        RefreshToken expiredRefreshToken = RefreshToken.create(USER_ID, OLD_REFRESH_TOKEN, LocalDateTime.now().minusDays(1));
+        ReflectionTestUtils.setField(expiredRefreshToken, "id", 1L);
 
         given(refreshTokenRepository.findByToken(OLD_REFRESH_TOKEN)).willReturn(Optional.of(expiredRefreshToken));
 
@@ -148,12 +135,8 @@ class AuthServiceTest {
     @DisplayName("refresh() - 사용자를 찾을 수 없는 경우 예외 발생")
     void refresh_UserNotFound_ThrowsException() {
         // given
-        RefreshToken storedRefreshToken = RefreshToken.builder()
-                .id(1L)
-                .userId(USER_ID)
-                .token(OLD_REFRESH_TOKEN)
-                .expiryDate(LocalDateTime.now().plusDays(7))
-                .build();
+        RefreshToken storedRefreshToken = RefreshToken.create(USER_ID, OLD_REFRESH_TOKEN, LocalDateTime.now().plusDays(7));
+        ReflectionTestUtils.setField(storedRefreshToken, "id", 1L);
 
         JwtTokenClaims claims = new JwtTokenClaims(USER_ID, USER_EMAIL, PROVIDER);
 
@@ -173,20 +156,11 @@ class AuthServiceTest {
     @DisplayName("refresh() - RefreshToken이 DB에 저장되어 있는지 확인")
     void refresh_RefreshTokenStoredInDB() {
         // given
-        RefreshToken storedRefreshToken = RefreshToken.builder()
-                .id(1L)
-                .userId(USER_ID)
-                .token(OLD_REFRESH_TOKEN)
-                .expiryDate(LocalDateTime.now().plusDays(7))
-                .build();
+        RefreshToken storedRefreshToken = RefreshToken.create(USER_ID, OLD_REFRESH_TOKEN, LocalDateTime.now().plusDays(7));
+        ReflectionTestUtils.setField(storedRefreshToken, "id", 1L);
 
-        User user = User.builder()
-                .id(USER_ID)
-                .email(USER_EMAIL)
-                .name("Test User")
-                .provider(PROVIDER)
-                .providerId("12345")
-                .build();
+        User user = User.create(USER_EMAIL, "Test User", null);
+        ReflectionTestUtils.setField(user, "id", USER_ID);
 
         JwtTokenClaims claims = new JwtTokenClaims(USER_ID, USER_EMAIL, PROVIDER);
         JwtTokenDto newTokens = new JwtTokenDto("Bearer", NEW_ACCESS_TOKEN, NEW_REFRESH_TOKEN, 600000L);
