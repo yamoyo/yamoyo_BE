@@ -96,7 +96,8 @@ public class CustomOAuth2User implements OAuth2User {
      * 사용자 ID 반환 (편의 메서드)
      */
     public Long getUserId() {
-        return (Long) attributes.get("userId");
+        Object val = attributes.get("userId");
+        return val instanceof Long ? (Long) val : null;
     }
 
     /**
