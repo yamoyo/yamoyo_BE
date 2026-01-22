@@ -19,9 +19,6 @@ ALTER TABLE user_devices CHANGE fcm_id user_device_id BIGINT NOT NULL AUTO_INCRE
 -- team_members 테이블 role 컬럼 team_role 로 수정
 ALTER TABLE team_members CHANGE role team_role VARCHAR(10) NULL COMMENT 'LEADER / HOST / MEMBER';
 
--- users 테이블 role 컬럼 추가
-ALTER TABLE users ADD COLUMN role VARCHAR(10) DEFAULT 'GUEST' NOT NULL COMMENT 'GUEST / USER';
-
 -- user_devices 테이블에 device_name 컬럼 추가
 ALTER TABLE user_devices ADD COLUMN device_name VARCHAR(255) NULL;
 
