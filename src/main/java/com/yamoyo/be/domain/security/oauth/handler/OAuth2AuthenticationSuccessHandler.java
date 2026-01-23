@@ -1,8 +1,10 @@
 package com.yamoyo.be.domain.security.oauth.handler;
 
+import com.yamoyo.be.domain.security.jwt.JwtProperties;
 import com.yamoyo.be.domain.security.jwt.JwtTokenDto;
 import com.yamoyo.be.domain.security.jwt.JwtTokenProvider;
 import com.yamoyo.be.domain.security.oauth.CustomOAuth2User;
+import com.yamoyo.be.domain.security.oauth.CookieProperties;
 import com.yamoyo.be.domain.security.refreshtoken.RefreshToken;
 import com.yamoyo.be.domain.security.refreshtoken.RefreshTokenRepository;
 import com.yamoyo.be.domain.user.entity.User;
@@ -36,12 +38,11 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenRepository refreshTokenRepository;
     private final UserRepository userRepository;
+    private final CookieProperties cookieProperties;
+    private final JwtProperties jwtProperties;
 
     @Value("${oauth2.redirect-uri:http://localhost:8080/oauth/callback}")
     private String redirectUri;
-
-    @Value("${jwt.refresh-token-expiration}")
-    private Long refreshTokenExpiration;
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
@@ -69,10 +70,10 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         log.info("JWT 토큰 발급 완료 - UserId: {}, Email: {}", user.getId(), user.getEmail());
 
         // Refresh Token DB 저장
-        saveRefreshToken(user.getId(), jwtToken.refreshToken(), refreshTokenExpiration);
+        saveRefreshToken(user.getId(), jwtToken.refreshToken(), jwtProperties.refreshTokenExpiration());
 
         // Refresh Token을 HttpOnly Cookie에 설정
-        addRefreshTokenCookie(response, jwtToken.refreshToken(), refreshTokenExpiration);
+        addRefreshTokenCookie(response, jwtToken.refreshToken(), jwtProperties.refreshTokenExpiration());
 
         // 프론트엔드로 리다이렉트
         getRedirectStrategy().sendRedirect(request, response, redirectUri);
@@ -97,7 +98,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
     private void addRefreshTokenCookie(HttpServletResponse response, String refreshToken, Long refreshTokenExpiration) {
         Cookie cookie = new Cookie("refresh_token", refreshToken);
         cookie.setHttpOnly(true);
-        cookie.setSecure(false);
+        cookie.setSecure(cookieProperties.secure());
         cookie.setPath("/");
         cookie.setMaxAge((int) (refreshTokenExpiration / 1000));
         response.addCookie(cookie);
