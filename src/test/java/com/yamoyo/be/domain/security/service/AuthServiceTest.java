@@ -72,7 +72,7 @@ class AuthServiceTest {
         RefreshToken storedRefreshToken = RefreshToken.create(USER_ID, OLD_REFRESH_TOKEN, LocalDateTime.now().plusDays(7));
         ReflectionTestUtils.setField(storedRefreshToken, "id", 1L);
 
-        User user = User.create(USER_EMAIL, "Test User", null);
+        User user = User.create(USER_EMAIL, "Test User");
         ReflectionTestUtils.setField(user, "id", USER_ID);
 
         JwtTokenClaims claims = new JwtTokenClaims(USER_ID, USER_EMAIL, PROVIDER);
@@ -159,7 +159,7 @@ class AuthServiceTest {
         RefreshToken storedRefreshToken = RefreshToken.create(USER_ID, OLD_REFRESH_TOKEN, LocalDateTime.now().plusDays(7));
         ReflectionTestUtils.setField(storedRefreshToken, "id", 1L);
 
-        User user = User.create(USER_EMAIL, "Test User", null);
+        User user = User.create(USER_EMAIL, "Test User");
         ReflectionTestUtils.setField(user, "id", USER_ID);
 
         JwtTokenClaims claims = new JwtTokenClaims(USER_ID, USER_EMAIL, PROVIDER);

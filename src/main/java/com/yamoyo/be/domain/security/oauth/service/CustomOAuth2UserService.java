@@ -126,7 +126,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                             .orElseGet(() -> {
                                 // 3. 기존 User도 없음 -> 진짜 신규 생성
                                 log.info("신규 사용자 생성 - Email: {}, Provider: {}", email, provider);
-                                return User.create(email, name, null);
+                                return User.create(email, name);
                             });
 
                     // 4. 소셜 계정 연결 (기존 유저든 새 유저든 계정 추가)
