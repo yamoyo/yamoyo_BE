@@ -29,11 +29,11 @@ public class TeamMember {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @Column(name = "user_id", nullable = false)
+    @JoinColumn(name = "user_id", nullable = false)
     private User userId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @Column(name = "team_room_id", nullable = false)
+    @JoinColumn(name = "team_room_id", nullable = false)
     private TeamRoom teamRoomId;
 
     @Enumerated(EnumType.STRING)
