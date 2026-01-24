@@ -16,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
@@ -41,8 +42,14 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
     private final CookieProperties cookieProperties;
     private final JwtProperties jwtProperties;
 
-    @Value("${oauth2.redirect-uri:http://localhost:8080/oauth/callback}")
-    private String redirectUri;
+    @Value("${app.front.base-url}")
+    private String frontBaseUrl;
+
+    @Value("${app.front.paths.home}")
+    private String homePath;
+
+    @Value("${app.front.paths.onboarding}")
+    private String onboardingPath;
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
@@ -75,8 +82,21 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         // Refresh Token을 HttpOnly Cookie에 설정
         addRefreshTokenCookie(response, jwtToken.refreshToken(), jwtProperties.refreshTokenExpiration());
 
-        // 프론트엔드로 리다이렉트
+        // UserRole에 따른 리다이렉트
+        String redirectUri = determineRedirectUri(oAuth2User);
+        log.info("리다이렉트 - UserRole: {}, URI: {}", user.getUserRole(), redirectUri);
         getRedirectStrategy().sendRedirect(request, response, redirectUri);
+    }
+
+    private String determineRedirectUri(CustomOAuth2User oAuth2User) {
+        boolean isUser = oAuth2User.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch("ROLE_USER"::equals);
+
+        if (isUser) {
+            return frontBaseUrl + homePath;
+        }
+        return frontBaseUrl + onboardingPath;
     }
 
     private void saveRefreshToken(Long userId, String refreshToken, Long refreshTokenExpiration) {
