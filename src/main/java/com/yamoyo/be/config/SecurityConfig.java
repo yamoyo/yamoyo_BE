@@ -18,7 +18,6 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 /**
  * Security Configuration
@@ -151,7 +150,7 @@ public class SecurityConfig {
             .exceptionHandling(exception -> exception
                 .defaultAuthenticationEntryPointFor(
                     new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),
-                    new AntPathRequestMatcher("/api/**")
+                    request -> request.getServletPath().startsWith("/api/")
                 )
             )
 
