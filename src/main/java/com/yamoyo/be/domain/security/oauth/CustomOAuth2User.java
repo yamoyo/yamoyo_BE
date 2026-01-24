@@ -1,5 +1,6 @@
 package com.yamoyo.be.domain.security.oauth;
 
+import com.yamoyo.be.domain.user.entity.OnboardingStatus;
 import com.yamoyo.be.domain.user.entity.UserRole;
 import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
@@ -117,5 +118,12 @@ public class CustomOAuth2User implements OAuth2User {
      */
     public UserRole getRole() {
         return (UserRole) attributes.get("userRole");
+    }
+
+    /**
+     * 온보딩 상태 반환 (편의 메서드)
+     */
+    public OnboardingStatus getOnboardingStatus() {
+        return (OnboardingStatus) attributes.get("onboardingStatus");
     }
 }

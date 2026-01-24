@@ -145,5 +145,7 @@ app:
   front:
     base-url: ${FRONT_BASE_URL:http://localhost:5173}
     paths:
-      onboarding: /onboarding
       home: /home
+      onboarding:
+        terms: /onboarding/terms
+        profile: /onboarding/profile
