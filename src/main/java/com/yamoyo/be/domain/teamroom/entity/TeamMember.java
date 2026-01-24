@@ -76,4 +76,22 @@ public class TeamMember {
     public static TeamMember createMember(TeamRoom teamRoom, User user){
         return new TeamMember(teamRoom, user, TeamRole.MEMBER);
     }
+
+    // ===== 비즈니스 로직 =====
+    /**
+     * 역할 변경
+     */
+    public void changeTeamRole(TeamRole newRole){
+        if(newRole == null){
+            throw new IllegalStateException("역할은 필수입니다.");
+        }
+        this.teamRole = newRole;
+    }
+
+    /**
+     * 관리 권한 확인 (방장 or 팀장)
+     */
+    public boolean hasManagementAuthority(){
+        return this.teamRole == TeamRole.HOST || this.teamRole == TeamRole.LEADER;
+    }
 }
