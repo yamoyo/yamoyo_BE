@@ -30,17 +30,17 @@ public class TeamMember {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
-    private User userId;
+    private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "team_room_id", nullable = false)
-    private TeamRoom teamRoomId;
+    private TeamRoom teamRoom;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "team_role", nullable = false)
     private TeamRole teamRole;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at")
@@ -57,25 +57,23 @@ public class TeamMember {
         this.updatedAt = LocalDateTime.now();
     }
 
+    private TeamMember(TeamRoom teamRoom, User user, TeamRole teamRole) {
+        this.teamRoom = teamRoom;
+        this.user = user;
+        this.teamRole = teamRole;
+    }
+
     /**
      * 팀룸 생성자 → HOST 권한 부여
      */
     public static TeamMember createHost(TeamRoom teamRoom, User user){
-        TeamMember teamMember = new TeamMember();
-        teamMember.teamRoomId = teamRoom;
-        teamMember.userId = user;
-        teamMember.teamRole = TeamRole.HOST;
-        return teamMember;
+        return new TeamMember(teamRoom, user, TeamRole.HOST);
     }
 
     /**
      * 초대링크로 입장 → MEMBER 권한 부여
      */
     public static TeamMember createMember(TeamRoom teamRoom, User user){
-        TeamMember teamMember = new TeamMember();
-        teamMember.teamRoomId = teamRoom;
-        teamMember.userId = user;
-        teamMember.teamRole = TeamRole.MEMBER;
-        return teamMember;
+        return new TeamMember(teamRoom, user, TeamRole.MEMBER);
     }
 }

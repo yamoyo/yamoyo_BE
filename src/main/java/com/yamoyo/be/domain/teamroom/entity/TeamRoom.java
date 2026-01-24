@@ -59,14 +59,12 @@ public class TeamRoom {
     }
 
     @Builder
-    public static TeamRoom create(String title, String description, LocalDateTime deadline, Long bannerImageId) {
-        TeamRoom teamRoom = new TeamRoom();
-        teamRoom.title = title;
-        teamRoom.description = description;
-        teamRoom.deadline = deadline;
-        teamRoom.bannerImageId = bannerImageId;
-        teamRoom.lifecycle = Lifecycle.ACTIVE;
-        teamRoom.workflow = Workflow.PENDING;
-        return teamRoom;
+    public TeamRoom(String title, String description, LocalDateTime deadline, Long bannerImageId) {
+        this.title = title;
+        this.description = description;
+        this.deadline = deadline;
+        this.bannerImageId = bannerImageId;
+        this.lifecycle = Lifecycle.ACTIVE;
+        this.workflow = Workflow.PENDING;
     }
 }
