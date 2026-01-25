@@ -1,6 +1,7 @@
 package com.yamoyo.be.domain.meeting.entity;
 
 import com.yamoyo.be.domain.meeting.entity.enums.PreferredBlock;
+import com.yamoyo.be.domain.meeting.entity.enums.DayOfWeek;
 import com.yamoyo.be.domain.user.entity.User;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -8,6 +9,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.EnumMap;
+import java.util.Map;
 
 @Table(name = "user_timepick_defaults")
 @Entity
@@ -64,5 +67,17 @@ public class UserTimepickDefault {
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();
+    }
+
+    public Map<DayOfWeek, Long> getAvailabilityBitmaps() {
+        Map<DayOfWeek, Long> bitmaps = new EnumMap<>(DayOfWeek.class);
+        bitmaps.put(DayOfWeek.MON, availabilityMon);
+        bitmaps.put(DayOfWeek.TUE, availabilityTue);
+        bitmaps.put(DayOfWeek.WED, availabilityWed);
+        bitmaps.put(DayOfWeek.THU, availabilityThu);
+        bitmaps.put(DayOfWeek.FRI, availabilityFri);
+        bitmaps.put(DayOfWeek.SAT, availabilitySat);
+        bitmaps.put(DayOfWeek.SUN, availabilitySun);
+        return bitmaps;
     }
 }
