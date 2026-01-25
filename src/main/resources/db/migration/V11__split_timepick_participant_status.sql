@@ -1,4 +1,4 @@
--- V9: status 컬럼을 availability_status와 preferred_block_status로 분리
+-- V11: status 컬럼을 availability_status와 preferred_block_status로 분리
 
 -- Step 1: 새 컬럼 추가
 ALTER TABLE timepick_participants
