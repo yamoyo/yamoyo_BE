@@ -32,7 +32,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class UserService {
+public class OnBoardingService {
 
     private final UserRepository userRepository;
     private final TermRepository termRepository;

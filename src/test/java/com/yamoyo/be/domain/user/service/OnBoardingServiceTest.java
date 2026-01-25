@@ -39,7 +39,7 @@ import static org.mockito.Mockito.verify;
  * 2. setupProfile() - 프로필 설정 처리 테스트
  */
 @ExtendWith(MockitoExtension.class)
-class UserServiceTest {
+class OnBoardingServiceTest {
 
     @Mock
     private UserRepository userRepository;
@@ -51,7 +51,7 @@ class UserServiceTest {
     private UserAgreementRepository userAgreementRepository;
 
     @InjectMocks
-    private UserService userService;
+    private OnBoardingService onBoardingService;
 
     private static final Long USER_ID = 1L;
     private static final String USER_EMAIL = "test@example.com";
@@ -81,7 +81,7 @@ class UserServiceTest {
             ));
 
             // when
-            userService.agreeToTerms(USER_ID, request);
+            onBoardingService.agreeToTerms(USER_ID, request);
 
             // then
             verify(userAgreementRepository).saveAll(anyList());
@@ -106,7 +106,7 @@ class UserServiceTest {
             ));
 
             // when & then
-            assertThatThrownBy(() -> userService.agreeToTerms(USER_ID, request))
+            assertThatThrownBy(() -> onBoardingService.agreeToTerms(USER_ID, request))
                     .isInstanceOf(YamoyoException.class)
                     .satisfies(e -> assertThat(((YamoyoException) e).getErrorCode())
                             .isEqualTo(ErrorCode.MANDATORY_TERMS_NOT_AGREED));
@@ -132,7 +132,7 @@ class UserServiceTest {
             ));
 
             // when & then
-            assertThatThrownBy(() -> userService.agreeToTerms(USER_ID, request))
+            assertThatThrownBy(() -> onBoardingService.agreeToTerms(USER_ID, request))
                     .isInstanceOf(YamoyoException.class)
                     .satisfies(e -> assertThat(((YamoyoException) e).getErrorCode())
                             .isEqualTo(ErrorCode.MANDATORY_TERMS_NOT_AGREED));
@@ -149,7 +149,7 @@ class UserServiceTest {
             ));
 
             // when & then
-            assertThatThrownBy(() -> userService.agreeToTerms(USER_ID, request))
+            assertThatThrownBy(() -> onBoardingService.agreeToTerms(USER_ID, request))
                     .isInstanceOf(YamoyoException.class)
                     .satisfies(e -> assertThat(((YamoyoException) e).getErrorCode())
                             .isEqualTo(ErrorCode.USER_NOT_FOUND));
@@ -174,7 +174,7 @@ class UserServiceTest {
             ));
 
             // when & then
-            assertThatThrownBy(() -> userService.agreeToTerms(USER_ID, request))
+            assertThatThrownBy(() -> onBoardingService.agreeToTerms(USER_ID, request))
                     .isInstanceOf(YamoyoException.class)
                     .satisfies(e -> assertThat(((YamoyoException) e).getErrorCode())
                             .isEqualTo(ErrorCode.TERMS_NOT_FOUND));
@@ -201,7 +201,7 @@ class UserServiceTest {
             );
 
             // when
-            userService.setupProfile(USER_ID, request);
+            onBoardingService.setupProfile(USER_ID, request);
 
             // then
             assertThat(user.getName()).isEqualTo("홍길동");
@@ -227,7 +227,7 @@ class UserServiceTest {
             );
 
             // when & then
-            assertThatThrownBy(() -> userService.setupProfile(USER_ID, request))
+            assertThatThrownBy(() -> onBoardingService.setupProfile(USER_ID, request))
                     .isInstanceOf(YamoyoException.class)
                     .satisfies(e -> assertThat(((YamoyoException) e).getErrorCode())
                             .isEqualTo(ErrorCode.TERMS_NOT_AGREED));
@@ -250,7 +250,7 @@ class UserServiceTest {
             );
 
             // when & then
-            assertThatThrownBy(() -> userService.setupProfile(USER_ID, request))
+            assertThatThrownBy(() -> onBoardingService.setupProfile(USER_ID, request))
                     .isInstanceOf(YamoyoException.class)
                     .satisfies(e -> assertThat(((YamoyoException) e).getErrorCode())
                             .isEqualTo(ErrorCode.USER_NOT_FOUND));
@@ -272,7 +272,7 @@ class UserServiceTest {
             );
 
             // when
-            userService.setupProfile(USER_ID, request);
+            onBoardingService.setupProfile(USER_ID, request);
 
             // then
             assertThat(user.getName()).isEqualTo("홍길동");

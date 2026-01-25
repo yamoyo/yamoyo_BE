@@ -3,7 +3,7 @@ package com.yamoyo.be.domain.user.controller;
 import com.yamoyo.be.common.dto.ApiResponse;
 import com.yamoyo.be.domain.user.dto.ProfileSetupRequest;
 import com.yamoyo.be.domain.user.dto.TermsAgreementRequest;
-import com.yamoyo.be.domain.user.service.UserService;
+import com.yamoyo.be.domain.user.service.OnBoardingService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,9 +29,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
-public class UserController {
+public class OnBoardingController {
 
-    private final UserService userService;
+    private final OnBoardingService onBoardingService;
 
     @PostMapping("/terms")
     public ApiResponse<Void> agreeToTerms(
@@ -41,7 +41,7 @@ public class UserController {
         Long userId = (Long) oAuth2User.getAttributes().get("userId");
         log.info("약관 동의 요청 - UserId: {}, Agreements: {}", userId, request.agreements().size());
 
-        userService.agreeToTerms(userId, request);
+        onBoardingService.agreeToTerms(userId, request);
 
         return ApiResponse.success();
     }
@@ -55,7 +55,7 @@ public class UserController {
         log.info("프로필 설정 요청 - UserId: {}, Name: {}, Major: {}, MBTI: {}",
                 userId, request.name(), request.major(), request.mbti());
 
-        userService.setupProfile(userId, request);
+        onBoardingService.setupProfile(userId, request);
 
         return ApiResponse.success();
     }

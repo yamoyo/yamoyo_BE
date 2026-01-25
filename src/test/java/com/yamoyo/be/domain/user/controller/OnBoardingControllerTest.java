@@ -5,7 +5,7 @@ import com.yamoyo.be.domain.user.dto.ProfileSetupRequest;
 import com.yamoyo.be.domain.user.dto.TermsAgreementRequest;
 import com.yamoyo.be.domain.user.dto.TermsAgreementRequest.TermAgreement;
 import com.yamoyo.be.domain.user.repository.UserAgreementRepository;
-import com.yamoyo.be.domain.user.service.UserService;
+import com.yamoyo.be.domain.user.service.OnBoardingService;
 import com.yamoyo.be.exception.ErrorCode;
 import com.yamoyo.be.exception.YamoyoException;
 import org.junit.jupiter.api.DisplayName;
@@ -50,7 +50,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-class UserControllerTest {
+class OnBoardingControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -59,7 +59,7 @@ class UserControllerTest {
     private ObjectMapper objectMapper;
 
     @MockitoBean
-    private UserService userService;
+    private OnBoardingService onBoardingService;
 
     @MockitoBean
     private UserAgreementRepository userAgreementRepository;
@@ -81,7 +81,7 @@ class UserControllerTest {
                     new TermAgreement(2L, true)
             ));
 
-            willDoNothing().given(userService).agreeToTerms(eq(USER_ID), any(TermsAgreementRequest.class));
+            willDoNothing().given(onBoardingService).agreeToTerms(eq(USER_ID), any(TermsAgreementRequest.class));
 
             // when & then
             mockMvc.perform(post(TERMS_ENDPOINT)
@@ -92,7 +92,7 @@ class UserControllerTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true));
 
-            verify(userService).agreeToTerms(eq(USER_ID), any(TermsAgreementRequest.class));
+            verify(onBoardingService).agreeToTerms(eq(USER_ID), any(TermsAgreementRequest.class));
         }
 
         @Test
@@ -105,7 +105,7 @@ class UserControllerTest {
             ));
 
             willThrow(new YamoyoException(ErrorCode.MANDATORY_TERMS_NOT_AGREED))
-                    .given(userService).agreeToTerms(eq(USER_ID), any(TermsAgreementRequest.class));
+                    .given(onBoardingService).agreeToTerms(eq(USER_ID), any(TermsAgreementRequest.class));
 
             // when & then
             mockMvc.perform(post(TERMS_ENDPOINT)
@@ -165,7 +165,7 @@ class UserControllerTest {
 
             // Interceptor에서 약관 동의 여부 확인
             given(userAgreementRepository.hasAgreedToAllMandatoryTerms(USER_ID)).willReturn(true);
-            willDoNothing().given(userService).setupProfile(eq(USER_ID), any(ProfileSetupRequest.class));
+            willDoNothing().given(onBoardingService).setupProfile(eq(USER_ID), any(ProfileSetupRequest.class));
 
             // when & then
             mockMvc.perform(post(PROFILE_ENDPOINT)
@@ -176,7 +176,7 @@ class UserControllerTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true));
 
-            verify(userService).setupProfile(eq(USER_ID), any(ProfileSetupRequest.class));
+            verify(onBoardingService).setupProfile(eq(USER_ID), any(ProfileSetupRequest.class));
         }
 
         @Test
@@ -302,7 +302,7 @@ class UserControllerTest {
             );
 
             given(userAgreementRepository.hasAgreedToAllMandatoryTerms(USER_ID)).willReturn(true);
-            willDoNothing().given(userService).setupProfile(eq(USER_ID), any(ProfileSetupRequest.class));
+            willDoNothing().given(onBoardingService).setupProfile(eq(USER_ID), any(ProfileSetupRequest.class));
 
             // when & then
             mockMvc.perform(post(PROFILE_ENDPOINT)
@@ -325,7 +325,7 @@ class UserControllerTest {
             );
 
             given(userAgreementRepository.hasAgreedToAllMandatoryTerms(USER_ID)).willReturn(true);
-            willDoNothing().given(userService).setupProfile(eq(USER_ID), any(ProfileSetupRequest.class));
+            willDoNothing().given(onBoardingService).setupProfile(eq(USER_ID), any(ProfileSetupRequest.class));
 
             // when & then
             mockMvc.perform(post(PROFILE_ENDPOINT)
