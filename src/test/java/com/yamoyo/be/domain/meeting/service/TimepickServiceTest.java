@@ -1,8 +1,11 @@
 package com.yamoyo.be.domain.meeting.service;
 
+import com.yamoyo.be.domain.meeting.dto.request.AvailabilitySubmitRequest;
+import com.yamoyo.be.domain.meeting.dto.request.PreferredBlockSubmitRequest;
 import com.yamoyo.be.domain.meeting.dto.response.TimepickResponse;
 import com.yamoyo.be.domain.meeting.entity.Timepick;
 import com.yamoyo.be.domain.meeting.entity.TimepickParticipant;
+import com.yamoyo.be.domain.meeting.entity.enums.PreferredBlock;
 import com.yamoyo.be.domain.meeting.entity.enums.TimepickParticipantStatus;
 import com.yamoyo.be.domain.meeting.entity.enums.TimepickStatus;
 import com.yamoyo.be.domain.meeting.repository.TimepickParticipantRepository;
@@ -23,7 +26,10 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("TimepickService 단위 테스트")
@@ -34,6 +40,9 @@ class TimepickServiceTest {
 
     @Mock
     private TimepickParticipantRepository timepickParticipantRepository;
+
+    @Mock
+    private UserTimepickDefaultService userTimepickDefaultService;
 
     @InjectMocks
     private TimepickService timepickService;
@@ -155,6 +164,231 @@ class TimepickServiceTest {
         }
     }
 
+    @Nested
+    @DisplayName("submitAvailability() - 가용시간 제출")
+    class SubmitAvailabilityTest {
+
+        @Test
+        @DisplayName("정상 제출 - 가용시간이 저장되고 기본값이 업데이트된다")
+        void submitAvailability_Success() {
+            // given
+            Timepick timepick = createTimepick(TimepickStatus.OPEN);
+            TimepickParticipant participant = createParticipant(
+                    TimepickParticipantStatus.PENDING,
+                    TimepickParticipantStatus.PENDING
+            );
+            AvailabilitySubmitRequest request = createAvailabilitySubmitRequest();
+
+            given(timepickRepository.findByTeamRoomId(TEAM_ROOM_ID))
+                    .willReturn(Optional.of(timepick));
+            given(timepickParticipantRepository.findByTimepickIdAndUserId(TIMEPICK_ID, USER_ID))
+                    .willReturn(Optional.of(participant));
+
+            // when
+            timepickService.submitAvailability(TEAM_ROOM_ID, USER_ID, request);
+
+            // then
+            assertThat(participant.getAvailabilityStatus()).isEqualTo(TimepickParticipantStatus.SUBMITTED);
+            verify(userTimepickDefaultService).updateAvailability(eq(USER_ID), any());
+        }
+
+        @Test
+        @DisplayName("타임픽이 존재하지 않으면 TIMEPICK_NOT_FOUND 예외 발생")
+        void submitAvailability_TimepickNotFound() {
+            // given
+            AvailabilitySubmitRequest request = createAvailabilitySubmitRequest();
+
+            given(timepickRepository.findByTeamRoomId(TEAM_ROOM_ID))
+                    .willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> timepickService.submitAvailability(TEAM_ROOM_ID, USER_ID, request))
+                    .isInstanceOf(YamoyoException.class)
+                    .satisfies(exception -> {
+                        YamoyoException yamoyoException = (YamoyoException) exception;
+                        assertThat(yamoyoException.getErrorCode()).isEqualTo(ErrorCode.TIMEPICK_NOT_FOUND);
+                    });
+        }
+
+        @Test
+        @DisplayName("타임픽이 FINALIZED 상태면 TIMEPICK_NOT_OPEN 예외 발생")
+        void submitAvailability_TimepickFinalized() {
+            // given
+            Timepick timepick = createTimepick(TimepickStatus.FINALIZED);
+            AvailabilitySubmitRequest request = createAvailabilitySubmitRequest();
+
+            given(timepickRepository.findByTeamRoomId(TEAM_ROOM_ID))
+                    .willReturn(Optional.of(timepick));
+
+            // when & then
+            assertThatThrownBy(() -> timepickService.submitAvailability(TEAM_ROOM_ID, USER_ID, request))
+                    .isInstanceOf(YamoyoException.class)
+                    .satisfies(exception -> {
+                        YamoyoException yamoyoException = (YamoyoException) exception;
+                        assertThat(yamoyoException.getErrorCode()).isEqualTo(ErrorCode.TIMEPICK_NOT_OPEN);
+                    });
+        }
+
+        @Test
+        @DisplayName("참가자가 아니면 TIMEPICK_NOT_PARTICIPANT 예외 발생")
+        void submitAvailability_NotParticipant() {
+            // given
+            Timepick timepick = createTimepick(TimepickStatus.OPEN);
+            AvailabilitySubmitRequest request = createAvailabilitySubmitRequest();
+
+            given(timepickRepository.findByTeamRoomId(TEAM_ROOM_ID))
+                    .willReturn(Optional.of(timepick));
+            given(timepickParticipantRepository.findByTimepickIdAndUserId(TIMEPICK_ID, USER_ID))
+                    .willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> timepickService.submitAvailability(TEAM_ROOM_ID, USER_ID, request))
+                    .isInstanceOf(YamoyoException.class)
+                    .satisfies(exception -> {
+                        YamoyoException yamoyoException = (YamoyoException) exception;
+                        assertThat(yamoyoException.getErrorCode()).isEqualTo(ErrorCode.TIMEPICK_NOT_PARTICIPANT);
+                    });
+        }
+
+        @Test
+        @DisplayName("이미 제출한 경우 TIMEPICK_AVAILABILITY_ALREADY_SUBMITTED 예외 발생")
+        void submitAvailability_AlreadySubmitted() {
+            // given
+            Timepick timepick = createTimepick(TimepickStatus.OPEN);
+            TimepickParticipant participant = createParticipant(
+                    TimepickParticipantStatus.SUBMITTED,
+                    TimepickParticipantStatus.PENDING
+            );
+            AvailabilitySubmitRequest request = createAvailabilitySubmitRequest();
+
+            given(timepickRepository.findByTeamRoomId(TEAM_ROOM_ID))
+                    .willReturn(Optional.of(timepick));
+            given(timepickParticipantRepository.findByTimepickIdAndUserId(TIMEPICK_ID, USER_ID))
+                    .willReturn(Optional.of(participant));
+
+            // when & then
+            assertThatThrownBy(() -> timepickService.submitAvailability(TEAM_ROOM_ID, USER_ID, request))
+                    .isInstanceOf(YamoyoException.class)
+                    .satisfies(exception -> {
+                        YamoyoException yamoyoException = (YamoyoException) exception;
+                        assertThat(yamoyoException.getErrorCode()).isEqualTo(ErrorCode.TIMEPICK_AVAILABILITY_ALREADY_SUBMITTED);
+                    });
+        }
+    }
+
+    @Nested
+    @DisplayName("submitPreferredBlock() - 선호시간대 제출")
+    class SubmitPreferredBlockTest {
+
+        @Test
+        @DisplayName("정상 제출 - 선호시간대가 저장되고 기본값이 업데이트된다")
+        void submitPreferredBlock_Success() {
+            // given
+            Timepick timepick = createTimepick(TimepickStatus.OPEN);
+            TimepickParticipant participant = createParticipant(
+                    TimepickParticipantStatus.PENDING,
+                    TimepickParticipantStatus.PENDING
+            );
+            PreferredBlockSubmitRequest request = createPreferredBlockSubmitRequest(PreferredBlock.BLOCK_12_16);
+
+            given(timepickRepository.findByTeamRoomId(TEAM_ROOM_ID))
+                    .willReturn(Optional.of(timepick));
+            given(timepickParticipantRepository.findByTimepickIdAndUserId(TIMEPICK_ID, USER_ID))
+                    .willReturn(Optional.of(participant));
+
+            // when
+            timepickService.submitPreferredBlock(TEAM_ROOM_ID, USER_ID, request);
+
+            // then
+            assertThat(participant.getPreferredBlockStatus()).isEqualTo(TimepickParticipantStatus.SUBMITTED);
+            assertThat(participant.getPreferredBlock()).isEqualTo(PreferredBlock.BLOCK_12_16);
+            verify(userTimepickDefaultService).updatePreferredBlock(USER_ID, PreferredBlock.BLOCK_12_16);
+        }
+
+        @Test
+        @DisplayName("타임픽이 존재하지 않으면 TIMEPICK_NOT_FOUND 예외 발생")
+        void submitPreferredBlock_TimepickNotFound() {
+            // given
+            PreferredBlockSubmitRequest request = createPreferredBlockSubmitRequest(PreferredBlock.BLOCK_08_12);
+
+            given(timepickRepository.findByTeamRoomId(TEAM_ROOM_ID))
+                    .willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> timepickService.submitPreferredBlock(TEAM_ROOM_ID, USER_ID, request))
+                    .isInstanceOf(YamoyoException.class)
+                    .satisfies(exception -> {
+                        YamoyoException yamoyoException = (YamoyoException) exception;
+                        assertThat(yamoyoException.getErrorCode()).isEqualTo(ErrorCode.TIMEPICK_NOT_FOUND);
+                    });
+        }
+
+        @Test
+        @DisplayName("타임픽이 FINALIZED 상태면 TIMEPICK_NOT_OPEN 예외 발생")
+        void submitPreferredBlock_TimepickFinalized() {
+            // given
+            Timepick timepick = createTimepick(TimepickStatus.FINALIZED);
+            PreferredBlockSubmitRequest request = createPreferredBlockSubmitRequest(PreferredBlock.BLOCK_08_12);
+
+            given(timepickRepository.findByTeamRoomId(TEAM_ROOM_ID))
+                    .willReturn(Optional.of(timepick));
+
+            // when & then
+            assertThatThrownBy(() -> timepickService.submitPreferredBlock(TEAM_ROOM_ID, USER_ID, request))
+                    .isInstanceOf(YamoyoException.class)
+                    .satisfies(exception -> {
+                        YamoyoException yamoyoException = (YamoyoException) exception;
+                        assertThat(yamoyoException.getErrorCode()).isEqualTo(ErrorCode.TIMEPICK_NOT_OPEN);
+                    });
+        }
+
+        @Test
+        @DisplayName("참가자가 아니면 TIMEPICK_NOT_PARTICIPANT 예외 발생")
+        void submitPreferredBlock_NotParticipant() {
+            // given
+            Timepick timepick = createTimepick(TimepickStatus.OPEN);
+            PreferredBlockSubmitRequest request = createPreferredBlockSubmitRequest(PreferredBlock.BLOCK_08_12);
+
+            given(timepickRepository.findByTeamRoomId(TEAM_ROOM_ID))
+                    .willReturn(Optional.of(timepick));
+            given(timepickParticipantRepository.findByTimepickIdAndUserId(TIMEPICK_ID, USER_ID))
+                    .willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> timepickService.submitPreferredBlock(TEAM_ROOM_ID, USER_ID, request))
+                    .isInstanceOf(YamoyoException.class)
+                    .satisfies(exception -> {
+                        YamoyoException yamoyoException = (YamoyoException) exception;
+                        assertThat(yamoyoException.getErrorCode()).isEqualTo(ErrorCode.TIMEPICK_NOT_PARTICIPANT);
+                    });
+        }
+
+        @Test
+        @DisplayName("이미 제출한 경우 TIMEPICK_PREFERRED_BLOCK_ALREADY_SUBMITTED 예외 발생")
+        void submitPreferredBlock_AlreadySubmitted() {
+            // given
+            Timepick timepick = createTimepick(TimepickStatus.OPEN);
+            TimepickParticipant participant = createParticipant(
+                    TimepickParticipantStatus.PENDING,
+                    TimepickParticipantStatus.SUBMITTED
+            );
+            PreferredBlockSubmitRequest request = createPreferredBlockSubmitRequest(PreferredBlock.BLOCK_08_12);
+
+            given(timepickRepository.findByTeamRoomId(TEAM_ROOM_ID))
+                    .willReturn(Optional.of(timepick));
+            given(timepickParticipantRepository.findByTimepickIdAndUserId(TIMEPICK_ID, USER_ID))
+                    .willReturn(Optional.of(participant));
+
+            // when & then
+            assertThatThrownBy(() -> timepickService.submitPreferredBlock(TEAM_ROOM_ID, USER_ID, request))
+                    .isInstanceOf(YamoyoException.class)
+                    .satisfies(exception -> {
+                        YamoyoException yamoyoException = (YamoyoException) exception;
+                        assertThat(yamoyoException.getErrorCode()).isEqualTo(ErrorCode.TIMEPICK_PREFERRED_BLOCK_ALREADY_SUBMITTED);
+                    });
+        }
+    }
+
     // ========== Helper Methods ==========
 
     private Timepick createTimepick(TimepickStatus status) {
@@ -186,5 +420,30 @@ class TimepickServiceTest {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private AvailabilitySubmitRequest createAvailabilitySubmitRequest() {
+        Boolean[] allFalse = new Boolean[32];
+        for (int i = 0; i < 32; i++) {
+            allFalse[i] = false;
+        }
+        Boolean[] mondaySlots = allFalse.clone();
+        mondaySlots[0] = true;
+
+        return new AvailabilitySubmitRequest(
+                new AvailabilitySubmitRequest.AvailabilityData(
+                        allFalse.clone(),  // sunday
+                        mondaySlots,       // monday - 첫 슬롯만 true
+                        allFalse.clone(),  // tuesday
+                        allFalse.clone(),  // wednesday
+                        allFalse.clone(),  // thursday
+                        allFalse.clone(),  // friday
+                        allFalse.clone()   // saturday
+                )
+        );
+    }
+
+    private PreferredBlockSubmitRequest createPreferredBlockSubmitRequest(PreferredBlock preferredBlock) {
+        return new PreferredBlockSubmitRequest(preferredBlock);
     }
 }

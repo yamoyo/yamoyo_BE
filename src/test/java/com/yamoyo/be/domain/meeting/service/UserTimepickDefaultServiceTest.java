@@ -2,20 +2,31 @@ package com.yamoyo.be.domain.meeting.service;
 
 import com.yamoyo.be.domain.meeting.dto.response.AvailabilityResponse;
 import com.yamoyo.be.domain.meeting.entity.UserTimepickDefault;
+import com.yamoyo.be.domain.meeting.entity.enums.DayOfWeek;
+import com.yamoyo.be.domain.meeting.entity.enums.PreferredBlock;
 import com.yamoyo.be.domain.meeting.repository.UserTimepickDefaultRepository;
+import com.yamoyo.be.domain.user.entity.User;
+import com.yamoyo.be.domain.user.repository.UserRepository;
+import com.yamoyo.be.exception.ErrorCode;
+import com.yamoyo.be.exception.YamoyoException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.EnumMap;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("UserTimepickDefaultService 단위 테스트")
@@ -23,6 +34,9 @@ class UserTimepickDefaultServiceTest {
 
     @Mock
     private UserTimepickDefaultRepository userTimepickDefaultRepository;
+
+    @Mock
+    private UserRepository userRepository;
 
     @InjectMocks
     private UserTimepickDefaultService userTimepickDefaultService;
@@ -107,6 +121,138 @@ class UserTimepickDefaultServiceTest {
         }
     }
 
+    @Nested
+    @DisplayName("updateAvailability() - 가용시간 기본값 업데이트")
+    class UpdateAvailabilityTest {
+
+        @Test
+        @DisplayName("기존 기본값이 있으면 업데이트한다")
+        void updateAvailability_ExistingDefault_Updates() {
+            // given
+            UserTimepickDefault existingDefault = createUserTimepickDefault();
+            Map<DayOfWeek, Long> newBitmaps = createBitmaps();
+
+            given(userTimepickDefaultRepository.findByUserId(USER_ID))
+                    .willReturn(Optional.of(existingDefault));
+
+            // when
+            userTimepickDefaultService.updateAvailability(USER_ID, newBitmaps);
+
+            // then
+            assertThat(existingDefault.getAvailabilityMon()).isEqualTo(10L);
+            assertThat(existingDefault.getAvailabilityTue()).isEqualTo(20L);
+        }
+
+        @Test
+        @DisplayName("기존 기본값이 없으면 새로 생성한다")
+        void updateAvailability_NoDefault_CreatesNew() {
+            // given
+            User user = createUser();
+            Map<DayOfWeek, Long> bitmaps = createBitmaps();
+
+            given(userTimepickDefaultRepository.findByUserId(USER_ID))
+                    .willReturn(Optional.empty());
+            given(userRepository.findById(USER_ID))
+                    .willReturn(Optional.of(user));
+
+            // when
+            userTimepickDefaultService.updateAvailability(USER_ID, bitmaps);
+
+            // then
+            ArgumentCaptor<UserTimepickDefault> captor = ArgumentCaptor.forClass(UserTimepickDefault.class);
+            verify(userTimepickDefaultRepository).save(captor.capture());
+
+            UserTimepickDefault saved = captor.getValue();
+            assertThat(saved.getAvailabilityMon()).isEqualTo(10L);
+            assertThat(saved.getAvailabilityTue()).isEqualTo(20L);
+        }
+
+        @Test
+        @DisplayName("사용자가 존재하지 않으면 USER_NOT_FOUND 예외 발생")
+        void updateAvailability_UserNotFound() {
+            // given
+            Map<DayOfWeek, Long> bitmaps = createBitmaps();
+
+            given(userTimepickDefaultRepository.findByUserId(USER_ID))
+                    .willReturn(Optional.empty());
+            given(userRepository.findById(USER_ID))
+                    .willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> userTimepickDefaultService.updateAvailability(USER_ID, bitmaps))
+                    .isInstanceOf(YamoyoException.class)
+                    .satisfies(exception -> {
+                        YamoyoException yamoyoException = (YamoyoException) exception;
+                        assertThat(yamoyoException.getErrorCode()).isEqualTo(ErrorCode.USER_NOT_FOUND);
+                    });
+        }
+    }
+
+    @Nested
+    @DisplayName("updatePreferredBlock() - 선호시간대 기본값 업데이트")
+    class UpdatePreferredBlockTest {
+
+        @Test
+        @DisplayName("기존 기본값이 있으면 업데이트한다")
+        void updatePreferredBlock_ExistingDefault_Updates() {
+            // given
+            UserTimepickDefault existingDefault = createUserTimepickDefault();
+            PreferredBlock newPreferredBlock = PreferredBlock.BLOCK_16_20;
+
+            given(userTimepickDefaultRepository.findByUserId(USER_ID))
+                    .willReturn(Optional.of(existingDefault));
+
+            // when
+            userTimepickDefaultService.updatePreferredBlock(USER_ID, newPreferredBlock);
+
+            // then
+            assertThat(existingDefault.getPreferredBlock()).isEqualTo(PreferredBlock.BLOCK_16_20);
+        }
+
+        @Test
+        @DisplayName("기존 기본값이 없으면 새로 생성한다")
+        void updatePreferredBlock_NoDefault_CreatesNew() {
+            // given
+            User user = createUser();
+            PreferredBlock preferredBlock = PreferredBlock.BLOCK_12_16;
+
+            given(userTimepickDefaultRepository.findByUserId(USER_ID))
+                    .willReturn(Optional.empty());
+            given(userRepository.findById(USER_ID))
+                    .willReturn(Optional.of(user));
+
+            // when
+            userTimepickDefaultService.updatePreferredBlock(USER_ID, preferredBlock);
+
+            // then
+            ArgumentCaptor<UserTimepickDefault> captor = ArgumentCaptor.forClass(UserTimepickDefault.class);
+            verify(userTimepickDefaultRepository).save(captor.capture());
+
+            UserTimepickDefault saved = captor.getValue();
+            assertThat(saved.getPreferredBlock()).isEqualTo(PreferredBlock.BLOCK_12_16);
+        }
+
+        @Test
+        @DisplayName("사용자가 존재하지 않으면 USER_NOT_FOUND 예외 발생")
+        void updatePreferredBlock_UserNotFound() {
+            // given
+            PreferredBlock preferredBlock = PreferredBlock.BLOCK_08_12;
+
+            given(userTimepickDefaultRepository.findByUserId(USER_ID))
+                    .willReturn(Optional.empty());
+            given(userRepository.findById(USER_ID))
+                    .willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> userTimepickDefaultService.updatePreferredBlock(USER_ID, preferredBlock))
+                    .isInstanceOf(YamoyoException.class)
+                    .satisfies(exception -> {
+                        YamoyoException yamoyoException = (YamoyoException) exception;
+                        assertThat(yamoyoException.getErrorCode()).isEqualTo(ErrorCode.USER_NOT_FOUND);
+                    });
+        }
+    }
+
     // ========== Helper Methods ==========
 
     private UserTimepickDefault createUserTimepickDefault() {
@@ -145,5 +291,29 @@ class UserTimepickDefaultServiceTest {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private User createUser() {
+        try {
+            var constructor = User.class.getDeclaredConstructor();
+            constructor.setAccessible(true);
+            User user = constructor.newInstance();
+            ReflectionTestUtils.setField(user, "id", USER_ID);
+            return user;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private Map<DayOfWeek, Long> createBitmaps() {
+        Map<DayOfWeek, Long> bitmaps = new EnumMap<>(DayOfWeek.class);
+        bitmaps.put(DayOfWeek.MON, 10L);
+        bitmaps.put(DayOfWeek.TUE, 20L);
+        bitmaps.put(DayOfWeek.WED, 0L);
+        bitmaps.put(DayOfWeek.THU, 0L);
+        bitmaps.put(DayOfWeek.FRI, 0L);
+        bitmaps.put(DayOfWeek.SAT, 0L);
+        bitmaps.put(DayOfWeek.SUN, 0L);
+        return bitmaps;
     }
 }
