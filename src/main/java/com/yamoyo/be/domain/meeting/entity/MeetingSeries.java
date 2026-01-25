@@ -2,6 +2,7 @@ package com.yamoyo.be.domain.meeting.entity;
 
 import com.yamoyo.be.domain.meeting.entity.enums.DayOfWeek;
 import com.yamoyo.be.domain.meeting.entity.enums.MeetingType;
+import com.yamoyo.be.domain.teamroom.entity.TeamRoom;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;

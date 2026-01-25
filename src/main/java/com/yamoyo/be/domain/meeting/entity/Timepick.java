@@ -1,6 +1,7 @@
 package com.yamoyo.be.domain.meeting.entity;
 
 import com.yamoyo.be.domain.meeting.entity.enums.TimepickStatus;
+import com.yamoyo.be.domain.teamroom.entity.TeamRoom;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
