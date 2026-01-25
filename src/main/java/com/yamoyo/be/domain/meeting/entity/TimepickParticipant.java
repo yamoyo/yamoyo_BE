@@ -1,5 +1,6 @@
 package com.yamoyo.be.domain.meeting.entity;
 
+import com.yamoyo.be.domain.meeting.entity.enums.DayOfWeek;
 import com.yamoyo.be.domain.meeting.entity.enums.PreferredBlock;
 import com.yamoyo.be.domain.meeting.entity.enums.TimepickParticipantStatus;
 import com.yamoyo.be.domain.user.entity.User;
@@ -9,6 +10,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Table(name = "timepick_participants",
         uniqueConstraints = @UniqueConstraint(columnNames = {"timepick_id", "user_id"}))
@@ -81,5 +83,30 @@ public class TimepickParticipant {
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();
+    }
+
+    public void submitAvailability(Map<DayOfWeek, Long> bitmaps) {
+        this.availabilityMon = bitmaps.getOrDefault(DayOfWeek.MON, 0L);
+        this.availabilityTue = bitmaps.getOrDefault(DayOfWeek.TUE, 0L);
+        this.availabilityWed = bitmaps.getOrDefault(DayOfWeek.WED, 0L);
+        this.availabilityThu = bitmaps.getOrDefault(DayOfWeek.THU, 0L);
+        this.availabilityFri = bitmaps.getOrDefault(DayOfWeek.FRI, 0L);
+        this.availabilitySat = bitmaps.getOrDefault(DayOfWeek.SAT, 0L);
+        this.availabilitySun = bitmaps.getOrDefault(DayOfWeek.SUN, 0L);
+        this.availabilityStatus = TimepickParticipantStatus.SUBMITTED;
+        this.submittedAt = LocalDateTime.now();
+    }
+
+    public void submitPreferredBlock(PreferredBlock preferredBlock) {
+        this.preferredBlock = preferredBlock;
+        this.preferredBlockStatus = TimepickParticipantStatus.SUBMITTED;
+    }
+
+    public boolean hasSubmittedAvailability() {
+        return this.availabilityStatus == TimepickParticipantStatus.SUBMITTED;
+    }
+
+    public boolean hasSubmittedPreferredBlock() {
+        return this.preferredBlockStatus == TimepickParticipantStatus.SUBMITTED;
     }
 }

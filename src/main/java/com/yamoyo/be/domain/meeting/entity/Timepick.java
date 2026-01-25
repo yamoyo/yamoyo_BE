@@ -37,6 +37,10 @@ public class Timepick {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    public boolean isFinalized() {
+        return this.status == TimepickStatus.FINALIZED;
+    }
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
