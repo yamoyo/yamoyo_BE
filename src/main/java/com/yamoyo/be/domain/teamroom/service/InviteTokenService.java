@@ -37,7 +37,7 @@ public class InviteTokenService {
         String roomKey = TEAM_ROOM_KEY_PREFIX + teamRoomId;
         redisTemplate.opsForValue().set(
                 tokenKey, // Key : {invite:token:secure-random}
-                teamRoomId, // Value : 1L
+                teamRoomId.toString(), // Value : 1L
                 TOKEN_EXPIRATION_HOURS, // 만료시간
                 TimeUnit.HOURS // 시간단위
         );
@@ -57,10 +57,14 @@ public class InviteTokenService {
      */
     public void invalidateInviteToken(Long teamRoomId){
         String roomKey = TEAM_ROOM_KEY_PREFIX + teamRoomId;
-        String oldToken = (String) redisTemplate.opsForValue().get(roomKey);
+
+        Object oldTokenObj = redisTemplate.opsForValue().get(roomKey);
+        String oldToken = oldTokenObj != null ? oldTokenObj.toString() : null;
+
         if(oldToken != null){
             log.info("기존 토큰 무효화 - TeamRoomId: {}", teamRoomId);
             redisTemplate.delete(INVITE_KEY_PREFIX + oldToken);
+            redisTemplate.delete(roomKey);
         }
     }
 
