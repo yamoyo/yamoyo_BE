@@ -114,7 +114,7 @@ public class TeamRoomService {
     @Transactional
     public JoinTeamRoomResponse joinTeamRoom(JoinTeamRoomRequest request, Long userId) {
 
-        log.info("사용자 userId : {} 팀룸 입장", userId);
+        log.info("사용자 userId : {} 팀룸 입장 시작", userId);
 
         // 1. 토큰에서 팀룸 정보 검증
         String token = request.inviteToken();
