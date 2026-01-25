@@ -72,8 +72,7 @@ class OnBoardingServiceTest {
             given(userRepository.findById(USER_ID)).willReturn(Optional.of(user));
             given(termRepository.findByIsActiveAndIsMandatory(true, true))
                     .willReturn(List.of(serviceTerm, privacyTerm));
-            given(termRepository.findById(1L)).willReturn(Optional.of(serviceTerm));
-            given(termRepository.findById(2L)).willReturn(Optional.of(privacyTerm));
+            given(termRepository.findAllById(any())).willReturn(List.of(serviceTerm, privacyTerm));
 
             TermsAgreementRequest request = new TermsAgreementRequest(List.of(
                     new TermAgreement(1L, true),
@@ -165,8 +164,7 @@ class OnBoardingServiceTest {
             given(userRepository.findById(USER_ID)).willReturn(Optional.of(user));
             given(termRepository.findByIsActiveAndIsMandatory(true, true))
                     .willReturn(List.of(serviceTerm));
-            given(termRepository.findById(1L)).willReturn(Optional.of(serviceTerm));
-            given(termRepository.findById(999L)).willReturn(Optional.empty());
+            given(termRepository.findAllById(any())).willReturn(List.of(serviceTerm));
 
             TermsAgreementRequest request = new TermsAgreementRequest(List.of(
                     new TermAgreement(1L, true),
