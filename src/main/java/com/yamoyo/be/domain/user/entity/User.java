@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * User Entity
@@ -80,24 +81,25 @@ public class User {
     }
 
     public void updateProfileImageId(Long profileImageId) {
-        if(profileImageId == null || !profileImageId.equals(this.profileImageId))
-        this.profileImageId = profileImageId;
+        if (!Objects.equals(this.profileImageId, profileImageId)) {
+            this.profileImageId = profileImageId;
+        }
     }
 
     public void updateName(String name) {
-        if(name == null || !name.equals(this.name)){
+        if (name != null && !name.equals(this.name)) {
             this.name = name;
         }
     }
 
     public void updateMajor(String major) {
-        if(major == null || !major.equals(this.major)) {
+        if (!Objects.equals(this.major, major)) {
             this.major = major;
         }
     }
 
     public void updateMBTI(String mbti) {
-        if (mbti == null || !mbti.equals(this.mbti)) {
+        if (!Objects.equals(this.mbti, mbti)) {
             this.mbti = mbti;
         }
     }

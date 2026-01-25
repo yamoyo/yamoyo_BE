@@ -65,10 +65,20 @@ public class UserService {
         }
 
         // 3. UserAgreement 저장
+        Set<Long> requestedTermIds = request.agreements().stream()
+                .map(TermAgreement::termsId)
+                .collect(Collectors.toSet());
+
+        Map<Long, Term> foundTerms = termRepository.findAllById(requestedTermIds).stream()
+                .collect(Collectors.toMap(Term::getId, term -> term));
+
+        if (foundTerms.size() != requestedTermIds.size()) {
+            throw new YamoyoException(ErrorCode.TERMS_NOT_FOUND);
+        }
+
         List<UserAgreement> agreements = request.agreements().stream()
                 .map(agreement -> {
-                    Term term = termRepository.findById(agreement.termsId())
-                            .orElseThrow(() -> new YamoyoException(ErrorCode.TERMS_NOT_FOUND));
+                    Term term = foundTerms.get(agreement.termsId());
                     return UserAgreement.create(user, term, agreement.agreed());
                 })
                 .toList();
