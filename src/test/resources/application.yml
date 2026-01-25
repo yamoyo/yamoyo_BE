@@ -55,6 +55,18 @@ jwt:
   refresh-token-expiration: 604800000
   issuer: yamoyo-test
 
+app:
+  front:
+    base-url: http://localhost:8080
+    paths:
+      home: /home
+      onboarding:
+        terms: /onboarding/terms
+        profile: /onboarding/profile
+
+cookie:
+  secure: false
+
 logging:
   level:
     org.springframework.security: WARN

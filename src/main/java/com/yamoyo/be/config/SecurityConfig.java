@@ -16,6 +16,8 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 
 /**
  * Security Configuration
@@ -142,8 +144,17 @@ public class SecurityConfig {
                 .invalidateHttpSession(true)
                 .deleteCookies("JSESSIONID")
             )
+            
+            // 6. 예외 처리
+            // /api/** 경로에 대해 인증되지 않은 요청 시 401 에러 반환 (로그인 페이지 리다이렉트 방지)
+            .exceptionHandling(exception -> exception
+                .defaultAuthenticationEntryPointFor(
+                    new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),
+                    request -> request.getServletPath().startsWith("/api/")
+                )
+            )
 
-            // 6. JWT 인증 필터 추가
+            // 7. JWT 인증 필터 추가
             // UsernamePasswordAuthenticationFilter 전에 JwtAuthenticationFilter 실행
             // Authorization 헤더에서 JWT 토큰을 추출하여 검증
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

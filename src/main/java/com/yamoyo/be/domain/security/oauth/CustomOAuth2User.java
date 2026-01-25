@@ -1,12 +1,14 @@
 package com.yamoyo.be.domain.security.oauth;
 
+import com.yamoyo.be.domain.user.entity.OnboardingStatus;
 import com.yamoyo.be.domain.user.entity.UserRole;
 import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 
 import java.util.Collection;
-import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -55,13 +57,17 @@ public class CustomOAuth2User implements OAuth2User {
      * Role:
      * - Spring Security가 권한 검사 시 사용
      * - @PreAuthorize, hasRole() 등에서 활용
+     * - UserRole(GUEST, USER)을 ROLE_ prefix와 함께 GrantedAuthority로 변환
      *
      * @return GrantedAuthority 컬렉션
      */
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        // 글로벌 Role을 사용하지 않으므로 권한 목록을 비워서 반환합니다.
-        return Collections.emptyList();
+        UserRole role = getRole();
+        if (role == null) {
+            return List.of();
+        }
+        return List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
     }
 
     /**
@@ -112,5 +118,12 @@ public class CustomOAuth2User implements OAuth2User {
      */
     public UserRole getRole() {
         return (UserRole) attributes.get("userRole");
+    }
+
+    /**
+     * 온보딩 상태 반환 (편의 메서드)
+     */
+    public OnboardingStatus getOnboardingStatus() {
+        return (OnboardingStatus) attributes.get("onboardingStatus");
     }
 }

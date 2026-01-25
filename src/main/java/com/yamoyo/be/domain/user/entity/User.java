@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * User Entity
@@ -72,30 +73,43 @@ public class User {
     /**
      * 정적 팩토리 메서드 - 신규 사용자 생성
      */
-    public static User create(String email, String name, Long profileImageId) {
+    public static User create(String email, String name) {
         User user = new User();
         user.email = email;
         user.name = name;
-        user.profileImageId = profileImageId;
         return user;
     }
 
+    public void updateProfileImageId(Long profileImageId) {
+        if (!Objects.equals(this.profileImageId, profileImageId)) {
+            this.profileImageId = profileImageId;
+        }
+    }
+
     public void updateName(String name) {
-        if(name != null && !name.equals(this.name)){
+        if (name != null && !name.equals(this.name)) {
             this.name = name;
         }
     }
 
     public void updateMajor(String major) {
-        if(major != null && !major.equals(this.major)) {
+        if (!Objects.equals(this.major, major)) {
             this.major = major;
         }
     }
 
     public void updateMBTI(String mbti) {
-        if (mbti != null && !mbti.equals(this.mbti)) {
+        if (!Objects.equals(this.mbti, mbti)) {
             this.mbti = mbti;
         }
+    }
+
+    /**
+     * 온보딩 완료 처리
+     * - UserRole을 GUEST에서 USER로 변경
+     */
+    public void completeOnboarding() {
+        this.userRole = UserRole.USER;
     }
 
     /**

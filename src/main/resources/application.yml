@@ -140,3 +140,12 @@ oauth2:
 
 cookie:
   secure: false
+
+app:
+  front:
+    base-url: ${FRONT_BASE_URL:http://localhost:5173}
+    paths:
+      home: /home
+      onboarding:
+        terms: /onboarding/terms
+        profile: /onboarding/profile

@@ -51,6 +51,9 @@ dependencies {
     // 롬복: Getter, Setter 등 반복 코드 자동 생성
     compileOnly 'org.projectlombok:lombok'
 
+    // valid
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
     // 프로메테우스 모니터링 시스템 연동
     runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
     annotationProcessor 'org.projectlombok:lombok'

@@ -1,0 +1,62 @@
+package com.yamoyo.be.domain.user.controller;
+
+import com.yamoyo.be.common.dto.ApiResponse;
+import com.yamoyo.be.domain.user.dto.ProfileSetupRequest;
+import com.yamoyo.be.domain.user.dto.TermsAgreementRequest;
+import com.yamoyo.be.domain.user.service.UserService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * User Controller
+ *
+ * Role:
+ * - 사용자 관련 API 엔드포인트 제공
+ * - 온보딩 과정의 약관 동의, 프로필 설정 API 포함
+ *
+ * Endpoints:
+ * - POST /api/users/terms : 약관 동의
+ * - POST /api/users/profile : 프로필 설정
+ */
+@Slf4j
+@RestController
+@RequestMapping("/api/users")
+@RequiredArgsConstructor
+public class UserController {
+
+    private final UserService userService;
+
+    @PostMapping("/terms")
+    public ApiResponse<Void> agreeToTerms(
+            @AuthenticationPrincipal OAuth2User oAuth2User,
+            @Valid @RequestBody TermsAgreementRequest request
+    ) {
+        Long userId = (Long) oAuth2User.getAttributes().get("userId");
+        log.info("약관 동의 요청 - UserId: {}, Agreements: {}", userId, request.agreements().size());
+
+        userService.agreeToTerms(userId, request);
+
+        return ApiResponse.success();
+    }
+
+    @PostMapping("/profile")
+    public ApiResponse<Void> setupProfile(
+            @AuthenticationPrincipal OAuth2User oAuth2User,
+            @Valid @RequestBody ProfileSetupRequest request
+    ) {
+        Long userId = (Long) oAuth2User.getAttributes().get("userId");
+        log.info("프로필 설정 요청 - UserId: {}, Name: {}, Major: {}, MBTI: {}",
+                userId, request.name(), request.major(), request.mbti());
+
+        userService.setupProfile(userId, request);
+
+        return ApiResponse.success();
+    }
+}

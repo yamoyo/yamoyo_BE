@@ -7,6 +7,7 @@ import com.yamoyo.be.domain.security.oauth.CustomOAuth2User;
 import com.yamoyo.be.domain.security.oauth.CookieProperties;
 import com.yamoyo.be.domain.security.refreshtoken.RefreshToken;
 import com.yamoyo.be.domain.security.refreshtoken.RefreshTokenRepository;
+import com.yamoyo.be.domain.user.entity.OnboardingStatus;
 import com.yamoyo.be.domain.user.entity.User;
 import com.yamoyo.be.domain.user.repository.UserRepository;
 import jakarta.servlet.http.Cookie;
@@ -41,8 +42,17 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
     private final CookieProperties cookieProperties;
     private final JwtProperties jwtProperties;
 
-    @Value("${oauth2.redirect-uri:http://localhost:8080/oauth/callback}")
-    private String redirectUri;
+    @Value("${app.front.base-url}")
+    private String frontBaseUrl;
+
+    @Value("${app.front.paths.home}")
+    private String homePath;
+
+    @Value("${app.front.paths.onboarding.terms}")
+    private String onboardingTermsPath;
+
+    @Value("${app.front.paths.onboarding.profile}")
+    private String onboardingProfilePath;
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
@@ -75,8 +85,20 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         // Refresh Token을 HttpOnly Cookie에 설정
         addRefreshTokenCookie(response, jwtToken.refreshToken(), jwtProperties.refreshTokenExpiration());
 
-        // 프론트엔드로 리다이렉트
+        // OnboardingStatus에 따른 리다이렉트
+        String redirectUri = determineRedirectUri(oAuth2User);
+        log.info("리다이렉트 - OnboardingStatus: {}, URI: {}", oAuth2User.getOnboardingStatus(), redirectUri);
         getRedirectStrategy().sendRedirect(request, response, redirectUri);
+    }
+
+    private String determineRedirectUri(CustomOAuth2User oAuth2User) {
+        OnboardingStatus status = oAuth2User.getOnboardingStatus();
+
+        return switch (status) {
+            case TERMS_PENDING -> frontBaseUrl + onboardingTermsPath;
+            case PROFILE_PENDING -> frontBaseUrl + onboardingProfilePath;
+            case COMPLETED -> frontBaseUrl + homePath;
+        };
     }
 
     private void saveRefreshToken(Long userId, String refreshToken, Long refreshTokenExpiration) {
