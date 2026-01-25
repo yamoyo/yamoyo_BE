@@ -67,9 +67,9 @@ class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.grantType").value("Bearer"))
-                .andExpect(jsonPath("$.accessToken").value(NEW_ACCESS_TOKEN))
-                .andExpect(jsonPath("$.accessTokenExpiration").value(600000))
+                .andExpect(jsonPath("$.data.grantType").value("Bearer"))
+                .andExpect(jsonPath("$.data.accessToken").value(NEW_ACCESS_TOKEN))
+                .andExpect(jsonPath("$.data.accessTokenExpiration").value(600000))
                 .andReturn();
 
         // 새로운 RefreshToken이 쿠키로 설정되었는지 확인
