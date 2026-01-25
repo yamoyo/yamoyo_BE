@@ -28,6 +28,14 @@ public enum ErrorCode {
 
     // TeamRoom
     INVALID_DEADLINE(HttpStatus.BAD_REQUEST, "마감일은 현재 날짜 +1일 이후여야 합니다."),
+    TEAMROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 팀룸을 찾을 수 없습니다."),
+    INVITE_INVALID(HttpStatus.GONE, "만료되거나 유효하지 않은 초대링크입니다."),
+    TEAMROOM_JOIN_FORBIDDEN(HttpStatus.FORBIDDEN, "팀룸 입장이 불가합니다."),
+    TEAMROOM_FULL(HttpStatus.BAD_REQUEST, "이미 꽉 찬 팀룸입니다."),
+
+    // TeamMember
+    NOT_TEAM_MEMBER(HttpStatus.FORBIDDEN, "팀룸의 팀원이 아닙니다."),
+    TEAMROOM_MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 팀룸에서 팀원을 찾을 수 없습니다."),
 
     // Server
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 내부 오류입니다.");
