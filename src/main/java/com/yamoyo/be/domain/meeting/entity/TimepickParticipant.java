@@ -31,12 +31,16 @@ public class TimepickParticipant {
     private User user;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private TimepickParticipantStatus status;
-
-    @Enumerated(EnumType.STRING)
     @Column(name = "preferred_block", length = 20)
     private PreferredBlock preferredBlock;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "availability_status", nullable = false, length = 20)
+    private TimepickParticipantStatus availabilityStatus;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "preferred_block_status", nullable = false, length = 20)
+    private TimepickParticipantStatus preferredBlockStatus;
 
     @Column(name = "availability_mon", nullable = false)
     private Long availabilityMon;
