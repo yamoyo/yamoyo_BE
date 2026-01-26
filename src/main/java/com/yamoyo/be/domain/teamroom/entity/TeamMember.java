@@ -1,6 +1,6 @@
 package com.yamoyo.be.domain.teamroom.entity;
 
-import com.yamoyo.be.domain.teamroom.enums.TeamRole;
+import com.yamoyo.be.domain.teamroom.entity.enums.TeamRole;
 import com.yamoyo.be.domain.user.entity.User;
 import jakarta.persistence.*;
 import lombok.AccessLevel;

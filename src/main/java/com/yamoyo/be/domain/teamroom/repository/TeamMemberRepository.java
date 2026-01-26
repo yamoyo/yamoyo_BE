@@ -2,8 +2,8 @@ package com.yamoyo.be.domain.teamroom.repository;
 
 import com.yamoyo.be.domain.teamroom.entity.TeamMember;
 import com.yamoyo.be.domain.teamroom.entity.TeamRoom;
-import com.yamoyo.be.domain.teamroom.enums.Lifecycle;
-import com.yamoyo.be.domain.teamroom.enums.TeamRole;
+import com.yamoyo.be.domain.teamroom.entity.enums.Lifecycle;
+import com.yamoyo.be.domain.teamroom.entity.enums.TeamRole;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;

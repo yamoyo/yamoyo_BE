@@ -1,7 +1,7 @@
 package com.yamoyo.be.domain.teamroom.entity;
 
-import com.yamoyo.be.domain.teamroom.enums.Lifecycle;
-import com.yamoyo.be.domain.teamroom.enums.Workflow;
+import com.yamoyo.be.domain.teamroom.entity.enums.Lifecycle;
+import com.yamoyo.be.domain.teamroom.entity.enums.Workflow;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
