@@ -1,10 +1,8 @@
 package com.yamoyo.be.domain.user.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.yamoyo.be.domain.user.dto.ProfileSetupRequest;
-import com.yamoyo.be.domain.user.dto.TermsAgreementRequest;
-import com.yamoyo.be.domain.user.dto.TermsAgreementRequest.TermAgreement;
-import com.yamoyo.be.domain.user.repository.UserAgreementRepository;
+import com.yamoyo.be.domain.security.jwt.JwtTokenClaims;
+import com.yamoyo.be.domain.security.jwt.authentication.JwtAuthenticationToken;
+import com.yamoyo.be.domain.user.dto.response.UserResponse;
 import com.yamoyo.be.domain.user.service.UserService;
 import com.yamoyo.be.exception.ErrorCode;
 import com.yamoyo.be.exception.YamoyoException;
@@ -14,26 +12,19 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.MediaType;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
-import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
-import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.util.List;
-import java.util.Map;
+import java.time.LocalDateTime;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.willDoNothing;
-import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -42,10 +33,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * UserController 통합 테스트
  *
  * 테스트 내용:
- * 1. POST /api/users/terms - 약관 동의 API 테스트
- * 2. POST /api/users/profile - 프로필 설정 API 테스트
- * 3. Validation 테스트
- * 4. 에러 응답 테스트
+ * 1. GET /api/users/me - 내 프로필 조회 테스트
+ * 2. PUT /api/users/me - 프로필 수정 테스트
+ * 3. 인증/에러 응답 테스트
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -55,308 +45,251 @@ class UserControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @Autowired
-    private ObjectMapper objectMapper;
-
     @MockitoBean
     private UserService userService;
 
-    @MockitoBean
-    private UserAgreementRepository userAgreementRepository;
-
     private static final Long USER_ID = 1L;
-    private static final String TERMS_ENDPOINT = "/api/users/terms";
-    private static final String PROFILE_ENDPOINT = "/api/users/profile";
+    private static final String USER_EMAIL = "test@example.com";
+    private static final String USER_NAME = "테스트";
+    private static final String PROVIDER = "google";
+    private static final String ME_ENDPOINT = "/api/users/me";
 
     @Nested
-    @DisplayName("POST /api/users/terms - 약관 동의")
-    class AgreeToTermsTest {
+    @DisplayName("GET /api/users/me - 내 프로필 조회")
+    class GetMyProfileTest {
 
         @Test
-        @DisplayName("모든 필수 약관에 동의하면 성공")
-        void agreeToTerms_Success() throws Exception {
+        @DisplayName("정상적으로 내 프로필 조회 성공")
+        void getMyProfile_Success() throws Exception {
             // given
-            TermsAgreementRequest request = new TermsAgreementRequest(List.of(
-                    new TermAgreement(1L, true),
-                    new TermAgreement(2L, true)
-            ));
-
-            willDoNothing().given(userService).agreeToTerms(eq(USER_ID), any(TermsAgreementRequest.class));
+            UserResponse response = createUserResponse();
+            given(userService.getMyProfile(USER_ID)).willReturn(response);
 
             // when & then
-            mockMvc.perform(post(TERMS_ENDPOINT)
-                            .with(authentication(createOAuth2AuthenticationToken()))
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
+            mockMvc.perform(get(ME_ENDPOINT)
+                            .with(authentication(createJwtAuthenticationToken())))
                     .andDo(print())
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.success").value(true));
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.data.userId").value(USER_ID))
+                    .andExpect(jsonPath("$.data.email").value(USER_EMAIL))
+                    .andExpect(jsonPath("$.data.name").value(USER_NAME));
 
-            verify(userService).agreeToTerms(eq(USER_ID), any(TermsAgreementRequest.class));
-        }
-
-        @Test
-        @DisplayName("필수 약관 미동의 시 400 에러")
-        void agreeToTerms_MandatoryNotAgreed_BadRequest() throws Exception {
-            // given
-            TermsAgreementRequest request = new TermsAgreementRequest(List.of(
-                    new TermAgreement(1L, true),
-                    new TermAgreement(2L, false)
-            ));
-
-            willThrow(new YamoyoException(ErrorCode.MANDATORY_TERMS_NOT_AGREED))
-                    .given(userService).agreeToTerms(eq(USER_ID), any(TermsAgreementRequest.class));
-
-            // when & then
-            mockMvc.perform(post(TERMS_ENDPOINT)
-                            .with(authentication(createOAuth2AuthenticationToken()))
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
-                    .andDo(print())
-                    .andExpect(status().isBadRequest());
-        }
-
-        @Test
-        @DisplayName("약관 목록이 null이면 400 에러")
-        void agreeToTerms_NullAgreements_BadRequest() throws Exception {
-            // given
-            String requestJson = "{\"agreements\": null}";
-
-            // when & then
-            mockMvc.perform(post(TERMS_ENDPOINT)
-                            .with(authentication(createOAuth2AuthenticationToken()))
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(requestJson))
-                    .andDo(print())
-                    .andExpect(status().isBadRequest());
+            verify(userService).getMyProfile(USER_ID);
         }
 
         @Test
         @DisplayName("인증되지 않은 요청은 401 에러")
-        void agreeToTerms_Unauthorized() throws Exception {
-            // given
-            TermsAgreementRequest request = new TermsAgreementRequest(List.of(
-                    new TermAgreement(1L, true)
-            ));
-
+        void getMyProfile_Unauthorized() throws Exception {
             // when & then
-            mockMvc.perform(post(TERMS_ENDPOINT)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
+            mockMvc.perform(get(ME_ENDPOINT))
                     .andDo(print())
                     .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        @DisplayName("존재하지 않는 사용자 조회 시 404 에러")
+        void getMyProfile_UserNotFound() throws Exception {
+            // given
+            given(userService.getMyProfile(USER_ID))
+                    .willThrow(new YamoyoException(ErrorCode.USER_NOT_FOUND));
+
+            // when & then
+            mockMvc.perform(get(ME_ENDPOINT)
+                            .with(authentication(createJwtAuthenticationToken())))
+                    .andDo(print())
+                    .andExpect(status().isNotFound());
         }
     }
 
     @Nested
-    @DisplayName("POST /api/users/profile - 프로필 설정")
-    class SetupProfileTest {
+    @DisplayName("PUT /api/users/me - 프로필 수정")
+    class UpdateProfileTest {
 
         @Test
-        @DisplayName("프로필 설정 성공")
-        void setupProfile_Success() throws Exception {
+        @DisplayName("이름만 수정 성공")
+        void updateProfile_OnlyName_Success() throws Exception {
             // given
-            ProfileSetupRequest request = new ProfileSetupRequest(
-                    "홍길동",
-                    "컴퓨터공학과",
-                    "INTJ",
-                    1L
+            String newName = "새이름";
+            UserResponse response = new UserResponse(
+                    USER_ID, USER_EMAIL, newName, "컴퓨터공학", "INTJ", 1L, LocalDateTime.now()
             );
-
-            // Interceptor에서 약관 동의 여부 확인
-            given(userAgreementRepository.hasAgreedToAllMandatoryTerms(USER_ID)).willReturn(true);
-            willDoNothing().given(userService).setupProfile(eq(USER_ID), any(ProfileSetupRequest.class));
+            given(userService.updateProfile(eq(USER_ID), eq(newName), any(), any(), any()))
+                    .willReturn(response);
 
             // when & then
-            mockMvc.perform(post(PROFILE_ENDPOINT)
-                            .with(authentication(createOAuth2AuthenticationToken()))
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
+            mockMvc.perform(put(ME_ENDPOINT)
+                            .with(authentication(createJwtAuthenticationToken()))
+                            .param("name", newName))
+                    .andDo(print())
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.data.name").value(newName));
+
+            verify(userService).updateProfile(eq(USER_ID), eq(newName), any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("전공만 수정 성공")
+        void updateProfile_OnlyMajor_Success() throws Exception {
+            // given
+            String newMajor = "컴퓨터공학";
+            UserResponse response = new UserResponse(
+                    USER_ID, USER_EMAIL, USER_NAME, newMajor, "INTJ", 1L, LocalDateTime.now()
+            );
+            given(userService.updateProfile(eq(USER_ID), any(), eq(newMajor), any(), any()))
+                    .willReturn(response);
+
+            // when & then
+            mockMvc.perform(put(ME_ENDPOINT)
+                            .with(authentication(createJwtAuthenticationToken()))
+                            .param("major", newMajor))
+                    .andDo(print())
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.data.major").value(newMajor));
+
+            verify(userService).updateProfile(eq(USER_ID), any(), eq(newMajor), any(), any());
+        }
+
+        @Test
+        @DisplayName("MBTI만 수정 성공")
+        void updateProfile_OnlyMbti_Success() throws Exception {
+            // given
+            String newMbti = "ENFP";
+            UserResponse response = new UserResponse(
+                    USER_ID, USER_EMAIL, USER_NAME, "컴퓨터공학", newMbti, 1L, LocalDateTime.now()
+            );
+            given(userService.updateProfile(eq(USER_ID), any(), any(), eq(newMbti), any()))
+                    .willReturn(response);
+
+            // when & then
+            mockMvc.perform(put(ME_ENDPOINT)
+                            .with(authentication(createJwtAuthenticationToken()))
+                            .param("mbti", newMbti))
+                    .andDo(print())
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.data.mbti").value(newMbti));
+
+            verify(userService).updateProfile(eq(USER_ID), any(), any(), eq(newMbti), any());
+        }
+
+        @Test
+        @DisplayName("프로필 이미지만 수정 성공")
+        void updateProfile_OnlyProfileImage_Success() throws Exception {
+            // given
+            Long newProfileImageId = 2L;
+            UserResponse response = new UserResponse(
+                    USER_ID, USER_EMAIL, USER_NAME, "컴퓨터공학", "INTJ", newProfileImageId, LocalDateTime.now()
+            );
+            given(userService.updateProfile(eq(USER_ID), any(), any(), any(), eq(newProfileImageId)))
+                    .willReturn(response);
+
+            // when & then
+            mockMvc.perform(put(ME_ENDPOINT)
+                            .with(authentication(createJwtAuthenticationToken()))
+                            .param("profileImageId", String.valueOf(newProfileImageId)))
+                    .andDo(print())
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.data.profileImageId").value(newProfileImageId));
+
+            verify(userService).updateProfile(eq(USER_ID), any(), any(), any(), eq(newProfileImageId));
+        }
+
+        @Test
+        @DisplayName("모든 필드 수정 성공")
+        void updateProfile_AllFields_Success() throws Exception {
+            // given
+            String newName = "새이름";
+            String newMajor = "컴퓨터공학";
+            String newMbti = "ENFP";
+            Long newProfileImageId = 2L;
+            UserResponse response = new UserResponse(
+                    USER_ID, USER_EMAIL, newName, newMajor, newMbti, newProfileImageId, LocalDateTime.now()
+            );
+            given(userService.updateProfile(USER_ID, newName, newMajor, newMbti, newProfileImageId))
+                    .willReturn(response);
+
+            // when & then
+            mockMvc.perform(put(ME_ENDPOINT)
+                            .with(authentication(createJwtAuthenticationToken()))
+                            .param("name", newName)
+                            .param("major", newMajor)
+                            .param("mbti", newMbti)
+                            .param("profileImageId", String.valueOf(newProfileImageId)))
+                    .andDo(print())
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.data.name").value(newName))
+                    .andExpect(jsonPath("$.data.major").value(newMajor))
+                    .andExpect(jsonPath("$.data.mbti").value(newMbti))
+                    .andExpect(jsonPath("$.data.profileImageId").value(newProfileImageId));
+
+            verify(userService).updateProfile(USER_ID, newName, newMajor, newMbti, newProfileImageId);
+        }
+
+        @Test
+        @DisplayName("파라미터 없이 수정 요청 시 성공 (변경 없음)")
+        void updateProfile_NoParams_Success() throws Exception {
+            // given
+            UserResponse response = createUserResponse();
+            given(userService.updateProfile(eq(USER_ID), any(), any(), any(), any()))
+                    .willReturn(response);
+
+            // when & then
+            mockMvc.perform(put(ME_ENDPOINT)
+                            .with(authentication(createJwtAuthenticationToken())))
                     .andDo(print())
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true));
 
-            verify(userService).setupProfile(eq(USER_ID), any(ProfileSetupRequest.class));
+            verify(userService).updateProfile(eq(USER_ID), any(), any(), any(), any());
         }
 
         @Test
-        @DisplayName("약관 미동의 시 403 에러 (Interceptor)")
-        void setupProfile_TermsNotAgreed_Forbidden() throws Exception {
-            // given
-            ProfileSetupRequest request = new ProfileSetupRequest(
-                    "홍길동",
-                    "컴퓨터공학과",
-                    "INTJ",
-                    1L
-            );
-
-            // Interceptor에서 차단
-            given(userAgreementRepository.hasAgreedToAllMandatoryTerms(USER_ID)).willReturn(false);
-
+        @DisplayName("인증되지 않은 요청은 401 에러")
+        void updateProfile_Unauthorized() throws Exception {
             // when & then
-            mockMvc.perform(post(PROFILE_ENDPOINT)
-                            .with(authentication(createOAuth2AuthenticationToken()))
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
+            mockMvc.perform(put(ME_ENDPOINT)
+                            .param("name", "새이름"))
                     .andDo(print())
-                    .andExpect(status().isForbidden());
+                    .andExpect(status().isUnauthorized());
         }
 
         @Test
-        @DisplayName("이름이 10자 초과하면 400 에러")
-        void setupProfile_NameTooLong_BadRequest() throws Exception {
+        @DisplayName("존재하지 않는 사용자 프로필 수정 시 404 에러")
+        void updateProfile_UserNotFound() throws Exception {
             // given
-            ProfileSetupRequest request = new ProfileSetupRequest(
-                    "가나다라마바사아자차카", // 11자
-                    "컴퓨터공학과",
-                    "INTJ",
-                    1L
-            );
-
-            given(userAgreementRepository.hasAgreedToAllMandatoryTerms(USER_ID)).willReturn(true);
+            given(userService.updateProfile(eq(USER_ID), any(), any(), any(), any()))
+                    .willThrow(new YamoyoException(ErrorCode.USER_NOT_FOUND));
 
             // when & then
-            mockMvc.perform(post(PROFILE_ENDPOINT)
-                            .with(authentication(createOAuth2AuthenticationToken()))
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
+            mockMvc.perform(put(ME_ENDPOINT)
+                            .with(authentication(createJwtAuthenticationToken()))
+                            .param("name", "새이름"))
                     .andDo(print())
-                    .andExpect(status().isBadRequest());
-        }
-
-        @Test
-        @DisplayName("이름에 특수문자가 포함되면 400 에러")
-        void setupProfile_NameWithSpecialChar_BadRequest() throws Exception {
-            // given
-            ProfileSetupRequest request = new ProfileSetupRequest(
-                    "홍길동!@#",
-                    "컴퓨터공학과",
-                    "INTJ",
-                    1L
-            );
-
-            given(userAgreementRepository.hasAgreedToAllMandatoryTerms(USER_ID)).willReturn(true);
-
-            // when & then
-            mockMvc.perform(post(PROFILE_ENDPOINT)
-                            .with(authentication(createOAuth2AuthenticationToken()))
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
-                    .andDo(print())
-                    .andExpect(status().isBadRequest());
-        }
-
-        @Test
-        @DisplayName("MBTI가 4자가 아니면 400 에러")
-        void setupProfile_InvalidMbti_BadRequest() throws Exception {
-            // given
-            ProfileSetupRequest request = new ProfileSetupRequest(
-                    "홍길동",
-                    "컴퓨터공학과",
-                    "INT", // 3자
-                    1L
-            );
-
-            given(userAgreementRepository.hasAgreedToAllMandatoryTerms(USER_ID)).willReturn(true);
-
-            // when & then
-            mockMvc.perform(post(PROFILE_ENDPOINT)
-                            .with(authentication(createOAuth2AuthenticationToken()))
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
-                    .andDo(print())
-                    .andExpect(status().isBadRequest());
-        }
-
-        @Test
-        @DisplayName("MBTI가 소문자면 400 에러")
-        void setupProfile_LowercaseMbti_BadRequest() throws Exception {
-            // given
-            ProfileSetupRequest request = new ProfileSetupRequest(
-                    "홍길동",
-                    "컴퓨터공학과",
-                    "intj", // 소문자
-                    1L
-            );
-
-            given(userAgreementRepository.hasAgreedToAllMandatoryTerms(USER_ID)).willReturn(true);
-
-            // when & then
-            mockMvc.perform(post(PROFILE_ENDPOINT)
-                            .with(authentication(createOAuth2AuthenticationToken()))
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
-                    .andDo(print())
-                    .andExpect(status().isBadRequest());
-        }
-
-        @Test
-        @DisplayName("프로필 이미지 없이 설정 가능")
-        void setupProfile_WithoutProfileImage_Success() throws Exception {
-            // given
-            ProfileSetupRequest request = new ProfileSetupRequest(
-                    "홍길동",
-                    "컴퓨터공학과",
-                    "ENFP",
-                    1L
-            );
-
-            given(userAgreementRepository.hasAgreedToAllMandatoryTerms(USER_ID)).willReturn(true);
-            willDoNothing().given(userService).setupProfile(eq(USER_ID), any(ProfileSetupRequest.class));
-
-            // when & then
-            mockMvc.perform(post(PROFILE_ENDPOINT)
-                            .with(authentication(createOAuth2AuthenticationToken()))
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
-                    .andDo(print())
-                    .andExpect(status().isOk());
-        }
-
-        @Test
-        @DisplayName("영문 이름도 허용")
-        void setupProfile_EnglishName_Success() throws Exception {
-            // given
-            ProfileSetupRequest request = new ProfileSetupRequest(
-                    "JohnDoe",
-                    "Computer Science",
-                    "ENTP",
-                    1L
-            );
-
-            given(userAgreementRepository.hasAgreedToAllMandatoryTerms(USER_ID)).willReturn(true);
-            willDoNothing().given(userService).setupProfile(eq(USER_ID), any(ProfileSetupRequest.class));
-
-            // when & then
-            mockMvc.perform(post(PROFILE_ENDPOINT)
-                            .with(authentication(createOAuth2AuthenticationToken()))
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
-                    .andDo(print())
-                    .andExpect(status().isOk());
+                    .andExpect(status().isNotFound());
         }
     }
 
     // ========== Helper Methods ==========
 
-    private OAuth2AuthenticationToken createOAuth2AuthenticationToken() {
-        Map<String, Object> attributes = Map.of(
-                "sub", "123456",
-                "email", "test@example.com",
-                "name", "테스트",
-                "userId", USER_ID
-        );
+    private JwtAuthenticationToken createJwtAuthenticationToken() {
+        JwtTokenClaims claims = new JwtTokenClaims(USER_ID, USER_EMAIL, PROVIDER);
+        return JwtAuthenticationToken.authenticated(claims);
+    }
 
-        OAuth2User oAuth2User = new DefaultOAuth2User(
-                List.of(new SimpleGrantedAuthority("ROLE_GUEST")),
-                attributes,
-                "sub"
-        );
-
-        return new OAuth2AuthenticationToken(
-                oAuth2User,
-                oAuth2User.getAuthorities(),
-                "google"
+    private UserResponse createUserResponse() {
+        return new UserResponse(
+                USER_ID,
+                USER_EMAIL,
+                USER_NAME,
+                "컴퓨터공학",
+                "INTJ",
+                1L,
+                LocalDateTime.now()
         );
     }
 }

@@ -185,7 +185,7 @@ class AuthServiceTest {
     @DisplayName("logout() - 정상 로그아웃 시 RefreshToken 삭제")
     void logout_Success() {
         // when
-        authService.logout(USER_ID);
+        authService.logout(USER_ID, null);
 
         // then
         verify(refreshTokenRepository).deleteByUserId(USER_ID);
@@ -197,9 +197,40 @@ class AuthServiceTest {
         // given - 이미 RefreshToken이 없는 상태
 
         // when - 로그아웃 호출해도 예외 발생하지 않음
-        authService.logout(USER_ID);
+        authService.logout(USER_ID, null);
 
         // then - deleteByUserId 호출됨 (없어도 예외 발생 안함)
         verify(refreshTokenRepository).deleteByUserId(USER_ID);
+    }
+
+    @Test
+    @DisplayName("withdraw() - 정상 회원탈퇴 시 User 삭제 (DB CASCADE로 관련 데이터 자동 삭제)")
+    void withdraw_Success() {
+        // given
+        User user = User.create(USER_EMAIL, "Test User");
+        ReflectionTestUtils.setField(user, "id", USER_ID);
+
+        given(userRepository.findById(USER_ID)).willReturn(Optional.of(user));
+
+        // when
+        authService.withdraw(USER_ID);
+
+        // then - User 삭제 확인 (DB CASCADE로 관련 데이터 자동 삭제)
+        verify(userRepository).delete(user);
+    }
+
+    @Test
+    @DisplayName("withdraw() - 존재하지 않는 사용자 탈퇴 시도 시 예외 발생")
+    void withdraw_UserNotFound_ThrowsException() {
+        // given
+        given(userRepository.findById(USER_ID)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> authService.withdraw(USER_ID))
+                .isInstanceOf(YamoyoException.class)
+                .satisfies(e -> assertThat(((YamoyoException) e).getErrorCode()).isEqualTo(ErrorCode.USER_NOT_FOUND));
+
+        // 사용자를 찾지 못하면 삭제 로직은 실행되지 않음
+        verify(userRepository, never()).delete(any(User.class));
     }
 }

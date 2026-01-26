@@ -1,0 +1,110 @@
+package com.yamoyo.be.domain.security.handler;
+
+import com.yamoyo.be.domain.security.jwt.JwtTokenClaims;
+import com.yamoyo.be.domain.security.jwt.authentication.JwtAuthenticationToken;
+import com.yamoyo.be.domain.security.oauth.CustomOAuth2User;
+import com.yamoyo.be.domain.security.refreshtoken.RefreshTokenRepository;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
+import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.io.IOException;
+
+/**
+ * Custom Logout Success Handler
+ *
+ * Role:
+ * - Spring Security 로그아웃 성공 시 후처리를 담당
+ * - DB에서 Refresh Token 삭제
+ * - Refresh Token 쿠키 삭제
+ * - 메인 페이지("/")로 리다이렉트
+ *
+ * Complexity/Rationale:
+ * 1. DB RefreshToken 삭제:
+ *    - Authentication에서 userId 추출
+ *    - JWT 인증: JwtAuthenticationToken → JwtTokenClaims
+ *    - OAuth2 인증: OAuth2AuthenticationToken → CustomOAuth2User
+ *
+ * 2. 쿠키 삭제:
+ *    - HttpOnly 쿠키는 JavaScript에서 삭제 불가
+ *    - 서버에서 maxAge=0으로 설정하여 브라우저에게 삭제 요청
+ *
+ * 3. 리다이렉트:
+ *    - 로그아웃 후 메인 페이지("/")로 이동
+ */
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class CustomLogoutSuccessHandler implements LogoutSuccessHandler {
+
+    private final RefreshTokenRepository refreshTokenRepository;
+
+    @Override
+    @Transactional
+    public void onLogoutSuccess(HttpServletRequest request, HttpServletResponse response,
+                                Authentication authentication) throws IOException, ServletException {
+        log.info("로그아웃 성공 처리");
+
+        // 1. DB에서 Refresh Token 삭제
+        Long userId = extractUserId(authentication);
+        if (userId != null) {
+            refreshTokenRepository.deleteByUserId(userId);
+            log.info("DB RefreshToken 삭제 완료 - UserId: {}", userId);
+        }
+
+        // 2. Refresh Token 쿠키 삭제
+        Cookie refreshTokenCookie = new Cookie("refresh_token", null);
+        refreshTokenCookie.setHttpOnly(true);
+        refreshTokenCookie.setSecure(false); // HTTPS 적용 시 true로 변경 필요
+        refreshTokenCookie.setPath("/");
+        refreshTokenCookie.setMaxAge(0); // 쿠키 즉시 만료
+        response.addCookie(refreshTokenCookie);
+
+        // 3. JSESSIONID 쿠키 삭제 (세션 기반 인증 호환)
+        Cookie sessionCookie = new Cookie("JSESSIONID", null);
+        sessionCookie.setPath("/");
+        sessionCookie.setMaxAge(0);
+        response.addCookie(sessionCookie);
+
+        // 4. 메인 페이지로 리다이렉트
+        response.sendRedirect("/");
+
+        log.info("로그아웃 성공 - 쿠키 삭제 및 리다이렉트 완료");
+    }
+
+    /**
+     * Authentication에서 userId 추출
+     *
+     * @param authentication 인증 객체 (JWT 또는 OAuth2)
+     * @return userId 또는 null
+     */
+    private Long extractUserId(Authentication authentication) {
+        if (authentication == null) {
+            return null;
+        }
+
+        // JWT 인증인 경우
+        if (authentication instanceof JwtAuthenticationToken jwtAuth) {
+            JwtTokenClaims claims = jwtAuth.getJwtClaims();
+            return claims != null ? claims.userId() : null;
+        }
+
+        // OAuth2 인증인 경우
+        if (authentication instanceof OAuth2AuthenticationToken) {
+            Object principal = authentication.getPrincipal();
+            if (principal instanceof CustomOAuth2User customOAuth2User) {
+                return customOAuth2User.getUserId();
+            }
+        }
+
+        return null;
+    }
+}

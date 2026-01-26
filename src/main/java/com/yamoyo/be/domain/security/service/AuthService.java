@@ -146,7 +146,7 @@ public class AuthService {
      * @param userId 로그아웃할 사용자 ID
      */
     @Transactional
-    public void logout(Long userId) {
+    public void logout(Long userId, String accessToken) {
         log.info("로그아웃 처리 - UserId: {}", userId);
 
         // DB에서 Refresh Token 삭제
@@ -154,6 +154,22 @@ public class AuthService {
         // Refresh Token이 없어도 예외 발생하지 않음 (멱등성)
         refreshTokenRepository.deleteByUserId(userId);
 
+        // TODO: 우진님 PR Merge 된 후 Redis JwtBlackList 로직 작성해야함. 현재 Redis 의존성 X
+
         log.info("로그아웃 완료 - UserId: {}", userId);
+    }
+
+    @Transactional
+    public void withdraw(Long userId) {
+        log.info("회원 탈퇴 처리 - UserId: {}", userId);
+
+        // 사용자 존재 여부 확인
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.USER_NOT_FOUND));
+
+        // User 삭제 (DB CASCADE로 관련 데이터 자동 삭제)
+        userRepository.delete(user);
+
+        log.info("회원 탈퇴 완료 - UserId: {}", userId);
     }
 }

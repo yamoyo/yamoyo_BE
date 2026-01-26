@@ -1,29 +1,33 @@
 package com.yamoyo.be.domain.user.controller;
 
 import com.yamoyo.be.common.dto.ApiResponse;
-import com.yamoyo.be.domain.user.dto.ProfileSetupRequest;
-import com.yamoyo.be.domain.user.dto.TermsAgreementRequest;
+import com.yamoyo.be.domain.security.jwt.JwtTokenClaims;
+import com.yamoyo.be.domain.user.dto.response.UserResponse;
 import com.yamoyo.be.domain.user.service.UserService;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.core.user.OAuth2User;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 /**
  * User Controller
  *
  * Role:
- * - 사용자 관련 API 엔드포인트 제공
- * - 온보딩 과정의 약관 동의, 프로필 설정 API 포함
+ * - 사용자 프로필 관련 REST API 엔드포인트 제공
+ * - 내 정보 조회, 프로필 수정
  *
- * Endpoints:
- * - POST /api/users/terms : 약관 동의
- * - POST /api/users/profile : 프로필 설정
+ * Complexity/Rationale:
+ * 1. REST API 설계:
+ *    - GET /api/users/me: 내 프로필 조회
+ *    - PUT /api/users/me: 프로필 수정 (Query Parameter로 변경할 필드 전달)
+ *
+ * 2. 인증 정보 주입:
+ *    - @AuthenticationPrincipal JwtTokenClaims: JWT 필터에서 설정한 인증 정보
+ *    - SecurityContext에 저장된 JwtAuthenticationToken에서 principal 추출
+ *
+ * 3. Query Parameter 방식:
+ *    - 각 필드별 수정 버튼이 따로 있는 UI에 적합
+ *    - null인 필드는 변경하지 않음
  */
 @Slf4j
 @RestController
@@ -33,30 +37,28 @@ public class UserController {
 
     private final UserService userService;
 
-    @PostMapping("/terms")
-    public ApiResponse<Void> agreeToTerms(
-            @AuthenticationPrincipal OAuth2User oAuth2User,
-            @Valid @RequestBody TermsAgreementRequest request
-    ) {
-        Long userId = (Long) oAuth2User.getAttributes().get("userId");
-        log.info("약관 동의 요청 - UserId: {}, Agreements: {}", userId, request.agreements().size());
+    @GetMapping("/me")
+    public ApiResponse<UserResponse> getMyProfile(
+            @AuthenticationPrincipal JwtTokenClaims claims) {
+        log.info("GET /api/users/me - 내 프로필 조회 요청, UserId: {}", claims.userId());
 
-        userService.agreeToTerms(userId, request);
+        UserResponse response = userService.getMyProfile(claims.userId());
 
-        return ApiResponse.success();
+        return ApiResponse.success(response);
     }
 
-    @PostMapping("/profile")
-    public ApiResponse<Void> setupProfile(
-            @AuthenticationPrincipal OAuth2User oAuth2User,
-            @Valid @RequestBody ProfileSetupRequest request
-    ) {
-        Long userId = (Long) oAuth2User.getAttributes().get("userId");
-        log.info("프로필 설정 요청 - UserId: {}, Name: {}, Major: {}, MBTI: {}",
-                userId, request.name(), request.major(), request.mbti());
+    @PutMapping("/me")
+    public ApiResponse<UserResponse> updateProfile(
+            @AuthenticationPrincipal JwtTokenClaims claims,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String major,
+            @RequestParam(required = false) String mbti,
+            @RequestParam(required = false) Long profileImageId) {
+        log.info("PUT /api/users/me - 프로필 수정 요청, UserId: {}", claims.userId());
 
-        userService.setupProfile(userId, request);
+        UserResponse response = userService.updateProfile(
+                claims.userId(), name, major, mbti, profileImageId);
 
-        return ApiResponse.success();
+        return ApiResponse.success(response);
     }
 }

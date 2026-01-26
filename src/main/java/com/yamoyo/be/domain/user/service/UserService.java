@@ -1,13 +1,7 @@
 package com.yamoyo.be.domain.user.service;
 
-import com.yamoyo.be.domain.user.dto.ProfileSetupRequest;
-import com.yamoyo.be.domain.user.dto.TermsAgreementRequest;
-import com.yamoyo.be.domain.user.dto.TermsAgreementRequest.TermAgreement;
-import com.yamoyo.be.domain.user.entity.Term;
+import com.yamoyo.be.domain.user.dto.response.UserResponse;
 import com.yamoyo.be.domain.user.entity.User;
-import com.yamoyo.be.domain.user.entity.UserAgreement;
-import com.yamoyo.be.domain.user.repository.TermRepository;
-import com.yamoyo.be.domain.user.repository.UserAgreementRepository;
 import com.yamoyo.be.domain.user.repository.UserRepository;
 import com.yamoyo.be.exception.ErrorCode;
 import com.yamoyo.be.exception.YamoyoException;
@@ -16,17 +10,19 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
-
 /**
  * User Service
  *
  * Role:
- * - 사용자 관련 비즈니스 로직 처리
- * - 온보딩 과정의 약관 동의, 프로필 설정 처리
+ * - 사용자 프로필 조회 및 수정을 담당하는 비즈니스 로직 계층
+ *
+ * Complexity/Rationale:
+ * 1. 프로필 조회:
+ *    - 인증된 사용자 본인의 정보만 조회 가능
+ *
+ * 2. 프로필 수정:
+ *    - 전달된 필드만 업데이트 (null이 아닌 필드만)
+ *    - 각 필드별 update 메서드 호출로 변경 감지
  */
 @Slf4j
 @Service
@@ -35,82 +31,62 @@ import java.util.stream.Collectors;
 public class UserService {
 
     private final UserRepository userRepository;
-    private final TermRepository termRepository;
-    private final UserAgreementRepository userAgreementRepository;
 
-    @Transactional
-    public void agreeToTerms(Long userId, TermsAgreementRequest request) {
-        // 1. User 조회
+    /**
+     * 내 프로필 조회
+     *
+     * @param userId 사용자 ID (JWT 토큰에서 추출)
+     * @return UserResponse 사용자 정보
+     * @throws YamoyoException 사용자를 찾을 수 없는 경우
+     */
+    public UserResponse getMyProfile(Long userId) {
+        log.info("내 프로필 조회 - UserId: {}", userId);
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new YamoyoException(ErrorCode.USER_NOT_FOUND));
 
-        // 2. 필수 약관 검증
-        List<Term> mandatoryTerms = termRepository.findByIsActiveAndIsMandatory(true, true);
-        Set<Long> mandatoryTermIds = mandatoryTerms.stream()
-                .map(Term::getId)
-                .collect(Collectors.toSet());
-
-        // 요청에서 동의한 약관 ID 추출
-        Map<Long, Boolean> agreedMap = request.agreements().stream()
-                .collect(Collectors.toMap(TermAgreement::termsId, TermAgreement::agreed));
-
-        // 모든 필수 약관에 동의했는지 확인
-        boolean allMandatoryAgreed = mandatoryTermIds.stream()
-                .allMatch(termId -> Boolean.TRUE.equals(agreedMap.get(termId)));
-
-        if (!allMandatoryAgreed) {
-            log.warn("필수 약관 미동의 - UserId: {}, MandatoryTermIds: {}, AgreedMap: {}",
-                    userId, mandatoryTermIds, agreedMap);
-            throw new YamoyoException(ErrorCode.MANDATORY_TERMS_NOT_AGREED);
-        }
-
-        // 3. UserAgreement 저장
-        Set<Long> requestedTermIds = request.agreements().stream()
-                .map(TermAgreement::termsId)
-                .collect(Collectors.toSet());
-
-        Map<Long, Term> foundTerms = termRepository.findAllById(requestedTermIds).stream()
-                .collect(Collectors.toMap(Term::getId, term -> term));
-
-        if (foundTerms.size() != requestedTermIds.size()) {
-            throw new YamoyoException(ErrorCode.TERMS_NOT_FOUND);
-        }
-
-        List<UserAgreement> agreements = request.agreements().stream()
-                .map(agreement -> {
-                    Term term = foundTerms.get(agreement.termsId());
-                    return UserAgreement.create(user, term, agreement.agreed());
-                })
-                .toList();
-
-        userAgreementRepository.saveAll(agreements);
-
-        log.info("약관 동의 완료 - UserId: {}, AgreementCount: {}", userId, agreements.size());
+        return UserResponse.from(user);
     }
 
+    /**
+     * 프로필 수정
+     *
+     * Role:
+     * - 전달된 필드만 업데이트 (null이 아닌 필드)
+     * - 각 필드는 독립적으로 수정 가능
+     *
+     * @param userId 사용자 ID (JWT 토큰에서 추출)
+     * @param name 변경할 이름 (null이면 변경 안함)
+     * @param major 변경할 전공 (null이면 변경 안함)
+     * @param mbti 변경할 MBTI (null이면 변경 안함)
+     * @param profileImageId 변경할 프로필 이미지 ID (null이면 변경 안함)
+     * @return UserResponse 수정된 사용자 정보
+     * @throws YamoyoException 사용자를 찾을 수 없는 경우
+     */
     @Transactional
-    public void setupProfile(Long userId, ProfileSetupRequest request) {
-        // 1. User 조회
+    public UserResponse updateProfile(Long userId, String name, String major, String mbti, Long profileImageId) {
+        log.info("프로필 수정 - UserId: {}, name: {}, major: {}, mbti: {}, profileImageId: {}",
+                userId, name, major, mbti, profileImageId);
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new YamoyoException(ErrorCode.USER_NOT_FOUND));
 
-        // 2. 약관 동의 여부 확인
-        boolean hasAgreedToTerms = userAgreementRepository.hasAgreedToAllMandatoryTerms(userId);
-        if (!hasAgreedToTerms) {
-            log.warn("약관 미동의 상태에서 프로필 설정 시도 - UserId: {}", userId);
-            throw new YamoyoException(ErrorCode.TERMS_NOT_AGREED);
+        // null이 아닌 필드만 업데이트
+        if (name != null) {
+            user.updateName(name);
+        }
+        if (major != null) {
+            user.updateMajor(major);
+        }
+        if (mbti != null) {
+            user.updateMBTI(mbti);
+        }
+        if (profileImageId != null) {
+            user.updateProfileImageId(profileImageId);
         }
 
-        // 3. 프로필 정보 업데이트
-        user.updateName(request.name());
-        user.updateMajor(request.major());
-        user.updateMBTI(request.mbti());
-        user.updateProfileImageId(request.profileImageId());
+        log.info("프로필 수정 완료 - UserId: {}", userId);
 
-        // 4. UserRole 변경 (GUEST → USER)
-        user.completeOnboarding();
-
-        log.info("프로필 설정 완료 - UserId: {}, Name: {}, Major: {}, MBTI: {}, UserRole: {}",
-                userId, request.name(), request.major(), request.mbti(), user.getUserRole());
+        return UserResponse.from(user);
     }
 }
