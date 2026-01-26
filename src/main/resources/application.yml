@@ -29,6 +29,12 @@ spring:
     password: ${DB_PASSWORD:yamoyo123}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
+  # Redis 설정
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
   # OAuth2 Client Configuration
   # Role: Google, Kakao 등 여러 OAuth2 Provider 설정
   # Complexity: client-id와 client-secret은 환경변수로 주입받아 보안 강화
