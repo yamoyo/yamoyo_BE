@@ -109,4 +109,20 @@ public class TimepickParticipant {
     public boolean hasSubmittedPreferredBlock() {
         return this.preferredBlockStatus == TimepickParticipantStatus.SUBMITTED;
     }
+
+    public static TimepickParticipant create(Timepick timepick, User user) {
+        TimepickParticipant participant = new TimepickParticipant();
+        participant.timepick = timepick;
+        participant.user = user;
+        participant.availabilityStatus = TimepickParticipantStatus.PENDING;
+        participant.preferredBlockStatus = TimepickParticipantStatus.PENDING;
+        participant.availabilityMon = 0L;
+        participant.availabilityTue = 0L;
+        participant.availabilityWed = 0L;
+        participant.availabilityThu = 0L;
+        participant.availabilityFri = 0L;
+        participant.availabilitySat = 0L;
+        participant.availabilitySun = 0L;
+        return participant;
+    }
 }
