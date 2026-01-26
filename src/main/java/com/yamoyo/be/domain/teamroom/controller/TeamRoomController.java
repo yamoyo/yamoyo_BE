@@ -11,6 +11,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -23,8 +24,9 @@ public class TeamRoomController {
     @PostMapping()
     public ResponseEntity<ApiResponse<CreateTeamRoomResponse>> createTeamRoom(
             @Valid @RequestBody CreateTeamRoomRequest request,
-            @AuthenticationPrincipal(expression = "userId") Long userId
+            @AuthenticationPrincipal OAuth2User oAuth2User
     ) {
+        Long userId = (Long) oAuth2User.getAttributes().get("userId");
         CreateTeamRoomResponse response = teamRoomService.createTeamRoom(request,userId);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
@@ -32,8 +34,9 @@ public class TeamRoomController {
     @PostMapping("/join")
     public ResponseEntity<ApiResponse<JoinTeamRoomResponse>> joinTeamRoom(
             @Valid @RequestBody JoinTeamRoomRequest request,
-            @AuthenticationPrincipal(expression = "userId") Long userId
+            @AuthenticationPrincipal OAuth2User oAuth2User
     ){
+        Long userId = (Long) oAuth2User.getAttributes().get("userId");
         JoinTeamRoomResponse response = teamRoomService.joinTeamRoom(request,userId);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
@@ -41,8 +44,9 @@ public class TeamRoomController {
     @PostMapping("/{teamRoomId}/invite-link")
     public ResponseEntity<ApiResponse<InviteLinkResponse>> issueInviteLink(
             @PathVariable Long teamRoomId,
-            @AuthenticationPrincipal(expression = "userId")  Long userId
+            @AuthenticationPrincipal OAuth2User oAuth2User
     ){
+        Long userId = (Long) oAuth2User.getAttributes().get("userId");
         InviteLinkResponse response =  teamRoomService.issueInviteLink(teamRoomId,userId);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
