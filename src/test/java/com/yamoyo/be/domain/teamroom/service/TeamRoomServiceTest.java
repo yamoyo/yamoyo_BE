@@ -8,6 +8,7 @@ import com.yamoyo.be.domain.teamroom.entity.TeamRoom;
 import com.yamoyo.be.domain.teamroom.entity.enums.Lifecycle;
 import com.yamoyo.be.domain.teamroom.entity.enums.TeamRole;
 import com.yamoyo.be.domain.teamroom.entity.enums.Workflow;
+import com.yamoyo.be.domain.teamroom.repository.BannedTeamMemberRepository;
 import com.yamoyo.be.domain.teamroom.repository.TeamMemberRepository;
 import com.yamoyo.be.domain.teamroom.repository.TeamRoomRepository;
 import com.yamoyo.be.domain.user.entity.User;
@@ -51,6 +52,9 @@ class TeamRoomServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private BannedTeamMemberRepository bannedTeamMemberRepository;
 
     @Mock
     private InviteTokenService inviteTokenService;
@@ -335,6 +339,31 @@ class TeamRoomServiceTest {
                     .hasMessageContaining(ErrorCode.TEAMROOM_JOIN_FORBIDDEN.getMessage());
 
             verify(teamMemberRepository, never()).findByTeamRoomIdAndUserId(anyLong(), anyLong());
+            verify(teamMemberRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("팀룸 입장 실패 - 밴된 유저")
+        void joinTeamRoom_Banned() {
+            // given
+            String token = "valid_token";
+            Long userId = 1L;
+            Long teamRoomId = 1L;
+
+            given(inviteTokenService.getTeamRoomIdByToken(token)).willReturn(teamRoomId);
+
+            TeamRoom teamRoom = createMockTeamRoom(teamRoomId, "팀룸 제목");
+            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
+            given(bannedTeamMemberRepository.existsByTeamRoomIdAndUserId(teamRoomId, userId))
+                    .willReturn(true); // 밴된 유저
+
+            JoinTeamRoomRequest request = new JoinTeamRoomRequest(token);
+
+            // when / then
+            assertThatThrownBy(() -> teamRoomService.joinTeamRoom(request, userId))
+                    .isInstanceOf(YamoyoException.class)
+                    .hasMessageContaining(ErrorCode.BANNED_MEMBER.getMessage());
+
             verify(teamMemberRepository, never()).save(any());
         }
     }
