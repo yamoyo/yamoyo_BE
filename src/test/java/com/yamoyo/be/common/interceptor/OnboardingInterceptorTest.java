@@ -50,7 +50,7 @@ class OnboardingInterceptorTest {
         interceptor = new OnboardingInterceptor(userAgreementRepository, objectMapper);
         request = new MockHttpServletRequest();
         response = new MockHttpServletResponse();
-        request.setRequestURI("/api/users/profile");
+        request.setRequestURI("/api/onboarding/profile");
     }
 
     @Test

@@ -1,4 +1,4 @@
-package com.yamoyo.be.domain.user.dto;
+package com.yamoyo.be.domain.user.dto.request;
 
 import jakarta.validation.constraints.NotNull;
 

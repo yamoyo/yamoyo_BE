@@ -1,8 +1,8 @@
 package com.yamoyo.be.domain.user.controller;
 
 import com.yamoyo.be.common.dto.ApiResponse;
-import com.yamoyo.be.domain.user.dto.ProfileSetupRequest;
-import com.yamoyo.be.domain.user.dto.TermsAgreementRequest;
+import com.yamoyo.be.domain.user.dto.request.ProfileSetupRequest;
+import com.yamoyo.be.domain.user.dto.request.TermsAgreementRequest;
 import com.yamoyo.be.domain.user.service.OnBoardingService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping("/api/onboarding")
 @RequiredArgsConstructor
 public class OnBoardingController {
 

@@ -1,8 +1,8 @@
 package com.yamoyo.be.domain.user.service;
 
-import com.yamoyo.be.domain.user.dto.ProfileSetupRequest;
-import com.yamoyo.be.domain.user.dto.TermsAgreementRequest;
-import com.yamoyo.be.domain.user.dto.TermsAgreementRequest.TermAgreement;
+import com.yamoyo.be.domain.user.dto.request.ProfileSetupRequest;
+import com.yamoyo.be.domain.user.dto.request.TermsAgreementRequest;
+import com.yamoyo.be.domain.user.dto.request.TermsAgreementRequest.TermAgreement;
 import com.yamoyo.be.domain.user.entity.Term;
 import com.yamoyo.be.domain.user.entity.User;
 import com.yamoyo.be.domain.user.entity.UserAgreement;

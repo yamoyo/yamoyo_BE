@@ -1,9 +1,9 @@
 package com.yamoyo.be.domain.user.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.yamoyo.be.domain.user.dto.ProfileSetupRequest;
-import com.yamoyo.be.domain.user.dto.TermsAgreementRequest;
-import com.yamoyo.be.domain.user.dto.TermsAgreementRequest.TermAgreement;
+import com.yamoyo.be.domain.user.dto.request.ProfileSetupRequest;
+import com.yamoyo.be.domain.user.dto.request.TermsAgreementRequest;
+import com.yamoyo.be.domain.user.dto.request.TermsAgreementRequest.TermAgreement;
 import com.yamoyo.be.domain.user.repository.UserAgreementRepository;
 import com.yamoyo.be.domain.user.service.OnBoardingService;
 import com.yamoyo.be.exception.ErrorCode;
@@ -65,11 +65,11 @@ class OnBoardingControllerTest {
     private UserAgreementRepository userAgreementRepository;
 
     private static final Long USER_ID = 1L;
-    private static final String TERMS_ENDPOINT = "/api/users/terms";
-    private static final String PROFILE_ENDPOINT = "/api/users/profile";
+    private static final String TERMS_ENDPOINT = "/api/onboarding/terms";
+    private static final String PROFILE_ENDPOINT = "/api/onboarding/profile";
 
     @Nested
-    @DisplayName("POST /api/users/terms - 약관 동의")
+    @DisplayName("POST /api/onboarding/terms - 약관 동의")
     class AgreeToTermsTest {
 
         @Test
@@ -149,7 +149,7 @@ class OnBoardingControllerTest {
     }
 
     @Nested
-    @DisplayName("POST /api/users/profile - 프로필 설정")
+    @DisplayName("POST /api/onboarding/profile - 프로필 설정")
     class SetupProfileTest {
 
         @Test
