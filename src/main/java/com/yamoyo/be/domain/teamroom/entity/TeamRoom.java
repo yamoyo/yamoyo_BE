@@ -1,7 +1,7 @@
 package com.yamoyo.be.domain.teamroom.entity;
 
-import com.yamoyo.be.domain.teamroom.enums.Lifecycle;
-import com.yamoyo.be.domain.teamroom.enums.Workflow;
+import com.yamoyo.be.domain.teamroom.entity.enums.Lifecycle;
+import com.yamoyo.be.domain.teamroom.entity.enums.Workflow;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -91,24 +91,30 @@ public class TeamRoom {
     }
 
     /**
-     * 마감일 수정 (팀장만 가능)
-     */
-    public void updateDeadline(LocalDateTime newDeadline) {
-        if (newDeadline.isBefore(LocalDateTime.now())) {
-            throw new IllegalArgumentException("과거 날짜로 설정할 수 없습니다");
-        }
-        this.deadline = newDeadline;
-    }
-
-    /**
      * 팀룸 정보 수정 (제목, 설명)
      */
-    public void updateInfo(String title, String description) {
+    public void update(String title, String description, LocalDateTime deadline, Long bannerImageId) {
+        // 제목 수정
         if (title != null && !title.isBlank()) {
             this.title = title;
         }
+
+        // 설명 수정
         if (description != null) {
             this.description = description;
+        }
+
+        // 마감일 수정
+        if (deadline != null) {
+            if (deadline.isBefore(LocalDateTime.now())) {
+                throw new IllegalArgumentException("과거 날짜로 설정할 수 없습니다");
+            }
+            this.deadline = deadline;
+        }
+
+        // 배너 수정
+        if (bannerImageId != null) {
+            this.bannerImageId = bannerImageId;
         }
     }
 

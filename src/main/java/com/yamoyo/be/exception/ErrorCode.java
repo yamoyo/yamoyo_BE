@@ -37,6 +37,13 @@ public enum ErrorCode {
     // TeamMember
     NOT_TEAM_MEMBER(HttpStatus.FORBIDDEN, "팀룸의 팀원이 아닙니다."),
     TEAMROOM_MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 팀룸에서 팀원을 찾을 수 없습니다."),
+    NOT_TEAM_MANAGER(HttpStatus.FORBIDDEN, "관리자 권한이 없습니다."),
+    TEAMROOM_LEAVE_FORBIDDEN(HttpStatus.BAD_REQUEST, "현재 팀룸을 나갈 수 없습니다."),
+    TEAMROOM_KICK_FORBIDDEN(HttpStatus.BAD_REQUEST, "진행 중에는 팀원을 강퇴할 수 없습니다."),
+    CANNOT_DELEGATE_TO_SELF(HttpStatus.BAD_REQUEST, "팀장/방장은 자기 자신에게 위임할 수 없습니다."),
+    CANNOT_KICK_SELF(HttpStatus.BAD_REQUEST, "자기 자신을 강퇴할 수 없습니다."),
+    CANNOT_KICK_MANAGER(HttpStatus.BAD_REQUEST, "관리자는 강퇴할 수 없습니다."),
+    BANNED_MEMBER(HttpStatus.FORBIDDEN, "해당 팀룸에서 강퇴된 사용자입니다."),
 
     // Server
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 내부 오류입니다.");

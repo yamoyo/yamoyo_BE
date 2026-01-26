@@ -2,13 +2,12 @@ package com.yamoyo.be.domain.teamroom.service;
 
 import com.yamoyo.be.domain.teamroom.dto.request.CreateTeamRoomRequest;
 import com.yamoyo.be.domain.teamroom.dto.request.JoinTeamRoomRequest;
-import com.yamoyo.be.domain.teamroom.dto.response.CreateTeamRoomResponse;
-import com.yamoyo.be.domain.teamroom.dto.response.InviteLinkResponse;
-import com.yamoyo.be.domain.teamroom.dto.response.JoinTeamRoomResponse;
+import com.yamoyo.be.domain.teamroom.dto.response.*;
 import com.yamoyo.be.domain.teamroom.entity.TeamMember;
 import com.yamoyo.be.domain.teamroom.entity.TeamRoom;
-import com.yamoyo.be.domain.teamroom.enums.Lifecycle;
-import com.yamoyo.be.domain.teamroom.enums.Workflow;
+import com.yamoyo.be.domain.teamroom.entity.enums.Lifecycle;
+import com.yamoyo.be.domain.teamroom.entity.enums.Workflow;
+import com.yamoyo.be.domain.teamroom.repository.BannedTeamMemberRepository;
 import com.yamoyo.be.domain.teamroom.repository.TeamMemberRepository;
 import com.yamoyo.be.domain.teamroom.repository.TeamRoomRepository;
 import com.yamoyo.be.domain.user.entity.User;
@@ -21,7 +20,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -32,6 +34,7 @@ public class TeamRoomService {
     private final UserRepository userRepository;
     private final TeamRoomRepository teamRoomRepository;
     private final TeamMemberRepository teamMemberRepository;
+    private final BannedTeamMemberRepository bannedTeamMemberRepository;
     private final InviteTokenService inviteTokenService;
 
     private static final long TOKEN_EXPIRATION_SECONDS = 86400L; // 24시간
@@ -83,6 +86,10 @@ public class TeamRoomService {
         );
     }
 
+    /**
+     * 초대 링크 생성 로직
+     * - 재발급 시 사용
+     */
     @Transactional
     public InviteLinkResponse issueInviteLink(Long teamRoomId, Long userId) {
 
@@ -105,7 +112,6 @@ public class TeamRoomService {
 
         return new InviteLinkResponse(token, TOKEN_EXPIRATION_SECONDS);
     }
-
 
     /**
      * 팀룸 입장 로직
@@ -153,7 +159,9 @@ public class TeamRoomService {
         if(count >= 12) throw new YamoyoException(ErrorCode.TEAMROOM_FULL);
 
         //  6. 밴 여부 확인
-        // ===== code =====
+        if (bannedTeamMemberRepository.existsByTeamRoomIdAndUserId(teamRoomId, userId)) {
+            throw new YamoyoException(ErrorCode.BANNED_MEMBER);
+        }
 
         // user 정보
         User user = userRepository.findById(userId)
@@ -170,5 +178,147 @@ public class TeamRoomService {
                 teamRoomId,
                 newTeamMember.getId()
         );
+    }
+
+    /**
+     * 팀룸 목록 조회 (진행중/완료 구분)
+     * 
+     * @param userId 사용자 ID
+     * @param lifecycle 라이프사이클 (ACTIVE: 진행중, ARCHIVED: 완료)
+     * @return 팀룸 목록
+     */
+    public List<TeamRoomListResponse> getTeamRoomList(Long userId, Lifecycle lifecycle) {
+        log.info("팀룸 목록 조회 시작 - userId: {}, lifecycle: {}", userId, lifecycle);
+
+        // 1. 사용자가 속한 팀룸 조회 (이미 최신순 정렬됨)
+        List<TeamRoom> teamRooms = teamMemberRepository.findTeamRoomsByUserIdAndLifecycle(userId, lifecycle);
+
+        // 2. 각 팀룸에 대한 상세 정보 조회 및 DTO 변환
+        return teamRooms.stream()
+                .map(teamRoom -> {
+                    // 전체 팀원 조회
+                    List<TeamMember> members = teamMemberRepository.findByTeamRoomId(teamRoom.getId());
+
+                    // 팀원 요약 정보 생성(userId, 프로필 이미지)
+                    List<TeamRoomListResponse.MemberSummary> memberSummaries = members.stream()
+                            .map(member -> new TeamRoomListResponse.MemberSummary(
+                                    member.getUser().getId(),
+                                    member.getUser().getProfileImageId()
+                            )).collect(Collectors.toList());
+
+                    // 응답 DTO 생성
+                    return new TeamRoomListResponse(
+                            teamRoom.getId(),
+                            teamRoom.getTitle(),
+                            teamRoom.getBannerImageId(),
+                            teamRoom.getCreatedAt(),
+                            teamRoom.getDeadline(),
+                            teamRoom.getLifecycle(),
+                            members.size(),
+                            memberSummaries
+                    );
+                })
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 팀룸 상세 조회
+     *
+     * @param teamRoomId 조회할 팀룸 ID
+     * @param userId 요청자 ID (권한 체크용)
+     * @return 팀룸 상세 정보
+     */
+    public TeamRoomDetailResponse getTeamRoomDetail(Long teamRoomId, Long userId) {
+        log.info("팀룸 상세 조회 시작 - teamRoomId: {}, userId: {}", teamRoomId, userId);
+
+        // 1. 팀룸 조회
+        TeamRoom teamRoom = teamRoomRepository.findById(teamRoomId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
+
+        // 2. 요청자가 팀원인지 확인 (권한 체크)
+        TeamMember myMember = teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
+
+        // 3. 전체 팀원 조회
+        List<TeamMember> members = teamMemberRepository.findByTeamRoomId(teamRoomId);
+
+        // 4. 팀원 요약 정보 생성(HOST → LEADER → MEMBER 순 정렬)
+        List<TeamRoomDetailResponse.MemberSummary> memberSummaries = members.stream()
+                .map(member -> new TeamRoomDetailResponse.MemberSummary(
+                        member.getUser().getId(),
+                        member.getUser().getName(),
+                        member.getUser().getProfileImageId(),
+                        member.getTeamRole()
+                ))
+                .sorted(Comparator.comparing(TeamRoomDetailResponse.MemberSummary::role))
+                .collect(Collectors.toList());
+
+        // 5. 응답 DTO 생성
+        return new TeamRoomDetailResponse(
+                teamRoom.getId(),
+                teamRoom.getTitle(),
+                teamRoom.getDescription(),
+                teamRoom.getDeadline(),
+                teamRoom.getBannerImageId(),
+                teamRoom.getCreatedAt(),
+                teamRoom.getLifecycle(),
+                teamRoom.getWorkflow(),
+                members.size(),
+                memberSummaries,
+                myMember.getTeamRole()
+        );
+    }
+
+    /**
+     * 팀룸 수정
+     */
+    @Transactional
+    public void updateTeamRoom(Long teamRoomId, CreateTeamRoomRequest request, Long userId) {
+        log.info("팀룸 수정 시작 - teamRoomId: {}, userId: {}", teamRoomId, userId);
+
+        // 1. 팀룸 조회
+        TeamRoom teamRoom = teamRoomRepository.findById(teamRoomId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
+
+        // 2. 권한 체크
+        TeamMember member = teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
+        if (!member.hasManagementAuthority()) {
+            throw new YamoyoException(ErrorCode.NOT_TEAM_MANAGER);
+        }
+
+        // 3. 마감일 검증
+        if (request.deadline().isBefore(LocalDateTime.now().plusDays(1))) {
+            throw new YamoyoException(ErrorCode.INVALID_DEADLINE);
+        }
+
+        // 4. 전체 수정
+        teamRoom.update(request.title(), request.description(), request.deadline(), request.bannerImageId());
+
+        log.info("팀룸 수정 완료 - teamRoomId: {}", teamRoomId);
+    }
+
+    /**
+     * 팀룸 삭제 (소프트 삭제)
+     */
+    @Transactional
+    public void deleteTeamRoom(Long teamRoomId, Long userId) {
+        log.info("팀룸 삭제 시작 - teamRoomId: {}, userId: {}", teamRoomId, userId);
+
+        // 1. 팀룸 조회
+        TeamRoom teamRoom = teamRoomRepository.findById(teamRoomId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
+
+        // 2. 권한 체크 (HOST 또는 LEADER만 가능)
+        TeamMember member = teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
+        if (!member.hasManagementAuthority()) {
+            throw new YamoyoException(ErrorCode.NOT_TEAM_MANAGER);
+        }
+
+        // 3. 소프트 삭제 (lifecycle → DELETED)
+        teamRoom.delete();
+
+        log.info("팀룸 삭제 완료 - teamRoomId: {}", teamRoomId);
     }
 }

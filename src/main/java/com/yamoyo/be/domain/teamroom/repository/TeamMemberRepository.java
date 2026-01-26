@@ -2,8 +2,8 @@ package com.yamoyo.be.domain.teamroom.repository;
 
 import com.yamoyo.be.domain.teamroom.entity.TeamMember;
 import com.yamoyo.be.domain.teamroom.entity.TeamRoom;
-import com.yamoyo.be.domain.teamroom.enums.Lifecycle;
-import com.yamoyo.be.domain.teamroom.enums.TeamRole;
+import com.yamoyo.be.domain.teamroom.entity.enums.Lifecycle;
+import com.yamoyo.be.domain.teamroom.entity.enums.TeamRole;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -45,7 +45,7 @@ public interface TeamMemberRepository extends JpaRepository<TeamMember,Long> {
     /**
      * 팀룸 전체 멤버 조회
      */
-    List<TeamMember> findByTeamRoomId(Long teamRoomId, Sort sort);
+    List<TeamMember> findByTeamRoomId(Long teamRoomId);
 
     /**
      * 특정 역할 조회 (팀장/방장 찾기)

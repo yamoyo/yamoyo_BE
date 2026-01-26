@@ -1,4 +1,4 @@
-package com.yamoyo.be.domain.teamroom.enums;
+package com.yamoyo.be.domain.teamroom.entity.enums;
 
 public enum Lifecycle {
     ACTIVE,
