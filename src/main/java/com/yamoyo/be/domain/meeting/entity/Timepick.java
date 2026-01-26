@@ -41,6 +41,14 @@ public class Timepick {
         return this.status == TimepickStatus.FINALIZED;
     }
 
+    public static Timepick create(TeamRoom teamRoom, LocalDateTime deadline) {
+        Timepick timepick = new Timepick();
+        timepick.teamRoom = teamRoom;
+        timepick.status = TimepickStatus.OPEN;
+        timepick.deadline = deadline;
+        return timepick;
+    }
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();

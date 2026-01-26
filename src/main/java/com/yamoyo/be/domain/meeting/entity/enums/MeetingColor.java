@@ -3,9 +3,9 @@ package com.yamoyo.be.domain.meeting.entity.enums;
 public enum MeetingColor {
     PURPLE,
     YELLOW,
-    PINK,
+    PALE_PINK,
     BLUE,
-    SKYBLUE,
-    RED,
+    MINT,
+    PINK,
     ORANGE
 }

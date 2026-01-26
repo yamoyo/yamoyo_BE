@@ -21,6 +21,7 @@ public enum ErrorCode {
 
     // Timepick
     TIMEPICK_NOT_FOUND(HttpStatus.NOT_FOUND, "타임픽을 찾을 수 없습니다."),
+    TIMEPICK_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 타임픽이 존재합니다."),
     TIMEPICK_NOT_PARTICIPANT(HttpStatus.FORBIDDEN, "타임픽 참가자가 아닙니다."),
     TIMEPICK_NOT_OPEN(HttpStatus.BAD_REQUEST, "타임픽이 진행 중이 아닙니다."),
     TIMEPICK_AVAILABILITY_ALREADY_SUBMITTED(HttpStatus.BAD_REQUEST, "이미 가용시간을 제출했습니다."),
