@@ -1,23 +1,24 @@
 package com.yamoyo.be.config;
 
+import com.yamoyo.be.domain.security.handler.CustomLogoutSuccessHandler;
 import com.yamoyo.be.domain.security.jwt.filter.JwtAuthenticationFilter;
 import com.yamoyo.be.domain.security.oauth.handler.OAuth2AuthenticationSuccessHandler;
 import com.yamoyo.be.domain.security.oauth.service.CustomOAuth2UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
-import org.springframework.http.HttpStatus;
-import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 
 /**
  * Security Configuration
@@ -61,6 +62,19 @@ public class SecurityConfig {
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final CustomLogoutSuccessHandler customLogoutSuccessHandler;
+
+    // 인증 없이 접근을 허용할 경로 목록
+    private static final String[] PERMIT_ALL_PATTERNS = {
+        // 로그인 페이지 및 정적 리소스
+        "/login", "/css/**", "/images/**", "/js/**", "/favicon.ico", "/error",
+
+        // 인증 관련 (Refresh Token 재발급 등)
+        "/api/auth/refresh",
+
+        // 시스템 관리 (Health Check)
+        "/api/actuator/health"
+    };
 
     /**
      * Spring Security Filter Chain 구성
@@ -113,12 +127,7 @@ public class SecurityConfig {
 
             // 3. 권한 설정
             .authorizeHttpRequests(auth -> auth
-                // 로그인 페이지와 정적 리소스는 누구나 접근 가능
-                .requestMatchers("/login", "/css/**", "/images/**", "/js/**", "/favicon.ico", "/error").permitAll()
-                // Refresh Token으로 Access Token 재발급
-                // - 인증 불필요 (Access Token 만료 시 접근하므로 permitAll)
-                // - 프론트엔드에서 401 에러 감지 시 이 엔드포인트를 호출하여 토큰 갱신 로직 수행 필요
-                .requestMatchers("/api/auth/refresh").permitAll()
+                .requestMatchers(PERMIT_ALL_PATTERNS).permitAll()
                 // 그 외 모든 요청은 JWT 인증 필요
                 .anyRequest().authenticated()
             )
@@ -136,13 +145,12 @@ public class SecurityConfig {
             )
 
             // 5. 로그아웃 설정
-            // 주의: JWT 인증 사용 시 /api/auth/logout 엔드포인트 사용 권장
-            // 이 설정은 세션 기반 로그아웃 (JWT와는 무관)
+            // Spring Security LogoutFilter가 처리하는 로그아웃 엔드포인트
             .logout(logout -> logout
-                .logoutUrl("/logout")
-                .logoutSuccessUrl("/")
+                .logoutUrl("/api/auth/logout")
+                .logoutSuccessHandler(customLogoutSuccessHandler)
                 .invalidateHttpSession(true)
-                .deleteCookies("JSESSIONID")
+                .deleteCookies("JSESSIONID", "refresh_token")
             )
             
             // 6. 예외 처리
