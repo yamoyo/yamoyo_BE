@@ -36,6 +36,7 @@ public enum ErrorCode {
     // TeamMember
     NOT_TEAM_MEMBER(HttpStatus.FORBIDDEN, "팀룸의 팀원이 아닙니다."),
     TEAMROOM_MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 팀룸에서 팀원을 찾을 수 없습니다."),
+    NOT_TEAM_MANAGER(HttpStatus.FORBIDDEN, "팀룸의 팀원이 아닙니다."),
 
     // Server
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 내부 오류입니다.");

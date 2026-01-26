@@ -4,10 +4,7 @@ import com.yamoyo.be.common.dto.ApiResponse;
 import com.yamoyo.be.domain.security.jwt.JwtTokenClaims;
 import com.yamoyo.be.domain.teamroom.dto.request.CreateTeamRoomRequest;
 import com.yamoyo.be.domain.teamroom.dto.request.JoinTeamRoomRequest;
-import com.yamoyo.be.domain.teamroom.dto.response.CreateTeamRoomResponse;
-import com.yamoyo.be.domain.teamroom.dto.response.InviteLinkResponse;
-import com.yamoyo.be.domain.teamroom.dto.response.JoinTeamRoomResponse;
-import com.yamoyo.be.domain.teamroom.dto.response.TeamRoomListResponse;
+import com.yamoyo.be.domain.teamroom.dto.response.*;
 import com.yamoyo.be.domain.teamroom.entity.enums.Lifecycle;
 import com.yamoyo.be.domain.teamroom.service.TeamRoomService;
 import jakarta.validation.Valid;
@@ -71,4 +68,44 @@ public class TeamRoomController {
         return ApiResponse.success(response);
     }
 
+    /**
+     * 팀룸 상세 조회
+     * @param teamRoomId
+     */
+    @GetMapping("/{teamRoomId}")
+    public ApiResponse<TeamRoomDetailResponse> getTeamRoomDetail(
+            @PathVariable Long teamRoomId,
+            @AuthenticationPrincipal JwtTokenClaims claims
+    ) {
+        Long userId = claims.userId();
+        TeamRoomDetailResponse response = teamRoomService.getTeamRoomDetail(teamRoomId, userId);
+        return ApiResponse.success(response);
+    }
+
+    /**
+     * 팀룸 수정
+     */
+    @PutMapping("/{teamRoomId}")
+    public ApiResponse<Void> updateTeamRoom(
+            @PathVariable Long teamRoomId,
+            @Valid @RequestBody CreateTeamRoomRequest request,  // 재사용
+            @AuthenticationPrincipal JwtTokenClaims claims
+    ) {
+        Long userId = claims.userId();
+        teamRoomService.updateTeamRoom(teamRoomId, request, userId);
+        return ApiResponse.success(null);
+    }
+
+    /**
+     * 팀룸 삭제
+     */
+    @DeleteMapping("/{teamRoomId}")
+    public ApiResponse<Void> deleteTeamRoom(
+            @PathVariable Long teamRoomId,
+            @AuthenticationPrincipal JwtTokenClaims claims
+    ) {
+        Long userId = claims.userId();
+        teamRoomService.deleteTeamRoom(teamRoomId, userId);
+        return ApiResponse.success(null);
+    }
 }
