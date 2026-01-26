@@ -31,6 +31,8 @@ import java.util.Map;
 @Transactional(readOnly = true)
 public class TimepickService {
 
+    private static final int DEFAULT_DEADLINE_HOURS = 6;
+
     private final TimepickRepository timepickRepository;
     private final TimepickParticipantRepository timepickParticipantRepository;
     private final UserTimepickDefaultService userTimepickDefaultService;
@@ -111,7 +113,7 @@ public class TimepickService {
                 .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
 
         // 3. 마감시간 = 현재 + 6시간
-        LocalDateTime deadline = LocalDateTime.now().plusHours(6);
+        LocalDateTime deadline = LocalDateTime.now().plusHours(DEFAULT_DEADLINE_HOURS);
 
         // 4. Timepick 생성 (status = OPEN)
         Timepick timepick = Timepick.create(teamRoom, deadline);
