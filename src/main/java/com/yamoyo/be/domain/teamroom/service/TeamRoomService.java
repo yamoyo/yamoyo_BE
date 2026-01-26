@@ -5,6 +5,7 @@ import com.yamoyo.be.domain.teamroom.dto.request.JoinTeamRoomRequest;
 import com.yamoyo.be.domain.teamroom.dto.response.CreateTeamRoomResponse;
 import com.yamoyo.be.domain.teamroom.dto.response.InviteLinkResponse;
 import com.yamoyo.be.domain.teamroom.dto.response.JoinTeamRoomResponse;
+import com.yamoyo.be.domain.teamroom.dto.response.TeamRoomListResponse;
 import com.yamoyo.be.domain.teamroom.entity.TeamMember;
 import com.yamoyo.be.domain.teamroom.entity.TeamRoom;
 import com.yamoyo.be.domain.teamroom.entity.enums.Lifecycle;
@@ -17,11 +18,14 @@ import com.yamoyo.be.exception.ErrorCode;
 import com.yamoyo.be.exception.YamoyoException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -83,6 +87,10 @@ public class TeamRoomService {
         );
     }
 
+    /**
+     * 초대 링크 생성 로직
+     * - 재발급 시 사용
+     */
     @Transactional
     public InviteLinkResponse issueInviteLink(Long teamRoomId, Long userId) {
 
@@ -105,7 +113,6 @@ public class TeamRoomService {
 
         return new InviteLinkResponse(token, TOKEN_EXPIRATION_SECONDS);
     }
-
 
     /**
      * 팀룸 입장 로직
@@ -170,5 +177,50 @@ public class TeamRoomService {
                 teamRoomId,
                 newTeamMember.getId()
         );
+    }
+
+    /**
+     * 팀룸 목록 조회 (진행중/완료 구분)
+     * 
+     * @param userId 사용자 ID
+     * @param lifecycle 라이프사이클 (ACTIVE: 진행중, ARCHIVED: 완료)
+     * @return 팀룸 목록
+     */
+    public List<TeamRoomListResponse> getTeamRoomList(Long userId, Lifecycle lifecycle) {
+        log.info("팀룸 목록 조회 시작 - userId: {}, lifecycle: {}", userId, lifecycle);
+
+        // 1. 사용자가 속한 팀룸 조회 (이미 최신순 정렬됨)
+        List<TeamRoom> teamRooms = teamMemberRepository.findTeamRoomsByUserIdAndLifecycle(userId, lifecycle);
+
+        // 2. 각 팀룸에 대한 상세 정보 조회 및 DTO 변환
+        return teamRooms.stream()
+                .map(teamRoom -> {
+                    // 전체 팀원 조회
+                    List<TeamMember> members = teamMemberRepository.findByTeamRoomId(
+                            teamRoom.getId(),
+                            Sort.by(Sort.Direction.ASC, "id")
+                    );
+
+                    // 팀원 요약 정보 생성(userId, 프로필 이미지)
+                    List<TeamRoomListResponse.MemberSummary> memberSummaries = members.stream()
+                            .map(member -> new TeamRoomListResponse.MemberSummary(
+                                    member.getUser().getId(),
+                                    member.getUser().getProfileImageId()
+                            ))
+                            .collect(Collectors.toList());
+
+                    // 응답 DTO 생성
+                    return new TeamRoomListResponse(
+                            teamRoom.getId(),
+                            teamRoom.getTitle(),
+                            teamRoom.getBannerImageId(),
+                            teamRoom.getCreatedAt(),
+                            teamRoom.getDeadline(),
+                            teamRoom.getLifecycle(),
+                            members.size(),
+                            memberSummaries
+                    );
+                })
+                .collect(Collectors.toList());
     }
 }
