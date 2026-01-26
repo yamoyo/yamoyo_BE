@@ -1,6 +1,7 @@
 package com.yamoyo.be.domain.user.controller;
 
 import com.yamoyo.be.common.dto.ApiResponse;
+import com.yamoyo.be.domain.security.jwt.JwtTokenClaims;
 import com.yamoyo.be.domain.user.dto.request.ProfileSetupRequest;
 import com.yamoyo.be.domain.user.dto.request.TermsAgreementRequest;
 import com.yamoyo.be.domain.user.service.OnBoardingService;
@@ -8,7 +9,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -35,27 +35,25 @@ public class OnBoardingController {
 
     @PostMapping("/terms")
     public ApiResponse<Void> agreeToTerms(
-            @AuthenticationPrincipal OAuth2User oAuth2User,
+            @AuthenticationPrincipal JwtTokenClaims claims,
             @Valid @RequestBody TermsAgreementRequest request
     ) {
-        Long userId = (Long) oAuth2User.getAttributes().get("userId");
-        log.info("약관 동의 요청 - UserId: {}, Agreements: {}", userId, request.agreements().size());
+        log.info("약관 동의 요청 - UserId: {}, Agreements: {}", claims.userId(), request.agreements().size());
 
-        onBoardingService.agreeToTerms(userId, request);
+        onBoardingService.agreeToTerms(claims.userId(), request);
 
         return ApiResponse.success();
     }
 
     @PostMapping("/profile")
     public ApiResponse<Void> setupProfile(
-            @AuthenticationPrincipal OAuth2User oAuth2User,
+            @AuthenticationPrincipal JwtTokenClaims claims,
             @Valid @RequestBody ProfileSetupRequest request
     ) {
-        Long userId = (Long) oAuth2User.getAttributes().get("userId");
         log.info("프로필 설정 요청 - UserId: {}, Name: {}, Major: {}, MBTI: {}",
-                userId, request.name(), request.major(), request.mbti());
+                claims.userId(), request.name(), request.major(), request.mbti());
 
-        onBoardingService.setupProfile(userId, request);
+        onBoardingService.setupProfile(claims.userId(), request);
 
         return ApiResponse.success();
     }

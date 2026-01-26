@@ -1,6 +1,8 @@
 package com.yamoyo.be.common.interceptor;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.yamoyo.be.domain.security.jwt.JwtTokenClaims;
+import com.yamoyo.be.domain.security.jwt.authentication.JwtAuthenticationToken;
 import com.yamoyo.be.domain.user.repository.UserAgreementRepository;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,9 +16,6 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.core.user.OAuth2User;
-
-import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
@@ -101,12 +100,11 @@ class OnboardingInterceptorTest {
     }
 
     @Test
-    @DisplayName("OAuth2User가 아닌 Principal - 통과")
-    void preHandle_NotOAuth2User_PassThrough() throws Exception {
+    @DisplayName("JwtAuthenticationToken이 아닌 Authentication - 통과")
+    void preHandle_NotJwtAuthenticationToken_PassThrough() throws Exception {
         // given
         Authentication authentication = mock(Authentication.class);
         given(authentication.isAuthenticated()).willReturn(true);
-        given(authentication.getPrincipal()).willReturn("anonymousUser");
 
         SecurityContext securityContext = mock(SecurityContext.class);
         given(securityContext.getAuthentication()).willReturn(authentication);
@@ -134,13 +132,12 @@ class OnboardingInterceptorTest {
 
     // ========== Helper Methods ==========
 
-    private void setupSecurityContext(Long userId) {
-        OAuth2User oAuth2User = mock(OAuth2User.class);
-        given(oAuth2User.getAttributes()).willReturn(Map.of("userId", userId));
+    private static final String USER_EMAIL = "test@example.com";
+    private static final String PROVIDER = "google";
 
-        Authentication authentication = mock(Authentication.class);
-        given(authentication.isAuthenticated()).willReturn(true);
-        given(authentication.getPrincipal()).willReturn(oAuth2User);
+    private void setupSecurityContext(Long userId) {
+        JwtTokenClaims claims = new JwtTokenClaims(userId, USER_EMAIL, PROVIDER);
+        JwtAuthenticationToken authentication = JwtAuthenticationToken.authenticated(claims);
 
         SecurityContext securityContext = mock(SecurityContext.class);
         given(securityContext.getAuthentication()).willReturn(authentication);
@@ -148,12 +145,8 @@ class OnboardingInterceptorTest {
     }
 
     private void setupSecurityContextWithNullUserId() {
-        OAuth2User oAuth2User = mock(OAuth2User.class);
-        given(oAuth2User.getAttributes()).willReturn(Map.of()); // userId 없음
-
-        Authentication authentication = mock(Authentication.class);
-        given(authentication.isAuthenticated()).willReturn(true);
-        given(authentication.getPrincipal()).willReturn(oAuth2User);
+        JwtTokenClaims claims = new JwtTokenClaims(null, USER_EMAIL, PROVIDER);
+        JwtAuthenticationToken authentication = JwtAuthenticationToken.authenticated(claims);
 
         SecurityContext securityContext = mock(SecurityContext.class);
         given(securityContext.getAuthentication()).willReturn(authentication);

@@ -1,6 +1,8 @@
 package com.yamoyo.be.domain.user.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.yamoyo.be.domain.security.jwt.JwtTokenClaims;
+import com.yamoyo.be.domain.security.jwt.authentication.JwtAuthenticationToken;
 import com.yamoyo.be.domain.user.dto.request.ProfileSetupRequest;
 import com.yamoyo.be.domain.user.dto.request.TermsAgreementRequest;
 import com.yamoyo.be.domain.user.dto.request.TermsAgreementRequest.TermAgreement;
@@ -15,16 +17,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
-import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
-import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
-import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -85,7 +82,7 @@ class OnBoardingControllerTest {
 
             // when & then
             mockMvc.perform(post(TERMS_ENDPOINT)
-                            .with(authentication(createOAuth2AuthenticationToken()))
+                            .with(authentication(createJwtAuthenticationToken()))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andDo(print())
@@ -109,7 +106,7 @@ class OnBoardingControllerTest {
 
             // when & then
             mockMvc.perform(post(TERMS_ENDPOINT)
-                            .with(authentication(createOAuth2AuthenticationToken()))
+                            .with(authentication(createJwtAuthenticationToken()))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andDo(print())
@@ -124,7 +121,7 @@ class OnBoardingControllerTest {
 
             // when & then
             mockMvc.perform(post(TERMS_ENDPOINT)
-                            .with(authentication(createOAuth2AuthenticationToken()))
+                            .with(authentication(createJwtAuthenticationToken()))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(requestJson))
                     .andDo(print())
@@ -169,7 +166,7 @@ class OnBoardingControllerTest {
 
             // when & then
             mockMvc.perform(post(PROFILE_ENDPOINT)
-                            .with(authentication(createOAuth2AuthenticationToken()))
+                            .with(authentication(createJwtAuthenticationToken()))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andDo(print())
@@ -195,7 +192,7 @@ class OnBoardingControllerTest {
 
             // when & then
             mockMvc.perform(post(PROFILE_ENDPOINT)
-                            .with(authentication(createOAuth2AuthenticationToken()))
+                            .with(authentication(createJwtAuthenticationToken()))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andDo(print())
@@ -217,7 +214,7 @@ class OnBoardingControllerTest {
 
             // when & then
             mockMvc.perform(post(PROFILE_ENDPOINT)
-                            .with(authentication(createOAuth2AuthenticationToken()))
+                            .with(authentication(createJwtAuthenticationToken()))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andDo(print())
@@ -239,7 +236,7 @@ class OnBoardingControllerTest {
 
             // when & then
             mockMvc.perform(post(PROFILE_ENDPOINT)
-                            .with(authentication(createOAuth2AuthenticationToken()))
+                            .with(authentication(createJwtAuthenticationToken()))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andDo(print())
@@ -261,7 +258,7 @@ class OnBoardingControllerTest {
 
             // when & then
             mockMvc.perform(post(PROFILE_ENDPOINT)
-                            .with(authentication(createOAuth2AuthenticationToken()))
+                            .with(authentication(createJwtAuthenticationToken()))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andDo(print())
@@ -283,7 +280,7 @@ class OnBoardingControllerTest {
 
             // when & then
             mockMvc.perform(post(PROFILE_ENDPOINT)
-                            .with(authentication(createOAuth2AuthenticationToken()))
+                            .with(authentication(createJwtAuthenticationToken()))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andDo(print())
@@ -306,7 +303,7 @@ class OnBoardingControllerTest {
 
             // when & then
             mockMvc.perform(post(PROFILE_ENDPOINT)
-                            .with(authentication(createOAuth2AuthenticationToken()))
+                            .with(authentication(createJwtAuthenticationToken()))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andDo(print())
@@ -329,7 +326,7 @@ class OnBoardingControllerTest {
 
             // when & then
             mockMvc.perform(post(PROFILE_ENDPOINT)
-                            .with(authentication(createOAuth2AuthenticationToken()))
+                            .with(authentication(createJwtAuthenticationToken()))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andDo(print())
@@ -339,24 +336,11 @@ class OnBoardingControllerTest {
 
     // ========== Helper Methods ==========
 
-    private OAuth2AuthenticationToken createOAuth2AuthenticationToken() {
-        Map<String, Object> attributes = Map.of(
-                "sub", "123456",
-                "email", "test@example.com",
-                "name", "테스트",
-                "userId", USER_ID
-        );
+    private static final String USER_EMAIL = "test@example.com";
+    private static final String PROVIDER = "google";
 
-        OAuth2User oAuth2User = new DefaultOAuth2User(
-                List.of(new SimpleGrantedAuthority("ROLE_GUEST")),
-                attributes,
-                "sub"
-        );
-
-        return new OAuth2AuthenticationToken(
-                oAuth2User,
-                oAuth2User.getAuthorities(),
-                "google"
-        );
+    private JwtAuthenticationToken createJwtAuthenticationToken() {
+        JwtTokenClaims claims = new JwtTokenClaims(USER_ID, USER_EMAIL, PROVIDER);
+        return JwtAuthenticationToken.authenticated(claims);
     }
 }

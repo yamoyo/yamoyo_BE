@@ -24,6 +24,6 @@ public class WebConfig implements WebMvcConfigurer {
         // 프로필 설정 API에 대해 온보딩 Interceptor 적용
         // 약관 미동의 사용자의 접근 차단
         registry.addInterceptor(onboardingInterceptor)
-                .addPathPatterns("/api/users/profile");
+                .addPathPatterns("/api/onboarding/profile");
     }
 }
