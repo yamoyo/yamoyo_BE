@@ -62,8 +62,6 @@ class InviteTokenServiceTest {
         assertThat(tokenTtl).isGreaterThan(0);
         assertThat(roomTtl).isGreaterThan(0);
 
-        System.out.println(redisTemplate.getConnectionFactory().getConnection().serverCommands().info("server"));
-
     }
 
     @Test
