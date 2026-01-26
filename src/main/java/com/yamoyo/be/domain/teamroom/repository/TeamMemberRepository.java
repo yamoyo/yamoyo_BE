@@ -48,6 +48,11 @@ public interface TeamMemberRepository extends JpaRepository<TeamMember,Long> {
     List<TeamMember> findByTeamRoomId(Long teamRoomId);
 
     /**
+     * 팀룸 전체 멤버 조회 - 정렬 추가
+     */
+    List<TeamMember> findByTeamRoomId(Long teamRoomId, Sort sort);
+
+    /**
      * 특정 역할 조회 (팀장/방장 찾기)
      */
     Optional<TeamMember> findByTeamRoomIdAndTeamRole(Long teamRoomId, TeamRole teamRole);
