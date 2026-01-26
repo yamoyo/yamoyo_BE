@@ -9,7 +9,6 @@ import com.yamoyo.be.domain.teamroom.dto.response.JoinTeamRoomResponse;
 import com.yamoyo.be.domain.teamroom.service.TeamRoomService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
@@ -22,33 +21,33 @@ public class TeamRoomController {
     private final TeamRoomService teamRoomService;
 
     @PostMapping()
-    public ResponseEntity<ApiResponse<CreateTeamRoomResponse>> createTeamRoom(
+    public ApiResponse<CreateTeamRoomResponse> createTeamRoom(
             @Valid @RequestBody CreateTeamRoomRequest request,
             @AuthenticationPrincipal OAuth2User oAuth2User
     ) {
         Long userId = (Long) oAuth2User.getAttributes().get("userId");
         CreateTeamRoomResponse response = teamRoomService.createTeamRoom(request,userId);
-        return ResponseEntity.ok(ApiResponse.success(response));
+        return ApiResponse.success(response);
     }
 
     @PostMapping("/join")
-    public ResponseEntity<ApiResponse<JoinTeamRoomResponse>> joinTeamRoom(
+    public ApiResponse<JoinTeamRoomResponse> joinTeamRoom(
             @Valid @RequestBody JoinTeamRoomRequest request,
             @AuthenticationPrincipal OAuth2User oAuth2User
     ){
         Long userId = (Long) oAuth2User.getAttributes().get("userId");
         JoinTeamRoomResponse response = teamRoomService.joinTeamRoom(request,userId);
-        return ResponseEntity.ok(ApiResponse.success(response));
+        return ApiResponse.success(response);
     }
 
     @PostMapping("/{teamRoomId}/invite-link")
-    public ResponseEntity<ApiResponse<InviteLinkResponse>> issueInviteLink(
+    public ApiResponse<InviteLinkResponse> issueInviteLink(
             @PathVariable Long teamRoomId,
             @AuthenticationPrincipal OAuth2User oAuth2User
     ){
         Long userId = (Long) oAuth2User.getAttributes().get("userId");
         InviteLinkResponse response =  teamRoomService.issueInviteLink(teamRoomId,userId);
-        return ResponseEntity.ok(ApiResponse.success(response));
+        return ApiResponse.success(response);
     }
 
 }
