@@ -7,6 +7,7 @@ import com.yamoyo.be.domain.teamroom.entity.TeamMember;
 import com.yamoyo.be.domain.teamroom.entity.TeamRoom;
 import com.yamoyo.be.domain.teamroom.entity.enums.Lifecycle;
 import com.yamoyo.be.domain.teamroom.entity.enums.Workflow;
+import com.yamoyo.be.domain.teamroom.repository.BannedTeamMemberRepository;
 import com.yamoyo.be.domain.teamroom.repository.TeamMemberRepository;
 import com.yamoyo.be.domain.teamroom.repository.TeamRoomRepository;
 import com.yamoyo.be.domain.user.entity.User;
@@ -33,6 +34,7 @@ public class TeamRoomService {
     private final UserRepository userRepository;
     private final TeamRoomRepository teamRoomRepository;
     private final TeamMemberRepository teamMemberRepository;
+    private final BannedTeamMemberRepository bannedTeamMemberRepository;
     private final InviteTokenService inviteTokenService;
 
     private static final long TOKEN_EXPIRATION_SECONDS = 86400L; // 24시간
@@ -157,7 +159,9 @@ public class TeamRoomService {
         if(count >= 12) throw new YamoyoException(ErrorCode.TEAMROOM_FULL);
 
         //  6. 밴 여부 확인
-        // ===== code =====
+        if (bannedTeamMemberRepository.existsByTeamRoomIdAndUserId(teamRoomId, userId)) {
+            throw new YamoyoException(ErrorCode.BANNED_MEMBER);
+        }
 
         // user 정보
         User user = userRepository.findById(userId)
