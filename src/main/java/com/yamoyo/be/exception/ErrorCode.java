@@ -45,6 +45,12 @@ public enum ErrorCode {
     CANNOT_KICK_MANAGER(HttpStatus.BAD_REQUEST, "관리자는 강퇴할 수 없습니다."),
     BANNED_MEMBER(HttpStatus.FORBIDDEN, "해당 팀룸에서 강퇴된 사용자입니다."),
 
+    // Meeting
+    MEETING_INVALID_START_TIME(HttpStatus.BAD_REQUEST, "시작 시간은 30분 단위여야 합니다."),
+    MEETING_INVALID_DURATION(HttpStatus.BAD_REQUEST, "회의 시간은 30분 단위여야 합니다."),
+    MEETING_PURPLE_COLOR_FORBIDDEN(HttpStatus.BAD_REQUEST, "PURPLE 색상은 정기 회의 전용입니다."),
+    MEETING_PARTICIPANT_NOT_TEAM_MEMBER(HttpStatus.BAD_REQUEST, "참석자 중 팀원이 아닌 사용자가 있습니다."),
+
     // Server
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 내부 오류입니다.");
 

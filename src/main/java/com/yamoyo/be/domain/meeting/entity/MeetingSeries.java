@@ -5,6 +5,7 @@ import com.yamoyo.be.domain.meeting.entity.enums.MeetingType;
 import com.yamoyo.be.domain.teamroom.entity.TeamRoom;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -58,5 +59,16 @@ public class MeetingSeries {
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();
+    }
+
+    @Builder
+    public MeetingSeries(TeamRoom teamRoom, MeetingType meetingType, DayOfWeek dayOfWeek,
+                         LocalTime defaultStartTime, Integer defaultDurationMinutes, String creatorName) {
+        this.teamRoom = teamRoom;
+        this.meetingType = meetingType;
+        this.dayOfWeek = dayOfWeek;
+        this.defaultStartTime = defaultStartTime;
+        this.defaultDurationMinutes = defaultDurationMinutes;
+        this.creatorName = creatorName;
     }
 }

@@ -3,6 +3,7 @@ package com.yamoyo.be.domain.meeting.entity;
 import com.yamoyo.be.domain.user.entity.User;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -34,5 +35,11 @@ public class MeetingParticipant {
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
+    }
+
+    @Builder
+    public MeetingParticipant(Meeting meeting, User user) {
+        this.meeting = meeting;
+        this.user = user;
     }
 }

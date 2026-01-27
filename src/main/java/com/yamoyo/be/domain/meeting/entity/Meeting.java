@@ -3,6 +3,7 @@ package com.yamoyo.be.domain.meeting.entity;
 import com.yamoyo.be.domain.meeting.entity.enums.MeetingColor;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -60,5 +61,19 @@ public class Meeting {
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();
+    }
+
+    @Builder
+    public Meeting(MeetingSeries meetingSeries, String title, String location,
+                   LocalDateTime startTime, Integer durationMinutes, MeetingColor color,
+                   String description, Boolean isIndividuallyModified) {
+        this.meetingSeries = meetingSeries;
+        this.title = title;
+        this.location = location;
+        this.startTime = startTime;
+        this.durationMinutes = durationMinutes;
+        this.color = color;
+        this.description = description;
+        this.isIndividuallyModified = isIndividuallyModified != null ? isIndividuallyModified : false;
     }
 }
