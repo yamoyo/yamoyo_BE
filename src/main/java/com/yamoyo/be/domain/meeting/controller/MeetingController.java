@@ -3,6 +3,7 @@ package com.yamoyo.be.domain.meeting.controller;
 import com.yamoyo.be.common.dto.ApiResponse;
 import com.yamoyo.be.domain.meeting.dto.request.MeetingCreateRequest;
 import com.yamoyo.be.domain.meeting.dto.response.MeetingCreateResponse;
+import com.yamoyo.be.domain.meeting.dto.response.MeetingListResponse;
 import com.yamoyo.be.domain.meeting.service.MeetingService;
 import com.yamoyo.be.domain.security.jwt.JwtTokenClaims;
 import jakarta.validation.Valid;
@@ -25,6 +26,18 @@ public class MeetingController {
     ) {
         Long userId = claims.userId();
         MeetingCreateResponse response = meetingService.createMeeting(teamRoomId, request, userId);
+        return ApiResponse.success(response);
+    }
+
+    @GetMapping
+    public ApiResponse<MeetingListResponse> getMeetingList(
+            @PathVariable Long teamRoomId,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month,
+            @AuthenticationPrincipal JwtTokenClaims claims
+    ) {
+        Long userId = claims.userId();
+        MeetingListResponse response = meetingService.getMeetingList(teamRoomId, userId, year, month);
         return ApiResponse.success(response);
     }
 }

@@ -1,6 +1,8 @@
 package com.yamoyo.be.domain.meeting.entity;
 
 import com.yamoyo.be.domain.meeting.entity.enums.MeetingColor;
+import com.yamoyo.be.exception.ErrorCode;
+import com.yamoyo.be.exception.YamoyoException;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -8,6 +10,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Table(name = "meetings")
 @Entity
@@ -23,6 +27,9 @@ public class Meeting {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "meeting_series_id", nullable = false)
     private MeetingSeries meetingSeries;
+
+    @OneToMany(mappedBy = "meeting", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<MeetingParticipant> participants = new ArrayList<>();
 
     @Column(nullable = false)
     private String title;
@@ -64,7 +71,7 @@ public class Meeting {
     }
 
     @Builder
-    public Meeting(MeetingSeries meetingSeries, String title, String location,
+    private Meeting(MeetingSeries meetingSeries, String title, String location,
                    LocalDateTime startTime, Integer durationMinutes, MeetingColor color,
                    String description, Boolean isIndividuallyModified) {
         this.meetingSeries = meetingSeries;
@@ -75,5 +82,43 @@ public class Meeting {
         this.color = color;
         this.description = description;
         this.isIndividuallyModified = isIndividuallyModified != null ? isIndividuallyModified : false;
+    }
+
+    public static Meeting create(MeetingSeries meetingSeries, String title, String location,
+                                 LocalDateTime startTime, Integer durationMinutes,
+                                 MeetingColor color, String description) {
+        validateStartTime(startTime);
+        validateDuration(durationMinutes);
+        validateColor(color);
+
+        return Meeting.builder()
+                .meetingSeries(meetingSeries)
+                .title(title)
+                .location(location)
+                .startTime(startTime)
+                .durationMinutes(durationMinutes)
+                .color(color)
+                .description(description)
+                .isIndividuallyModified(false)
+                .build();
+    }
+
+    private static void validateStartTime(LocalDateTime startTime) {
+        int minute = startTime.getMinute();
+        if (minute != 0 && minute != 30) {
+            throw new YamoyoException(ErrorCode.MEETING_INVALID_START_TIME);
+        }
+    }
+
+    private static void validateDuration(Integer durationMinutes) {
+        if (durationMinutes % 30 != 0) {
+            throw new YamoyoException(ErrorCode.MEETING_INVALID_DURATION);
+        }
+    }
+
+    private static void validateColor(MeetingColor color) {
+        if (color == MeetingColor.PURPLE) {
+            throw new YamoyoException(ErrorCode.MEETING_PURPLE_COLOR_FORBIDDEN);
+        }
     }
 }

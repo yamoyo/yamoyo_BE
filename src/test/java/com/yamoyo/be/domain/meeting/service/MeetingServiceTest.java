@@ -2,6 +2,8 @@ package com.yamoyo.be.domain.meeting.service;
 
 import com.yamoyo.be.domain.meeting.dto.request.MeetingCreateRequest;
 import com.yamoyo.be.domain.meeting.dto.response.MeetingCreateResponse;
+import com.yamoyo.be.domain.meeting.dto.response.MeetingListResponse;
+import com.yamoyo.be.domain.meeting.entity.Meeting;
 import com.yamoyo.be.domain.meeting.entity.MeetingSeries;
 import com.yamoyo.be.domain.meeting.entity.enums.MeetingColor;
 import com.yamoyo.be.domain.meeting.repository.MeetingParticipantRepository;
@@ -19,6 +21,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -26,7 +30,11 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
 import java.time.LocalDateTime;
+import java.time.YearMonth;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -261,19 +269,27 @@ class MeetingServiceTest {
 
             TeamRoom teamRoom = createMockTeamRoom(teamRoomId, deadline);
             User creator = createMockUser(userId, "테스트유저");
+            User participant1 = createMockUser(1L, "참석자1");
+            User participant2 = createMockUser(2L, "참석자2");
             TeamMember creatorMember = createMockTeamMember(1L, creator);
+            TeamMember member1 = createMockTeamMember(1L, participant1);
+            TeamMember member2 = createMockTeamMember(2L, participant2);
 
             given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
                     .willReturn(Optional.of(creatorMember));
             given(userRepository.findById(userId)).willReturn(Optional.of(creator));
+            given(teamMemberRepository.findByTeamRoomId(teamRoomId))
+                    .willReturn(Arrays.asList(member1, member2));
+            given(meetingSeriesRepository.save(any(MeetingSeries.class)))
+                    .willAnswer(invocation -> invocation.getArgument(0));
 
             // when / then
             assertThatThrownBy(() -> meetingService.createMeeting(teamRoomId, request, userId))
                     .isInstanceOf(YamoyoException.class)
                     .hasMessageContaining(ErrorCode.MEETING_INVALID_START_TIME.getMessage());
 
-            verify(meetingSeriesRepository, never()).save(any());
+            verify(meetingRepository, never()).saveAll(any());
         }
 
         @Test
@@ -299,19 +315,27 @@ class MeetingServiceTest {
 
             TeamRoom teamRoom = createMockTeamRoom(teamRoomId, deadline);
             User creator = createMockUser(userId, "테스트유저");
+            User participant1 = createMockUser(1L, "참석자1");
+            User participant2 = createMockUser(2L, "참석자2");
             TeamMember creatorMember = createMockTeamMember(1L, creator);
+            TeamMember member1 = createMockTeamMember(1L, participant1);
+            TeamMember member2 = createMockTeamMember(2L, participant2);
 
             given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
                     .willReturn(Optional.of(creatorMember));
             given(userRepository.findById(userId)).willReturn(Optional.of(creator));
+            given(teamMemberRepository.findByTeamRoomId(teamRoomId))
+                    .willReturn(Arrays.asList(member1, member2));
+            given(meetingSeriesRepository.save(any(MeetingSeries.class)))
+                    .willAnswer(invocation -> invocation.getArgument(0));
 
             // when / then
             assertThatThrownBy(() -> meetingService.createMeeting(teamRoomId, request, userId))
                     .isInstanceOf(YamoyoException.class)
                     .hasMessageContaining(ErrorCode.MEETING_INVALID_DURATION.getMessage());
 
-            verify(meetingSeriesRepository, never()).save(any());
+            verify(meetingRepository, never()).saveAll(any());
         }
 
         @Test
@@ -337,19 +361,27 @@ class MeetingServiceTest {
 
             TeamRoom teamRoom = createMockTeamRoom(teamRoomId, deadline);
             User creator = createMockUser(userId, "테스트유저");
+            User participant1 = createMockUser(1L, "참석자1");
+            User participant2 = createMockUser(2L, "참석자2");
             TeamMember creatorMember = createMockTeamMember(1L, creator);
+            TeamMember member1 = createMockTeamMember(1L, participant1);
+            TeamMember member2 = createMockTeamMember(2L, participant2);
 
             given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
                     .willReturn(Optional.of(creatorMember));
             given(userRepository.findById(userId)).willReturn(Optional.of(creator));
+            given(teamMemberRepository.findByTeamRoomId(teamRoomId))
+                    .willReturn(Arrays.asList(member1, member2));
+            given(meetingSeriesRepository.save(any(MeetingSeries.class)))
+                    .willAnswer(invocation -> invocation.getArgument(0));
 
             // when / then
             assertThatThrownBy(() -> meetingService.createMeeting(teamRoomId, request, userId))
                     .isInstanceOf(YamoyoException.class)
                     .hasMessageContaining(ErrorCode.MEETING_PURPLE_COLOR_FORBIDDEN.getMessage());
 
-            verify(meetingSeriesRepository, never()).save(any());
+            verify(meetingRepository, never()).saveAll(any());
         }
 
         @Test
@@ -393,5 +425,205 @@ class MeetingServiceTest {
 
             verify(meetingSeriesRepository, never()).save(any());
         }
+    }
+
+    // ==================== 회의 목록 조회 테스트 ====================
+
+    @Nested
+    @DisplayName("회의 목록 조회")
+    class GetMeetingListTest {
+
+        private Meeting createMockMeeting(Long meetingId, MeetingSeries meetingSeries, LocalDateTime startTime) {
+            Meeting meeting = mock(Meeting.class);
+            given(meeting.getId()).willReturn(meetingId);
+            given(meeting.getMeetingSeries()).willReturn(meetingSeries);
+            given(meeting.getTitle()).willReturn("테스트 회의");
+            given(meeting.getStartTime()).willReturn(startTime);
+            given(meeting.getDurationMinutes()).willReturn(60);
+            given(meeting.getColor()).willReturn(MeetingColor.YELLOW);
+            given(meeting.getIsIndividuallyModified()).willReturn(false);
+            return meeting;
+        }
+
+        private MeetingSeries createMockMeetingSeries(Long seriesId) {
+            MeetingSeries meetingSeries = mock(MeetingSeries.class);
+            given(meetingSeries.getId()).willReturn(seriesId);
+            given(meetingSeries.getMeetingType()).willReturn(
+                    com.yamoyo.be.domain.meeting.entity.enums.MeetingType.ADDITIONAL_ONE_TIME);
+            return meetingSeries;
+        }
+
+        @ParameterizedTest(name = "year={0}, month={1}")
+        @CsvSource(value = {
+                "null, null",
+                "2026, null",
+                "null, 3"
+        }, nullValues = "null")
+        @DisplayName("회의 목록 조회 실패 - year/month 파라미터 불완전")
+        void getMeetingList_Fail_InvalidYearMonthParameter(Integer year, Integer month) {
+            // given
+            Long teamRoomId = 1L;
+            Long userId = 1L;
+            LocalDateTime deadline = LocalDateTime.now().plusDays(30);
+
+            TeamRoom teamRoom = createMockTeamRoom(teamRoomId, deadline);
+            User user = createMockUser(userId, "테스트유저");
+            TeamMember member = createMockTeamMember(1L, user);
+
+            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
+            given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
+                    .willReturn(Optional.of(member));
+
+            // when / then
+            assertThatThrownBy(() -> meetingService.getMeetingList(teamRoomId, userId, year, month))
+                    .isInstanceOf(YamoyoException.class)
+                    .hasMessageContaining(ErrorCode.MEETING_INVALID_YEAR_MONTH_PARAMETER.getMessage());
+
+            verify(meetingRepository, never()).findByTeamRoomIdAndStartTimeBetween(any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("회의 목록 조회 성공 - 특정 연/월 지정")
+        void getMeetingList_Success_SpecificYearMonth() {
+            // given
+            Long teamRoomId = 1L;
+            Long userId = 1L;
+            Integer year = 2026;
+            Integer month = 2;
+            LocalDateTime deadline = LocalDateTime.now().plusDays(30);
+
+            TeamRoom teamRoom = createMockTeamRoom(teamRoomId, deadline);
+            User user = createMockUser(userId, "테스트유저");
+            TeamMember member = createMockTeamMember(1L, user);
+
+            MeetingSeries meetingSeries = createMockMeetingSeries(1L);
+            // meeting1: 14:00 시작, 60분 → endTime 15:00
+            LocalDateTime meetingTime1 = LocalDateTime.of(2026, 2, 15, 14, 0);
+            Meeting meeting1 = createMockMeeting(1L, meetingSeries, meetingTime1);
+
+            // meeting2: 23:30 시작, 90분 → endTime 다음 날 01:00 (자정 넘김 케이스)
+            LocalDateTime meetingTime2 = LocalDateTime.of(2026, 2, 22, 23, 30);
+            Meeting meeting2 = mock(Meeting.class);
+            given(meeting2.getId()).willReturn(2L);
+            given(meeting2.getMeetingSeries()).willReturn(meetingSeries);
+            given(meeting2.getTitle()).willReturn("테스트 회의");
+            given(meeting2.getStartTime()).willReturn(meetingTime2);
+            given(meeting2.getDurationMinutes()).willReturn(90);
+            given(meeting2.getColor()).willReturn(MeetingColor.YELLOW);
+            given(meeting2.getIsIndividuallyModified()).willReturn(false);
+
+            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
+            given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
+                    .willReturn(Optional.of(member));
+            given(meetingRepository.findByTeamRoomIdAndStartTimeBetween(
+                    eq(teamRoomId), any(LocalDateTime.class), any(LocalDateTime.class)))
+                    .willReturn(List.of(meeting1, meeting2));
+            List<Object[]> countResult = new ArrayList<>();
+            countResult.add(new Object[]{1L, 2L});
+            countResult.add(new Object[]{2L, 4L});
+            given(meetingParticipantRepository.countByMeetingIds(List.of(1L, 2L)))
+                    .willReturn(countResult);
+
+            // when
+            MeetingListResponse response = meetingService.getMeetingList(teamRoomId, userId, year, month);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.year()).isEqualTo(2026);
+            assertThat(response.month()).isEqualTo(2);
+            assertThat(response.meetings()).hasSize(2);
+            assertThat(response.meetings().get(0).participantCount()).isEqualTo(2);
+            assertThat(response.meetings().get(1).participantCount()).isEqualTo(4);
+
+            // endTime 검증
+            // meeting1: 14:00 + 60분 = 15:00
+            assertThat(response.meetings().get(0).endTime())
+                    .isEqualTo(LocalDateTime.of(2026, 2, 15, 15, 0));
+
+            // meeting2: 23:30 + 90분 = 다음 날 01:00
+            assertThat(response.meetings().get(1).endTime())
+                    .isEqualTo(LocalDateTime.of(2026, 2, 23, 1, 0));
+
+            verify(meetingRepository).findByTeamRoomIdAndStartTimeBetween(
+                    eq(teamRoomId),
+                    eq(LocalDateTime.of(2026, 2, 1, 0, 0)),
+                    eq(LocalDateTime.of(2026, 3, 1, 0, 0)));
+        }
+
+        @Test
+        @DisplayName("회의 목록 조회 실패 - 팀룸 없음")
+        void getMeetingList_TeamRoomNotFound() {
+            // given
+            Long teamRoomId = 999L;
+            Long userId = 1L;
+
+            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.empty());
+
+            // when / then
+            assertThatThrownBy(() -> meetingService.getMeetingList(teamRoomId, userId, null, null))
+                    .isInstanceOf(YamoyoException.class)
+                    .hasMessageContaining(ErrorCode.TEAMROOM_NOT_FOUND.getMessage());
+
+            verify(teamRoomRepository).findById(teamRoomId);
+            verify(meetingRepository, never()).findByTeamRoomIdAndStartTimeBetween(
+                    any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("회의 목록 조회 실패 - 팀원이 아님")
+        void getMeetingList_NotTeamMember_Forbidden() {
+            // given
+            Long teamRoomId = 1L;
+            Long userId = 999L;
+            LocalDateTime deadline = LocalDateTime.now().plusDays(30);
+
+            TeamRoom teamRoom = createMockTeamRoom(teamRoomId, deadline);
+
+            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
+            given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
+                    .willReturn(Optional.empty());
+
+            // when / then
+            assertThatThrownBy(() -> meetingService.getMeetingList(teamRoomId, userId, null, null))
+                    .isInstanceOf(YamoyoException.class)
+                    .hasMessageContaining(ErrorCode.NOT_TEAM_MEMBER.getMessage());
+
+            verify(teamRoomRepository).findById(teamRoomId);
+            verify(teamMemberRepository).findByTeamRoomIdAndUserId(teamRoomId, userId);
+            verify(meetingRepository, never()).findByTeamRoomIdAndStartTimeBetween(
+                    any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("회의 목록 조회 성공 - 회의 없는 경우 빈 목록 반환")
+        void getMeetingList_Success_EmptyList() {
+            // given
+            Long teamRoomId = 1L;
+            Long userId = 1L;
+            LocalDateTime deadline = LocalDateTime.now().plusDays(30);
+
+            TeamRoom teamRoom = createMockTeamRoom(teamRoomId, deadline);
+            User user = createMockUser(userId, "테스트유저");
+            TeamMember member = createMockTeamMember(1L, user);
+
+            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
+            given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
+                    .willReturn(Optional.of(member));
+            given(meetingRepository.findByTeamRoomIdAndStartTimeBetween(
+                    eq(teamRoomId), any(LocalDateTime.class), any(LocalDateTime.class)))
+                    .willReturn(Collections.emptyList());
+
+            // when
+            MeetingListResponse response = meetingService.getMeetingList(teamRoomId, userId, 2026, 6);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.year()).isEqualTo(2026);
+            assertThat(response.month()).isEqualTo(6);
+            assertThat(response.meetings()).isEmpty();
+
+            verify(meetingParticipantRepository, never()).countByMeetingIds(any());
+        }
+
     }
 }

@@ -50,6 +50,7 @@ public enum ErrorCode {
     MEETING_INVALID_DURATION(HttpStatus.BAD_REQUEST, "회의 시간은 30분 단위여야 합니다."),
     MEETING_PURPLE_COLOR_FORBIDDEN(HttpStatus.BAD_REQUEST, "PURPLE 색상은 정기 회의 전용입니다."),
     MEETING_PARTICIPANT_NOT_TEAM_MEMBER(HttpStatus.BAD_REQUEST, "참석자 중 팀원이 아닌 사용자가 있습니다."),
+    MEETING_INVALID_YEAR_MONTH_PARAMETER(HttpStatus.BAD_REQUEST, "year와 month는 둘 다 입력해야 합니다."),
 
     // Server
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 내부 오류입니다.");
