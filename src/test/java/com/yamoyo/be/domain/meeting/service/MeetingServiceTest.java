@@ -3,6 +3,7 @@ package com.yamoyo.be.domain.meeting.service;
 import com.yamoyo.be.domain.meeting.dto.request.MeetingCreateRequest;
 import com.yamoyo.be.domain.meeting.dto.request.MeetingUpdateRequest;
 import com.yamoyo.be.domain.meeting.dto.response.MeetingCreateResponse;
+import com.yamoyo.be.domain.meeting.dto.response.MeetingDeleteResponse;
 import com.yamoyo.be.domain.meeting.dto.response.MeetingDetailResponse;
 import com.yamoyo.be.domain.meeting.dto.response.MeetingListResponse;
 import com.yamoyo.be.domain.meeting.dto.response.MeetingUpdateResponse;
@@ -1529,6 +1530,309 @@ class MeetingServiceTest {
             // 14:00 ~ 16:00 = 120분 (2시간)
             verify(meeting).update(eq("오후 회의"), eq("같은 날 회의"), eq("회의실"),
                     eq(LocalDateTime.of(2026, 2, 20, 14, 0)), eq(120), eq(MeetingColor.YELLOW));
+        }
+    }
+
+    // ==================== 회의 삭제 테스트 ====================
+
+    @Nested
+    @DisplayName("회의 삭제")
+    class DeleteMeetingTest {
+
+        private TeamMember createMockTeamMemberWithRole(Long memberId, User user, TeamRole teamRole) {
+            TeamMember member = mock(TeamMember.class);
+            given(member.getId()).willReturn(memberId);
+            given(member.getUser()).willReturn(user);
+            given(member.getTeamRole()).willReturn(teamRole);
+            return member;
+        }
+
+        private MeetingSeries createMockMeetingSeriesWithType(Long seriesId, TeamRoom teamRoom, MeetingType meetingType) {
+            MeetingSeries meetingSeries = mock(MeetingSeries.class);
+            given(meetingSeries.getId()).willReturn(seriesId);
+            given(meetingSeries.getTeamRoom()).willReturn(teamRoom);
+            given(meetingSeries.getMeetingType()).willReturn(meetingType);
+            return meetingSeries;
+        }
+
+        private Meeting createMockMeetingForDelete(Long meetingId, MeetingSeries meetingSeries, LocalDateTime startTime,
+                                                    MeetingColor color, boolean isModified) {
+            Meeting meeting = mock(Meeting.class);
+            given(meeting.getId()).willReturn(meetingId);
+            given(meeting.getMeetingSeries()).willReturn(meetingSeries);
+            given(meeting.getTitle()).willReturn("테스트 회의");
+            given(meeting.getDescription()).willReturn("회의 설명");
+            given(meeting.getLocation()).willReturn("회의실");
+            given(meeting.getStartTime()).willReturn(startTime);
+            given(meeting.getDurationMinutes()).willReturn(60);
+            given(meeting.getColor()).willReturn(color);
+            given(meeting.getIsIndividuallyModified()).willReturn(isModified);
+            given(meeting.isModified()).willReturn(isModified);
+            return meeting;
+        }
+
+        @Test
+        @DisplayName("단일 회의 삭제 성공")
+        void deleteMeeting_SingleScope_Success() {
+            // given
+            Long meetingId = 1L;
+            Long userId = 1L;
+            Long teamRoomId = 1L;
+            LocalDateTime startTime = LocalDateTime.of(2026, 2, 15, 14, 0);
+
+            TeamRoom teamRoom = createMockTeamRoom(teamRoomId, LocalDateTime.now().plusDays(30));
+            MeetingSeries meetingSeries = createMockMeetingSeriesWithType(1L, teamRoom, MeetingType.ADDITIONAL_ONE_TIME);
+            Meeting meeting = createMockMeetingForDelete(meetingId, meetingSeries, startTime, MeetingColor.YELLOW, false);
+
+            User user = createMockUser(userId, "참석자");
+            TeamMember teamMember = createMockTeamMemberWithRole(1L, user, TeamRole.MEMBER);
+
+            given(meetingRepository.findByIdWithSeriesAndTeamRoom(meetingId)).willReturn(Optional.of(meeting));
+            given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
+                    .willReturn(Optional.of(teamMember));
+            given(meetingParticipantRepository.existsByMeetingIdAndUserId(meetingId, userId)).willReturn(true);
+            given(meetingRepository.countByMeetingSeriesId(1L)).willReturn(0L);
+
+            // when
+            MeetingDeleteResponse response = meetingService.deleteMeeting(meetingId, UpdateScope.SINGLE, userId);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.scope()).isEqualTo(UpdateScope.SINGLE);
+            assertThat(response.deletedMeetingCount()).isEqualTo(1);
+            assertThat(response.deletedMeetingIds()).containsExactly(meetingId);
+            assertThat(response.seriesDeleted()).isTrue();
+
+            verify(meetingParticipantRepository).deleteByMeetingId(meetingId);
+            verify(meetingRepository).delete(meeting);
+            verify(meetingSeriesRepository).delete(meetingSeries);
+        }
+
+        @Test
+        @DisplayName("THIS_AND_FUTURE 범위 회의 삭제 성공")
+        void deleteMeeting_ThisAndFuture_Success() {
+            // given
+            Long meetingId = 1L;
+            Long userId = 1L;
+            Long teamRoomId = 1L;
+            LocalDateTime startTime = LocalDateTime.of(2026, 2, 15, 14, 0);
+
+            TeamRoom teamRoom = createMockTeamRoom(teamRoomId, LocalDateTime.now().plusDays(30));
+            MeetingSeries meetingSeries = createMockMeetingSeriesWithType(1L, teamRoom, MeetingType.ADDITIONAL_RECURRING);
+            Meeting meeting1 = createMockMeetingForDelete(1L, meetingSeries, startTime, MeetingColor.YELLOW, false);
+            Meeting meeting2 = createMockMeetingForDelete(2L, meetingSeries, startTime.plusWeeks(1), MeetingColor.YELLOW, false);
+            Meeting meeting3 = createMockMeetingForDelete(3L, meetingSeries, startTime.plusWeeks(2), MeetingColor.YELLOW, false);
+
+            User user = createMockUser(userId, "참석자");
+            TeamMember teamMember = createMockTeamMemberWithRole(1L, user, TeamRole.MEMBER);
+
+            given(meetingRepository.findByIdWithSeriesAndTeamRoom(meetingId)).willReturn(Optional.of(meeting1));
+            given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
+                    .willReturn(Optional.of(teamMember));
+            given(meetingParticipantRepository.existsByMeetingIdAndUserId(meetingId, userId)).willReturn(true);
+            given(meetingRepository.findByMeetingSeriesIdAndStartTimeGreaterThanEqual(1L, startTime))
+                    .willReturn(Arrays.asList(meeting1, meeting2, meeting3));
+            given(meetingRepository.countByMeetingSeriesId(1L)).willReturn(0L);
+
+            // when
+            MeetingDeleteResponse response = meetingService.deleteMeeting(meetingId, UpdateScope.THIS_AND_FUTURE, userId);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.scope()).isEqualTo(UpdateScope.THIS_AND_FUTURE);
+            assertThat(response.deletedMeetingCount()).isEqualTo(3);
+            assertThat(response.deletedMeetingIds()).containsExactly(1L, 2L, 3L);
+            assertThat(response.seriesDeleted()).isTrue();
+
+            verify(meetingParticipantRepository).deleteByMeetingIdIn(Arrays.asList(1L, 2L, 3L));
+            verify(meetingRepository).deleteAll(Arrays.asList(meeting1, meeting2, meeting3));
+            verify(meetingSeriesRepository).delete(meetingSeries);
+        }
+
+        @Test
+        @DisplayName("THIS_AND_FUTURE 범위 삭제 시 개별 수정된 회의도 포함하여 삭제")
+        void deleteMeeting_ThisAndFuture_IncludesIndividuallyModified() {
+            // given
+            Long meetingId = 1L;
+            Long userId = 1L;
+            Long teamRoomId = 1L;
+            LocalDateTime startTime = LocalDateTime.of(2026, 2, 15, 14, 0);
+
+            TeamRoom teamRoom = createMockTeamRoom(teamRoomId, LocalDateTime.now().plusDays(30));
+            MeetingSeries meetingSeries = createMockMeetingSeriesWithType(1L, teamRoom, MeetingType.ADDITIONAL_RECURRING);
+            Meeting meeting1 = createMockMeetingForDelete(1L, meetingSeries, startTime, MeetingColor.YELLOW, false);
+            Meeting meeting2 = createMockMeetingForDelete(2L, meetingSeries, startTime.plusWeeks(1), MeetingColor.YELLOW, true); // 개별 수정됨
+            Meeting meeting3 = createMockMeetingForDelete(3L, meetingSeries, startTime.plusWeeks(2), MeetingColor.YELLOW, false);
+
+            User user = createMockUser(userId, "참석자");
+            TeamMember teamMember = createMockTeamMemberWithRole(1L, user, TeamRole.MEMBER);
+
+            given(meetingRepository.findByIdWithSeriesAndTeamRoom(meetingId)).willReturn(Optional.of(meeting1));
+            given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
+                    .willReturn(Optional.of(teamMember));
+            given(meetingParticipantRepository.existsByMeetingIdAndUserId(meetingId, userId)).willReturn(true);
+            given(meetingRepository.findByMeetingSeriesIdAndStartTimeGreaterThanEqual(1L, startTime))
+                    .willReturn(Arrays.asList(meeting1, meeting2, meeting3));
+            given(meetingRepository.countByMeetingSeriesId(1L)).willReturn(0L);
+
+            // when
+            MeetingDeleteResponse response = meetingService.deleteMeeting(meetingId, UpdateScope.THIS_AND_FUTURE, userId);
+
+            // then
+            assertThat(response.deletedMeetingCount()).isEqualTo(3);
+            assertThat(response.deletedMeetingIds()).containsExactly(1L, 2L, 3L); // 개별 수정된 회의도 포함
+
+            verify(meetingParticipantRepository).deleteByMeetingIdIn(Arrays.asList(1L, 2L, 3L));
+            verify(meetingRepository).deleteAll(Arrays.asList(meeting1, meeting2, meeting3));
+        }
+
+        @Test
+        @DisplayName("시리즈에 회의가 남아있으면 시리즈는 삭제되지 않음")
+        void deleteMeeting_SeriesNotDeleted_WhenMeetingsRemain() {
+            // given
+            Long meetingId = 1L;
+            Long userId = 1L;
+            Long teamRoomId = 1L;
+            LocalDateTime startTime = LocalDateTime.of(2026, 2, 15, 14, 0);
+
+            TeamRoom teamRoom = createMockTeamRoom(teamRoomId, LocalDateTime.now().plusDays(30));
+            MeetingSeries meetingSeries = createMockMeetingSeriesWithType(1L, teamRoom, MeetingType.ADDITIONAL_RECURRING);
+            Meeting meeting = createMockMeetingForDelete(meetingId, meetingSeries, startTime, MeetingColor.YELLOW, false);
+
+            User user = createMockUser(userId, "참석자");
+            TeamMember teamMember = createMockTeamMemberWithRole(1L, user, TeamRole.MEMBER);
+
+            given(meetingRepository.findByIdWithSeriesAndTeamRoom(meetingId)).willReturn(Optional.of(meeting));
+            given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
+                    .willReturn(Optional.of(teamMember));
+            given(meetingParticipantRepository.existsByMeetingIdAndUserId(meetingId, userId)).willReturn(true);
+            given(meetingRepository.countByMeetingSeriesId(1L)).willReturn(2L); // 시리즈에 회의가 남아있음
+
+            // when
+            MeetingDeleteResponse response = meetingService.deleteMeeting(meetingId, UpdateScope.SINGLE, userId);
+
+            // then
+            assertThat(response.seriesDeleted()).isFalse();
+
+            verify(meetingSeriesRepository, never()).delete(any());
+        }
+
+        @Test
+        @DisplayName("시리즈에 회의가 0개 남으면 시리즈도 삭제됨")
+        void deleteMeeting_SeriesDeleted_WhenNoMeetingsLeft() {
+            // given
+            Long meetingId = 1L;
+            Long userId = 1L;
+            Long teamRoomId = 1L;
+            LocalDateTime startTime = LocalDateTime.of(2026, 2, 15, 14, 0);
+
+            TeamRoom teamRoom = createMockTeamRoom(teamRoomId, LocalDateTime.now().plusDays(30));
+            MeetingSeries meetingSeries = createMockMeetingSeriesWithType(1L, teamRoom, MeetingType.ADDITIONAL_ONE_TIME);
+            Meeting meeting = createMockMeetingForDelete(meetingId, meetingSeries, startTime, MeetingColor.YELLOW, false);
+
+            User user = createMockUser(userId, "참석자");
+            TeamMember teamMember = createMockTeamMemberWithRole(1L, user, TeamRole.MEMBER);
+
+            given(meetingRepository.findByIdWithSeriesAndTeamRoom(meetingId)).willReturn(Optional.of(meeting));
+            given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
+                    .willReturn(Optional.of(teamMember));
+            given(meetingParticipantRepository.existsByMeetingIdAndUserId(meetingId, userId)).willReturn(true);
+            given(meetingRepository.countByMeetingSeriesId(1L)).willReturn(0L);
+
+            // when
+            MeetingDeleteResponse response = meetingService.deleteMeeting(meetingId, UpdateScope.SINGLE, userId);
+
+            // then
+            assertThat(response.seriesDeleted()).isTrue();
+
+            verify(meetingSeriesRepository).delete(meetingSeries);
+        }
+
+        @Test
+        @DisplayName("INITIAL_REGULAR 회의 - LEADER만 삭제 가능")
+        void deleteMeeting_InitialRegular_OnlyLeader() {
+            // given
+            Long meetingId = 1L;
+            Long userId = 1L;
+            Long teamRoomId = 1L;
+            LocalDateTime startTime = LocalDateTime.of(2026, 2, 15, 14, 0);
+
+            TeamRoom teamRoom = createMockTeamRoom(teamRoomId, LocalDateTime.now().plusDays(30));
+            MeetingSeries meetingSeries = createMockMeetingSeriesWithType(1L, teamRoom, MeetingType.INITIAL_REGULAR);
+            Meeting meeting = createMockMeetingForDelete(meetingId, meetingSeries, startTime, MeetingColor.PURPLE, false);
+
+            User user = createMockUser(userId, "일반멤버");
+            TeamMember teamMember = createMockTeamMemberWithRole(1L, user, TeamRole.MEMBER);
+
+            given(meetingRepository.findByIdWithSeriesAndTeamRoom(meetingId)).willReturn(Optional.of(meeting));
+            given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
+                    .willReturn(Optional.of(teamMember));
+
+            // when / then
+            assertThatThrownBy(() -> meetingService.deleteMeeting(meetingId, UpdateScope.SINGLE, userId))
+                    .isInstanceOf(YamoyoException.class)
+                    .hasMessageContaining(ErrorCode.MEETING_DELETE_FORBIDDEN.getMessage());
+
+            verify(meetingRepository, never()).delete(any());
+        }
+
+        @Test
+        @DisplayName("ADDITIONAL 회의 - 참석자만 삭제 가능")
+        void deleteMeeting_AdditionalMeeting_OnlyParticipant() {
+            // given
+            Long meetingId = 1L;
+            Long userId = 2L;
+            Long teamRoomId = 1L;
+            LocalDateTime startTime = LocalDateTime.of(2026, 2, 15, 14, 0);
+
+            TeamRoom teamRoom = createMockTeamRoom(teamRoomId, LocalDateTime.now().plusDays(30));
+            MeetingSeries meetingSeries = createMockMeetingSeriesWithType(1L, teamRoom, MeetingType.ADDITIONAL_ONE_TIME);
+            Meeting meeting = createMockMeetingForDelete(meetingId, meetingSeries, startTime, MeetingColor.YELLOW, false);
+
+            User user = createMockUser(userId, "비참석자");
+            TeamMember teamMember = createMockTeamMemberWithRole(1L, user, TeamRole.MEMBER);
+
+            given(meetingRepository.findByIdWithSeriesAndTeamRoom(meetingId)).willReturn(Optional.of(meeting));
+            given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
+                    .willReturn(Optional.of(teamMember));
+            given(meetingParticipantRepository.existsByMeetingIdAndUserId(meetingId, userId)).willReturn(false);
+
+            // when / then
+            assertThatThrownBy(() -> meetingService.deleteMeeting(meetingId, UpdateScope.SINGLE, userId))
+                    .isInstanceOf(YamoyoException.class)
+                    .hasMessageContaining(ErrorCode.MEETING_DELETE_FORBIDDEN.getMessage());
+
+            verify(meetingRepository, never()).delete(any());
+        }
+
+        @Test
+        @DisplayName("ONE_TIME 회의는 SINGLE scope만 허용")
+        void deleteMeeting_OneTimeMeeting_OnlySingleScope() {
+            // given
+            Long meetingId = 1L;
+            Long userId = 1L;
+            Long teamRoomId = 1L;
+            LocalDateTime startTime = LocalDateTime.of(2026, 2, 15, 14, 0);
+
+            TeamRoom teamRoom = createMockTeamRoom(teamRoomId, LocalDateTime.now().plusDays(30));
+            MeetingSeries meetingSeries = createMockMeetingSeriesWithType(1L, teamRoom, MeetingType.ADDITIONAL_ONE_TIME);
+            Meeting meeting = createMockMeetingForDelete(meetingId, meetingSeries, startTime, MeetingColor.YELLOW, false);
+
+            User user = createMockUser(userId, "참석자");
+            TeamMember teamMember = createMockTeamMemberWithRole(1L, user, TeamRole.MEMBER);
+
+            given(meetingRepository.findByIdWithSeriesAndTeamRoom(meetingId)).willReturn(Optional.of(meeting));
+            given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
+                    .willReturn(Optional.of(teamMember));
+            given(meetingParticipantRepository.existsByMeetingIdAndUserId(meetingId, userId)).willReturn(true);
+
+            // when / then
+            assertThatThrownBy(() -> meetingService.deleteMeeting(meetingId, UpdateScope.THIS_AND_FUTURE, userId))
+                    .isInstanceOf(YamoyoException.class)
+                    .hasMessageContaining(ErrorCode.INVALID_DELETE_SCOPE.getMessage());
+
+            verify(meetingRepository, never()).delete(any());
+            verify(meetingRepository, never()).deleteAll(any());
         }
     }
 }

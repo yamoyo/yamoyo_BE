@@ -3,6 +3,7 @@ package com.yamoyo.be.domain.meeting.service;
 import com.yamoyo.be.domain.meeting.dto.request.MeetingCreateRequest;
 import com.yamoyo.be.domain.meeting.dto.request.MeetingUpdateRequest;
 import com.yamoyo.be.domain.meeting.dto.response.MeetingCreateResponse;
+import com.yamoyo.be.domain.meeting.dto.response.MeetingDeleteResponse;
 import com.yamoyo.be.domain.meeting.dto.response.MeetingDetailResponse;
 import com.yamoyo.be.domain.meeting.dto.response.MeetingListResponse;
 import com.yamoyo.be.domain.meeting.dto.response.MeetingUpdateResponse;
@@ -177,6 +178,35 @@ public class MeetingService {
         return new MeetingUpdateResponse(scope, updatedMeetingIds.size(), updatedMeetingIds, skippedMeetingIds);
     }
 
+    @Transactional
+    public MeetingDeleteResponse deleteMeeting(Long meetingId, UpdateScope scope, Long userId) {
+        log.info("회의 삭제 시작 - meetingId: {}, scope: {}, userId: {}", meetingId, scope, userId);
+
+        Meeting meeting = meetingRepository.findByIdWithSeriesAndTeamRoom(meetingId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.MEETING_NOT_FOUND));
+
+        MeetingSeries meetingSeries = meeting.getMeetingSeries();
+        Long teamRoomId = meetingSeries.getTeamRoom().getId();
+        MeetingType meetingType = meetingSeries.getMeetingType();
+
+        validateDeletePermission(meeting, teamRoomId, userId, meetingType);
+        validateDeleteScope(meetingType, scope);
+
+        List<Long> deletedMeetingIds;
+        if (scope == UpdateScope.SINGLE) {
+            deletedMeetingIds = deleteSingleMeeting(meeting);
+        } else {
+            deletedMeetingIds = deleteThisAndFutureMeetings(meetingSeries, meeting.getStartTime());
+        }
+
+        boolean seriesDeleted = checkAndDeleteSeriesIfEmpty(meetingSeries);
+
+        log.info("회의 삭제 완료 - 삭제된 회의 수: {}, 시리즈 삭제 여부: {}",
+                deletedMeetingIds.size(), seriesDeleted);
+
+        return new MeetingDeleteResponse(scope, deletedMeetingIds.size(), deletedMeetingIds, seriesDeleted);
+    }
+
     // =============================================================================
     // Private 메서드 - Finder
     // =============================================================================
@@ -267,6 +297,28 @@ public class MeetingService {
             if (request.dayOfWeek() == null) {
                 throw new YamoyoException(ErrorCode.MEETING_FUTURE_SCOPE_REQUIRES_DAY_OF_WEEK);
             }
+        }
+    }
+
+    private void validateDeletePermission(Meeting meeting, Long teamRoomId, Long userId, MeetingType meetingType) {
+        TeamMember teamMember = teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
+
+        boolean hasPermission;
+        if (meetingType == MeetingType.INITIAL_REGULAR) {
+            hasPermission = teamMember.getTeamRole() == TeamRole.LEADER;
+        } else {
+            hasPermission = meetingParticipantRepository.existsByMeetingIdAndUserId(meeting.getId(), userId);
+        }
+
+        if (!hasPermission) {
+            throw new YamoyoException(ErrorCode.MEETING_DELETE_FORBIDDEN);
+        }
+    }
+
+    private void validateDeleteScope(MeetingType meetingType, UpdateScope scope) {
+        if (meetingType == MeetingType.ADDITIONAL_ONE_TIME && scope == UpdateScope.THIS_AND_FUTURE) {
+            throw new YamoyoException(ErrorCode.INVALID_DELETE_SCOPE);
         }
     }
 
@@ -436,5 +488,41 @@ public class MeetingService {
                 .map(user -> MeetingParticipant.create(meeting, user))
                 .collect(Collectors.toList());
         meetingParticipantRepository.saveAll(newParticipants);
+    }
+
+    // =============================================================================
+    // Private 메서드 - Delete 관련
+    // =============================================================================
+
+    private List<Long> deleteSingleMeeting(Meeting meeting) {
+        Long meetingId = meeting.getId();
+        meetingParticipantRepository.deleteByMeetingId(meetingId);
+        meetingRepository.delete(meeting);
+        return List.of(meetingId);
+    }
+
+    private List<Long> deleteThisAndFutureMeetings(MeetingSeries meetingSeries, LocalDateTime startTime) {
+        List<Meeting> meetingsToDelete = meetingRepository.findByMeetingSeriesIdAndStartTimeGreaterThanEqual(
+                meetingSeries.getId(), startTime);
+
+        List<Long> meetingIds = meetingsToDelete.stream()
+                .map(Meeting::getId)
+                .collect(Collectors.toList());
+
+        if (!meetingIds.isEmpty()) {
+            meetingParticipantRepository.deleteByMeetingIdIn(meetingIds);
+            meetingRepository.deleteAll(meetingsToDelete);
+        }
+
+        return meetingIds;
+    }
+
+    private boolean checkAndDeleteSeriesIfEmpty(MeetingSeries meetingSeries) {
+        long remainingCount = meetingRepository.countByMeetingSeriesId(meetingSeries.getId());
+        if (remainingCount == 0) {
+            meetingSeriesRepository.delete(meetingSeries);
+            return true;
+        }
+        return false;
     }
 }

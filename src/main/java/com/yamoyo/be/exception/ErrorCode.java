@@ -57,6 +57,8 @@ public enum ErrorCode {
     INVALID_UPDATE_SCOPE(HttpStatus.BAD_REQUEST, "일회성 회의에는 해당 수정 범위를 사용할 수 없습니다."),
     MEETING_SINGLE_SCOPE_REQUIRES_DATE(HttpStatus.BAD_REQUEST, "단일 회의 수정 시 날짜(date)는 필수입니다."),
     MEETING_FUTURE_SCOPE_REQUIRES_DAY_OF_WEEK(HttpStatus.BAD_REQUEST, "이후 회의 수정 시 요일(dayOfWeek)은 필수입니다."),
+    MEETING_DELETE_FORBIDDEN(HttpStatus.FORBIDDEN, "회의 삭제 권한이 없습니다."),
+    INVALID_DELETE_SCOPE(HttpStatus.BAD_REQUEST, "일회성 회의에는 해당 삭제 범위를 사용할 수 없습니다."),
 
     // Server
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 내부 오류입니다.");

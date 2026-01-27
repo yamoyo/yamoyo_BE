@@ -45,4 +45,6 @@ public interface MeetingRepository extends JpaRepository<Meeting, Long> {
             @Param("meetingSeriesId") Long meetingSeriesId,
             @Param("startTime") LocalDateTime startTime
     );
+
+    long countByMeetingSeriesId(Long meetingSeriesId);
 }

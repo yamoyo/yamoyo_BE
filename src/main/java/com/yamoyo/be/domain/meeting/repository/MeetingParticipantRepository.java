@@ -2,6 +2,7 @@ package com.yamoyo.be.domain.meeting.repository;
 
 import com.yamoyo.be.domain.meeting.entity.MeetingParticipant;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -29,4 +30,8 @@ public interface MeetingParticipantRepository extends JpaRepository<MeetingParti
     boolean existsByMeetingIdAndUserId(Long meetingId, Long userId);
 
     void deleteByMeetingId(Long meetingId);
+
+    @Modifying
+    @Query("DELETE FROM MeetingParticipant mp WHERE mp.meeting.id IN :meetingIds")
+    void deleteByMeetingIdIn(@Param("meetingIds") List<Long> meetingIds);
 }
