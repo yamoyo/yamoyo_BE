@@ -45,6 +45,9 @@ public enum ErrorCode {
     CANNOT_KICK_MANAGER(HttpStatus.BAD_REQUEST, "관리자는 강퇴할 수 없습니다."),
     BANNED_MEMBER(HttpStatus.FORBIDDEN, "해당 팀룸에서 강퇴된 사용자입니다."),
 
+    // Team Rule
+    RULE_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 규칙을 찾을 수 없습니다."),
+
     // Server
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 내부 오류입니다.");
 

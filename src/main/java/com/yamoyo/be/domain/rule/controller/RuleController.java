@@ -1,0 +1,37 @@
+package com.yamoyo.be.domain.rule.controller;
+
+import com.yamoyo.be.common.dto.ApiResponse;
+import com.yamoyo.be.domain.rule.dto.request.RuleVoteRequest;
+import com.yamoyo.be.domain.rule.dto.response.RuleVoteParticipationResponse;
+import com.yamoyo.be.domain.rule.service.RuleService;
+import com.yamoyo.be.domain.security.jwt.JwtTokenClaims;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+
+/**
+ * 규칙 투표 및 관리 Controller
+ */
+@RestController
+@RequestMapping("/api/team-rooms/{teamRoomId}/rules")
+@RequiredArgsConstructor
+public class RuleController {
+
+    private final RuleService ruleService;
+
+    /**
+     * 규칙 투표 제출
+     */
+    @PostMapping("/vote")
+    public ApiResponse<Void> submitRuleVote(
+            @PathVariable Long teamRoomId,
+            @Valid @RequestBody RuleVoteRequest request,
+            @AuthenticationPrincipal JwtTokenClaims claims
+    ) {
+        ruleService.submitRuleVote(teamRoomId, request, claims.userId());
+        return ApiResponse.success();
+    }
+
+
+}
