@@ -50,6 +50,30 @@ public class MeetingSeries {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @Builder(access = AccessLevel.PRIVATE)
+    private MeetingSeries(TeamRoom teamRoom, MeetingType meetingType, DayOfWeek dayOfWeek,
+                          LocalTime defaultStartTime, Integer defaultDurationMinutes, String creatorName) {
+        this.teamRoom = teamRoom;
+        this.meetingType = meetingType;
+        this.dayOfWeek = dayOfWeek;
+        this.defaultStartTime = defaultStartTime;
+        this.defaultDurationMinutes = defaultDurationMinutes;
+        this.creatorName = creatorName;
+    }
+
+    public static MeetingSeries create(TeamRoom teamRoom, MeetingType meetingType,
+                                       DayOfWeek dayOfWeek, LocalTime defaultStartTime,
+                                       Integer defaultDurationMinutes, String creatorName) {
+        return MeetingSeries.builder()
+                .teamRoom(teamRoom)
+                .meetingType(meetingType)
+                .dayOfWeek(dayOfWeek)
+                .defaultStartTime(defaultStartTime)
+                .defaultDurationMinutes(defaultDurationMinutes)
+                .creatorName(creatorName)
+                .build();
+    }
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
@@ -59,16 +83,5 @@ public class MeetingSeries {
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();
-    }
-
-    @Builder
-    public MeetingSeries(TeamRoom teamRoom, MeetingType meetingType, DayOfWeek dayOfWeek,
-                         LocalTime defaultStartTime, Integer defaultDurationMinutes, String creatorName) {
-        this.teamRoom = teamRoom;
-        this.meetingType = meetingType;
-        this.dayOfWeek = dayOfWeek;
-        this.defaultStartTime = defaultStartTime;
-        this.defaultDurationMinutes = defaultDurationMinutes;
-        this.creatorName = creatorName;
     }
 }

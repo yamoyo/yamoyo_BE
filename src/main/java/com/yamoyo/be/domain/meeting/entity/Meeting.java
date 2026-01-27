@@ -59,18 +59,7 @@ public class Meeting {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    @Builder
+    @Builder(access = AccessLevel.PRIVATE)
     private Meeting(MeetingSeries meetingSeries, String title, String location,
                    LocalDateTime startTime, Integer durationMinutes, MeetingColor color,
                    String description, Boolean isIndividuallyModified) {
@@ -120,5 +109,16 @@ public class Meeting {
         if (color == MeetingColor.PURPLE) {
             throw new YamoyoException(ErrorCode.MEETING_PURPLE_COLOR_FORBIDDEN);
         }
+    }
+
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
     }
 }

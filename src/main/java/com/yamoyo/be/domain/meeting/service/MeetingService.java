@@ -69,14 +69,14 @@ public class MeetingService {
                 : MeetingType.ADDITIONAL_ONE_TIME;
         DayOfWeek dayOfWeek = DayOfWeek.from(request.startTime().getDayOfWeek());
 
-        MeetingSeries meetingSeries = MeetingSeries.builder()
-                .teamRoom(teamRoom)
-                .meetingType(meetingType)
-                .dayOfWeek(dayOfWeek)
-                .defaultStartTime(request.startTime().toLocalTime())
-                .defaultDurationMinutes(request.durationMinutes())
-                .creatorName(creator.getName())
-                .build();
+        MeetingSeries meetingSeries = MeetingSeries.create(
+                teamRoom,
+                meetingType,
+                dayOfWeek,
+                request.startTime().toLocalTime(),
+                request.durationMinutes(),
+                creator.getName()
+        );
         meetingSeriesRepository.save(meetingSeries);
 
         // 6. Meeting 생성 및 저장
@@ -88,10 +88,7 @@ public class MeetingService {
         List<MeetingParticipant> allParticipants = new ArrayList<>();
         for (Meeting meeting : meetings) {
             for (User participant : participants) {
-                MeetingParticipant meetingParticipant = MeetingParticipant.builder()
-                        .meeting(meeting)
-                        .user(participant)
-                        .build();
+                MeetingParticipant meetingParticipant = MeetingParticipant.create(meeting, participant);
                 allParticipants.add(meetingParticipant);
             }
         }

@@ -5,6 +5,7 @@ import com.yamoyo.be.domain.meeting.entity.enums.DayOfWeek;
 import com.yamoyo.be.domain.user.entity.User;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -58,15 +59,47 @@ public class UserTimepickDefault {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
+    @Builder(access = AccessLevel.PRIVATE)
+    private UserTimepickDefault(User user, PreferredBlock preferredBlock,
+                                Long availabilityMon, Long availabilityTue, Long availabilityWed,
+                                Long availabilityThu, Long availabilityFri, Long availabilitySat,
+                                Long availabilitySun) {
+        this.user = user;
+        this.preferredBlock = preferredBlock;
+        this.availabilityMon = availabilityMon;
+        this.availabilityTue = availabilityTue;
+        this.availabilityWed = availabilityWed;
+        this.availabilityThu = availabilityThu;
+        this.availabilityFri = availabilityFri;
+        this.availabilitySat = availabilitySat;
+        this.availabilitySun = availabilitySun;
     }
 
-    @PreUpdate
-    protected void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
+    public static UserTimepickDefault createWithAvailability(User user, Map<DayOfWeek, Long> bitmaps) {
+        return UserTimepickDefault.builder()
+                .user(user)
+                .availabilityMon(bitmaps.getOrDefault(DayOfWeek.MON, 0L))
+                .availabilityTue(bitmaps.getOrDefault(DayOfWeek.TUE, 0L))
+                .availabilityWed(bitmaps.getOrDefault(DayOfWeek.WED, 0L))
+                .availabilityThu(bitmaps.getOrDefault(DayOfWeek.THU, 0L))
+                .availabilityFri(bitmaps.getOrDefault(DayOfWeek.FRI, 0L))
+                .availabilitySat(bitmaps.getOrDefault(DayOfWeek.SAT, 0L))
+                .availabilitySun(bitmaps.getOrDefault(DayOfWeek.SUN, 0L))
+                .build();
+    }
+
+    public static UserTimepickDefault createWithPreferredBlock(User user, PreferredBlock preferredBlock) {
+        return UserTimepickDefault.builder()
+                .user(user)
+                .preferredBlock(preferredBlock)
+                .availabilityMon(0L)
+                .availabilityTue(0L)
+                .availabilityWed(0L)
+                .availabilityThu(0L)
+                .availabilityFri(0L)
+                .availabilitySat(0L)
+                .availabilitySun(0L)
+                .build();
     }
 
     public Map<DayOfWeek, Long> getAvailabilityBitmaps() {
@@ -95,30 +128,14 @@ public class UserTimepickDefault {
         this.preferredBlock = preferredBlock;
     }
 
-    public static UserTimepickDefault createWithAvailability(User user, Map<DayOfWeek, Long> bitmaps) {
-        UserTimepickDefault userDefault = new UserTimepickDefault();
-        userDefault.user = user;
-        userDefault.availabilityMon = bitmaps.getOrDefault(DayOfWeek.MON, 0L);
-        userDefault.availabilityTue = bitmaps.getOrDefault(DayOfWeek.TUE, 0L);
-        userDefault.availabilityWed = bitmaps.getOrDefault(DayOfWeek.WED, 0L);
-        userDefault.availabilityThu = bitmaps.getOrDefault(DayOfWeek.THU, 0L);
-        userDefault.availabilityFri = bitmaps.getOrDefault(DayOfWeek.FRI, 0L);
-        userDefault.availabilitySat = bitmaps.getOrDefault(DayOfWeek.SAT, 0L);
-        userDefault.availabilitySun = bitmaps.getOrDefault(DayOfWeek.SUN, 0L);
-        return userDefault;
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
     }
 
-    public static UserTimepickDefault createWithPreferredBlock(User user, PreferredBlock preferredBlock) {
-        UserTimepickDefault userDefault = new UserTimepickDefault();
-        userDefault.user = user;
-        userDefault.preferredBlock = preferredBlock;
-        userDefault.availabilityMon = 0L;
-        userDefault.availabilityTue = 0L;
-        userDefault.availabilityWed = 0L;
-        userDefault.availabilityThu = 0L;
-        userDefault.availabilityFri = 0L;
-        userDefault.availabilitySat = 0L;
-        userDefault.availabilitySun = 0L;
-        return userDefault;
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
     }
 }
