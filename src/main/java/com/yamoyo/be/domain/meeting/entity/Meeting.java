@@ -121,4 +121,25 @@ public class Meeting {
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();
     }
+
+    public void update(String title, String description, String location,
+                       LocalDateTime startTime, Integer durationMinutes, MeetingColor color) {
+        validateStartTime(startTime);
+        validateDuration(durationMinutes);
+
+        this.title = title;
+        this.description = description;
+        this.location = location;
+        this.startTime = startTime;
+        this.durationMinutes = durationMinutes;
+        this.color = color;
+    }
+
+    public void markAsIndividuallyModified() {
+        this.isIndividuallyModified = true;
+    }
+
+    public boolean isModified() {
+        return Boolean.TRUE.equals(this.isIndividuallyModified);
+    }
 }

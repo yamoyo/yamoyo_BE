@@ -27,4 +27,6 @@ public interface MeetingParticipantRepository extends JpaRepository<MeetingParti
     List<MeetingParticipant> findByMeetingIdWithUser(@Param("meetingId") Long meetingId);
 
     boolean existsByMeetingIdAndUserId(Long meetingId, Long userId);
+
+    void deleteByMeetingId(Long meetingId);
 }

@@ -2,9 +2,12 @@ package com.yamoyo.be.domain.meeting.controller;
 
 import com.yamoyo.be.common.dto.ApiResponse;
 import com.yamoyo.be.domain.meeting.dto.request.MeetingCreateRequest;
+import com.yamoyo.be.domain.meeting.dto.request.MeetingUpdateRequest;
 import com.yamoyo.be.domain.meeting.dto.response.MeetingCreateResponse;
 import com.yamoyo.be.domain.meeting.dto.response.MeetingDetailResponse;
 import com.yamoyo.be.domain.meeting.dto.response.MeetingListResponse;
+import com.yamoyo.be.domain.meeting.dto.response.MeetingUpdateResponse;
+import com.yamoyo.be.domain.meeting.entity.enums.UpdateScope;
 import com.yamoyo.be.domain.meeting.service.MeetingService;
 import com.yamoyo.be.domain.security.jwt.JwtTokenClaims;
 import jakarta.validation.Valid;
@@ -48,6 +51,18 @@ public class MeetingController {
     ) {
         Long userId = claims.userId();
         MeetingDetailResponse response = meetingService.getMeetingDetail(meetingId, userId);
+        return ApiResponse.success(response);
+    }
+
+    @PutMapping("/api/meetings/{meetingId}")
+    public ApiResponse<MeetingUpdateResponse> updateMeeting(
+            @PathVariable Long meetingId,
+            @RequestParam(defaultValue = "SINGLE") UpdateScope scope,
+            @Valid @RequestBody MeetingUpdateRequest request,
+            @AuthenticationPrincipal JwtTokenClaims claims
+    ) {
+        Long userId = claims.userId();
+        MeetingUpdateResponse response = meetingService.updateMeeting(meetingId, scope, request, userId);
         return ApiResponse.success(response);
     }
 }

@@ -34,4 +34,15 @@ public interface MeetingRepository extends JpaRepository<Meeting, Long> {
             @Param("startDateTime") LocalDateTime startDateTime,
             @Param("endDateTime") LocalDateTime endDateTime
     );
+
+    @Query("""
+            SELECT m FROM Meeting m
+            JOIN FETCH m.meetingSeries ms
+            WHERE ms.id = :meetingSeriesId AND m.startTime >= :startTime
+            ORDER BY m.startTime ASC
+            """)
+    List<Meeting> findByMeetingSeriesIdAndStartTimeGreaterThanEqual(
+            @Param("meetingSeriesId") Long meetingSeriesId,
+            @Param("startTime") LocalDateTime startTime
+    );
 }

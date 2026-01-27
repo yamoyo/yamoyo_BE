@@ -52,6 +52,9 @@ public enum ErrorCode {
     MEETING_PURPLE_COLOR_FORBIDDEN(HttpStatus.BAD_REQUEST, "PURPLE 색상은 정기 회의 전용입니다."),
     MEETING_PARTICIPANT_NOT_TEAM_MEMBER(HttpStatus.BAD_REQUEST, "참석자 중 팀원이 아닌 사용자가 있습니다."),
     MEETING_INVALID_YEAR_MONTH_PARAMETER(HttpStatus.BAD_REQUEST, "year와 month는 둘 다 입력해야 합니다."),
+    MEETING_EDIT_FORBIDDEN(HttpStatus.FORBIDDEN, "회의 수정 권한이 없습니다."),
+    MEETING_COLOR_CHANGE_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "최초 정기회의의 색상은 변경할 수 없습니다."),
+    INVALID_UPDATE_SCOPE(HttpStatus.BAD_REQUEST, "일회성 회의에는 해당 수정 범위를 사용할 수 없습니다."),
 
     // Server
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 내부 오류입니다.");

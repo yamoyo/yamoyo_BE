@@ -1,14 +1,18 @@
 package com.yamoyo.be.domain.meeting.service;
 
 import com.yamoyo.be.domain.meeting.dto.request.MeetingCreateRequest;
+import com.yamoyo.be.domain.meeting.dto.request.MeetingUpdateRequest;
 import com.yamoyo.be.domain.meeting.dto.response.MeetingCreateResponse;
 import com.yamoyo.be.domain.meeting.dto.response.MeetingDetailResponse;
 import com.yamoyo.be.domain.meeting.dto.response.MeetingListResponse;
+import com.yamoyo.be.domain.meeting.dto.response.MeetingUpdateResponse;
 import com.yamoyo.be.domain.meeting.entity.Meeting;
 import com.yamoyo.be.domain.meeting.entity.MeetingParticipant;
 import com.yamoyo.be.domain.meeting.entity.MeetingSeries;
 import com.yamoyo.be.domain.meeting.entity.enums.DayOfWeek;
+import com.yamoyo.be.domain.meeting.entity.enums.MeetingColor;
 import com.yamoyo.be.domain.meeting.entity.enums.MeetingType;
+import com.yamoyo.be.domain.meeting.entity.enums.UpdateScope;
 import com.yamoyo.be.domain.meeting.repository.MeetingParticipantRepository;
 import com.yamoyo.be.domain.meeting.repository.MeetingRepository;
 import com.yamoyo.be.domain.meeting.repository.MeetingSeriesRepository;
@@ -256,5 +260,99 @@ public class MeetingService {
         } else {
             return meetingParticipantRepository.existsByMeetingIdAndUserId(meeting.getId(), userId);
         }
+    }
+
+    @Transactional
+    public MeetingUpdateResponse updateMeeting(Long meetingId, UpdateScope scope, MeetingUpdateRequest request, Long userId) {
+        log.info("회의 수정 시작 - meetingId: {}, scope: {}, userId: {}", meetingId, scope, userId);
+
+        Meeting meeting = meetingRepository.findByIdWithSeriesAndTeamRoom(meetingId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.MEETING_NOT_FOUND));
+
+        MeetingSeries meetingSeries = meeting.getMeetingSeries();
+        Long teamRoomId = meetingSeries.getTeamRoom().getId();
+        MeetingType meetingType = meetingSeries.getMeetingType();
+
+        validateEditPermission(meeting, teamRoomId, userId, meetingType);
+        validateUpdateScope(meetingType, scope);
+        validateColorChange(meetingType, meeting.getColor(), request.color());
+        validateParticipantsAreTeamMembers(teamRoomId, request.participantUserIds());
+
+        List<Long> updatedMeetingIds = new ArrayList<>();
+        List<Long> skippedMeetingIds = new ArrayList<>();
+
+        if (scope == UpdateScope.SINGLE) {
+            updateSingleMeeting(meeting, request);
+            updatedMeetingIds.add(meeting.getId());
+        } else {
+            List<Meeting> futureMeetings = meetingRepository.findByMeetingSeriesIdAndStartTimeGreaterThanEqual(
+                    meetingSeries.getId(), meeting.getStartTime());
+
+            for (Meeting futureMeeting : futureMeetings) {
+                if (futureMeeting.isModified()) {
+                    skippedMeetingIds.add(futureMeeting.getId());
+                } else {
+                    updateSingleMeeting(futureMeeting, request);
+                    updatedMeetingIds.add(futureMeeting.getId());
+                }
+            }
+        }
+
+        log.info("회의 수정 완료 - 수정된 회의 수: {}, 건너뛴 회의 수: {}",
+                updatedMeetingIds.size(), skippedMeetingIds.size());
+
+        return new MeetingUpdateResponse(scope, updatedMeetingIds.size(), updatedMeetingIds, skippedMeetingIds);
+    }
+
+    private void validateEditPermission(Meeting meeting, Long teamRoomId, Long userId, MeetingType meetingType) {
+        TeamMember teamMember = teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
+
+        boolean hasPermission;
+        if (meetingType == MeetingType.INITIAL_REGULAR) {
+            hasPermission = teamMember.getTeamRole() == TeamRole.LEADER;
+        } else {
+            hasPermission = meetingParticipantRepository.existsByMeetingIdAndUserId(meeting.getId(), userId);
+        }
+
+        if (!hasPermission) {
+            throw new YamoyoException(ErrorCode.MEETING_EDIT_FORBIDDEN);
+        }
+    }
+
+    private void validateUpdateScope(MeetingType meetingType, UpdateScope scope) {
+        if (meetingType == MeetingType.ADDITIONAL_ONE_TIME && scope == UpdateScope.THIS_AND_FUTURE) {
+            throw new YamoyoException(ErrorCode.INVALID_UPDATE_SCOPE);
+        }
+    }
+
+    private void validateColorChange(MeetingType meetingType, MeetingColor currentColor, MeetingColor newColor) {
+        if (meetingType == MeetingType.INITIAL_REGULAR && currentColor != newColor) {
+            throw new YamoyoException(ErrorCode.MEETING_COLOR_CHANGE_NOT_ALLOWED);
+        }
+    }
+
+    private void updateSingleMeeting(Meeting meeting, MeetingUpdateRequest request) {
+        LocalDateTime newStartTime = meeting.getStartTime()
+                .withHour(request.startTime().getHour())
+                .withMinute(request.startTime().getMinute());
+
+        meeting.update(
+                request.title(),
+                request.description(),
+                request.location(),
+                newStartTime,
+                request.durationMinutes(),
+                request.color()
+        );
+        meeting.markAsIndividuallyModified();
+
+        meetingParticipantRepository.deleteByMeetingId(meeting.getId());
+
+        List<User> participants = userRepository.findAllById(request.participantUserIds());
+        List<MeetingParticipant> newParticipants = participants.stream()
+                .map(user -> MeetingParticipant.create(meeting, user))
+                .collect(Collectors.toList());
+        meetingParticipantRepository.saveAll(newParticipants);
     }
 }
