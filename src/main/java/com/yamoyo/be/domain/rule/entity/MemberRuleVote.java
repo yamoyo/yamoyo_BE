@@ -27,6 +27,7 @@ public class MemberRuleVote {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "rule_vote_id")
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
