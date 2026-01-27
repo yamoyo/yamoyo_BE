@@ -2,6 +2,7 @@ package com.yamoyo.be.domain.meeting.service;
 
 import com.yamoyo.be.domain.meeting.dto.response.AvailabilityResponse;
 import com.yamoyo.be.domain.meeting.entity.UserTimepickDefault;
+import com.yamoyo.be.domain.meeting.entity.WeeklyAvailability;
 import com.yamoyo.be.domain.meeting.entity.enums.DayOfWeek;
 import com.yamoyo.be.domain.meeting.entity.enums.PreferredBlock;
 import com.yamoyo.be.domain.meeting.repository.UserTimepickDefaultRepository;
@@ -139,8 +140,8 @@ class UserTimepickDefaultServiceTest {
             userTimepickDefaultService.updateAvailability(USER_ID, newBitmaps);
 
             // then
-            assertThat(existingDefault.getAvailabilityMon()).isEqualTo(10L);
-            assertThat(existingDefault.getAvailabilityTue()).isEqualTo(20L);
+            assertThat(existingDefault.getAvailabilityBitmaps().get(DayOfWeek.MON)).isEqualTo(10L);
+            assertThat(existingDefault.getAvailabilityBitmaps().get(DayOfWeek.TUE)).isEqualTo(20L);
         }
 
         @Test
@@ -163,8 +164,8 @@ class UserTimepickDefaultServiceTest {
             verify(userTimepickDefaultRepository).save(captor.capture());
 
             UserTimepickDefault saved = captor.getValue();
-            assertThat(saved.getAvailabilityMon()).isEqualTo(10L);
-            assertThat(saved.getAvailabilityTue()).isEqualTo(20L);
+            assertThat(saved.getAvailabilityBitmaps().get(DayOfWeek.MON)).isEqualTo(10L);
+            assertThat(saved.getAvailabilityBitmaps().get(DayOfWeek.TUE)).isEqualTo(20L);
         }
 
         @Test
@@ -261,13 +262,9 @@ class UserTimepickDefaultServiceTest {
             constructor.setAccessible(true);
             UserTimepickDefault userDefault = constructor.newInstance();
             ReflectionTestUtils.setField(userDefault, "id", 1L);
-            ReflectionTestUtils.setField(userDefault, "availabilityMon", 1L);  // 첫 번째 슬롯만 true
-            ReflectionTestUtils.setField(userDefault, "availabilityTue", 2L);  // 두 번째 슬롯만 true
-            ReflectionTestUtils.setField(userDefault, "availabilityWed", 0L);
-            ReflectionTestUtils.setField(userDefault, "availabilityThu", 0L);
-            ReflectionTestUtils.setField(userDefault, "availabilityFri", 0L);
-            ReflectionTestUtils.setField(userDefault, "availabilitySat", 0L);
-            ReflectionTestUtils.setField(userDefault, "availabilitySun", 0L);
+
+            WeeklyAvailability availability = createWeeklyAvailability(1L, 2L, 0L, 0L, 0L, 0L, 0L);
+            ReflectionTestUtils.setField(userDefault, "availability", availability);
             return userDefault;
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -280,14 +277,28 @@ class UserTimepickDefaultServiceTest {
             constructor.setAccessible(true);
             UserTimepickDefault userDefault = constructor.newInstance();
             ReflectionTestUtils.setField(userDefault, "id", 1L);
-            ReflectionTestUtils.setField(userDefault, "availabilitySun", 1L);  // 0b001
-            ReflectionTestUtils.setField(userDefault, "availabilityMon", 2L);  // 0b010
-            ReflectionTestUtils.setField(userDefault, "availabilityTue", 3L);  // 0b011
-            ReflectionTestUtils.setField(userDefault, "availabilityWed", 4L);  // 0b100
-            ReflectionTestUtils.setField(userDefault, "availabilityThu", 5L);  // 0b101
-            ReflectionTestUtils.setField(userDefault, "availabilityFri", 6L);  // 0b110
-            ReflectionTestUtils.setField(userDefault, "availabilitySat", 7L);  // 0b111
+
+            WeeklyAvailability availability = createWeeklyAvailability(2L, 3L, 4L, 5L, 6L, 7L, 1L);
+            ReflectionTestUtils.setField(userDefault, "availability", availability);
             return userDefault;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private WeeklyAvailability createWeeklyAvailability(Long mon, Long tue, Long wed, Long thu, Long fri, Long sat, Long sun) {
+        try {
+            var constructor = WeeklyAvailability.class.getDeclaredConstructor();
+            constructor.setAccessible(true);
+            WeeklyAvailability availability = constructor.newInstance();
+            ReflectionTestUtils.setField(availability, "availabilityMon", mon);
+            ReflectionTestUtils.setField(availability, "availabilityTue", tue);
+            ReflectionTestUtils.setField(availability, "availabilityWed", wed);
+            ReflectionTestUtils.setField(availability, "availabilityThu", thu);
+            ReflectionTestUtils.setField(availability, "availabilityFri", fri);
+            ReflectionTestUtils.setField(availability, "availabilitySat", sat);
+            ReflectionTestUtils.setField(availability, "availabilitySun", sun);
+            return availability;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

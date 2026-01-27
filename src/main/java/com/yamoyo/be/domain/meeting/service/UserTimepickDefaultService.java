@@ -16,6 +16,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 @Slf4j
 @Service
@@ -42,30 +44,33 @@ public class UserTimepickDefaultService {
 
     @Transactional
     public void updateAvailability(Long userId, Map<DayOfWeek, Long> bitmaps) {
-        userTimepickDefaultRepository.findByUserId(userId)
-                .ifPresentOrElse(
-                        userDefault -> userDefault.updateAvailability(bitmaps),
-                        () -> {
-                            User user = userRepository.findById(userId)
-                                    .orElseThrow(() -> new YamoyoException(ErrorCode.USER_NOT_FOUND));
-                            userTimepickDefaultRepository.save(
-                                    UserTimepickDefault.createWithAvailability(user, bitmaps));
-                        }
-                );
+        upsertDefault(
+                userId,
+                userDefault -> userDefault.updateAvailability(bitmaps),
+                user -> UserTimepickDefault.createWithAvailability(user, bitmaps)
+        );
     }
 
     @Transactional
     public void updatePreferredBlock(Long userId, PreferredBlock preferredBlock) {
+        upsertDefault(
+                userId,
+                userDefault -> userDefault.updatePreferredBlock(preferredBlock),
+                user -> UserTimepickDefault.createWithPreferredBlock(user, preferredBlock)
+        );
+    }
+
+    private void upsertDefault(Long userId,
+                               Consumer<UserTimepickDefault> updater,
+                               Function<User, UserTimepickDefault> creator) {
         userTimepickDefaultRepository.findByUserId(userId)
                 .ifPresentOrElse(
-                        userDefault -> userDefault.updatePreferredBlock(preferredBlock),
+                        updater,
                         () -> {
                             User user = userRepository.findById(userId)
                                     .orElseThrow(() -> new YamoyoException(ErrorCode.USER_NOT_FOUND));
-                            userTimepickDefaultRepository.save(
-                                    UserTimepickDefault.createWithPreferredBlock(user, preferredBlock));
+                            userTimepickDefaultRepository.save(creator.apply(user));
                         }
                 );
     }
-
 }

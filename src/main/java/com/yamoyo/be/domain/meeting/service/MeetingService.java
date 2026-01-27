@@ -48,65 +48,34 @@ public class MeetingService {
     public MeetingCreateResponse createMeeting(Long teamRoomId, MeetingCreateRequest request, Long userId) {
         log.info("회의 생성 시작 - teamRoomId: {}, userId: {}", teamRoomId, userId);
 
-        // 1. 팀룸 조회
-        TeamRoom teamRoom = teamRoomRepository.findById(teamRoomId)
-                .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
-
-        // 2. 요청자 팀원 검증
-        teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId)
-                .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
-
-        // 3. 요청자 User 조회 (creatorName용)
-        User creator = userRepository.findById(userId)
-                .orElseThrow(() -> new YamoyoException(ErrorCode.USER_NOT_FOUND));
-
-        // 4. 참석자 검증: 모두 팀원인지
+        TeamRoom teamRoom = findTeamRoom(teamRoomId);
+        validateUserIsTeamMember(teamRoomId, userId);
+        User creator = findUser(userId);
         validateParticipantsAreTeamMembers(teamRoomId, request.participantUserIds());
 
-        // 5. MeetingSeries 생성 및 저장
-        MeetingType meetingType = request.isRecurring()
-                ? MeetingType.ADDITIONAL_RECURRING
-                : MeetingType.ADDITIONAL_ONE_TIME;
-        DayOfWeek dayOfWeek = DayOfWeek.from(request.startTime().getDayOfWeek());
-
-        MeetingSeries meetingSeries = MeetingSeries.create(
-                teamRoom,
-                meetingType,
-                dayOfWeek,
-                request.startTime().toLocalTime(),
-                request.durationMinutes(),
-                creator.getName()
-        );
-        meetingSeriesRepository.save(meetingSeries);
-
-        // 6. Meeting 생성 및 저장
-        List<Meeting> meetings = createMeetings(meetingSeries, request, teamRoom.getDeadline());
-        meetingRepository.saveAll(meetings);
-
-        // 7. MeetingParticipant 일괄 생성 및 저장
-        List<User> participants = userRepository.findAllById(request.participantUserIds());
-        List<MeetingParticipant> allParticipants = new ArrayList<>();
-        for (Meeting meeting : meetings) {
-            for (User participant : participants) {
-                MeetingParticipant meetingParticipant = MeetingParticipant.create(meeting, participant);
-                allParticipants.add(meetingParticipant);
-            }
-        }
-        meetingParticipantRepository.saveAll(allParticipants);
+        MeetingSeries meetingSeries = createMeetingSeries(teamRoom, request, creator);
+        List<Meeting> meetings = createMeetingInstances(meetingSeries, request, teamRoom.getDeadline());
+        createMeetingParticipants(meetings, request.participantUserIds());
 
         log.info("회의 생성 완료 - meetingSeriesId: {}, 생성된 회의 수: {}",
                 meetingSeries.getId(), meetings.size());
 
-        // 8. MeetingCreateResponse 반환
-        List<Long> meetingIds = meetings.stream()
-                .map(Meeting::getId)
-                .collect(Collectors.toList());
+        return buildCreateResponse(meetingSeries, meetings);
+    }
 
-        return new MeetingCreateResponse(
-                meetingSeries.getId(),
-                meetingIds,
-                meetings.size()
-        );
+    private TeamRoom findTeamRoom(Long teamRoomId) {
+        return teamRoomRepository.findById(teamRoomId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
+    }
+
+    private void validateUserIsTeamMember(Long teamRoomId, Long userId) {
+        teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
+    }
+
+    private User findUser(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.USER_NOT_FOUND));
     }
 
     private void validateParticipantsAreTeamMembers(Long teamRoomId, List<Long> participantUserIds) {
@@ -121,35 +90,108 @@ public class MeetingService {
         }
     }
 
+    private MeetingSeries createMeetingSeries(TeamRoom teamRoom, MeetingCreateRequest request, User creator) {
+        MeetingType meetingType = request.isRecurring()
+                ? MeetingType.ADDITIONAL_RECURRING
+                : MeetingType.ADDITIONAL_ONE_TIME;
+        DayOfWeek dayOfWeek = DayOfWeek.from(request.startTime().getDayOfWeek());
+
+        MeetingSeries meetingSeries = MeetingSeries.create(
+                teamRoom,
+                meetingType,
+                dayOfWeek,
+                request.startTime().toLocalTime(),
+                request.durationMinutes(),
+                creator.getName()
+        );
+        meetingSeriesRepository.save(meetingSeries);
+        return meetingSeries;
+    }
+
+    private List<Meeting> createMeetingInstances(MeetingSeries meetingSeries, MeetingCreateRequest request,
+                                                  LocalDateTime deadline) {
+        List<Meeting> meetings = new ArrayList<>();
+
+        if (!request.isRecurring()) {
+            Meeting meeting = Meeting.create(
+                    meetingSeries,
+                    request.title(),
+                    request.location(),
+                    request.startTime(),
+                    request.durationMinutes(),
+                    request.color(),
+                    request.description()
+            );
+            meetings.add(meeting);
+        } else {
+            LocalDateTime currentStartTime = request.startTime();
+            while (!currentStartTime.isAfter(deadline)) {
+                Meeting meeting = Meeting.create(
+                        meetingSeries,
+                        request.title(),
+                        request.location(),
+                        currentStartTime,
+                        request.durationMinutes(),
+                        request.color(),
+                        request.description()
+                );
+                meetings.add(meeting);
+                currentStartTime = currentStartTime.plusWeeks(1);
+            }
+        }
+
+        meetingRepository.saveAll(meetings);
+        return meetings;
+    }
+
+    private void createMeetingParticipants(List<Meeting> meetings, List<Long> participantUserIds) {
+        List<User> participants = userRepository.findAllById(participantUserIds);
+        List<MeetingParticipant> allParticipants = new ArrayList<>();
+
+        for (Meeting meeting : meetings) {
+            for (User participant : participants) {
+                MeetingParticipant meetingParticipant = MeetingParticipant.create(meeting, participant);
+                allParticipants.add(meetingParticipant);
+            }
+        }
+
+        meetingParticipantRepository.saveAll(allParticipants);
+    }
+
+    private MeetingCreateResponse buildCreateResponse(MeetingSeries meetingSeries, List<Meeting> meetings) {
+        List<Long> meetingIds = meetings.stream()
+                .map(Meeting::getId)
+                .collect(Collectors.toList());
+
+        return new MeetingCreateResponse(
+                meetingSeries.getId(),
+                meetingIds,
+                meetings.size()
+        );
+    }
+
     public MeetingListResponse getMeetingList(Long teamRoomId, Long userId, Integer year, Integer month) {
         log.info("회의 목록 조회 시작 - teamRoomId: {}, userId: {}, year: {}, month: {}", teamRoomId, userId, year, month);
 
-        // 1. 팀룸 존재 확인
         teamRoomRepository.findById(teamRoomId)
                 .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
 
-        // 2. 팀원 권한 검증
         teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId)
                 .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
 
-        // 3. year/month 검증
         if (year == null || month == null) {
             throw new YamoyoException(ErrorCode.MEETING_INVALID_YEAR_MONTH_PARAMETER);
         }
         YearMonth targetYearMonth = YearMonth.of(year, month);
 
-        // 4. 월 범위 계산
         LocalDateTime startDateTime = targetYearMonth.atDay(1).atStartOfDay();
         LocalDateTime endDateTime = targetYearMonth.plusMonths(1).atDay(1).atStartOfDay();
 
-        // 5. 회의 목록 조회
         List<Meeting> meetings = meetingRepository.findByTeamRoomIdAndStartTimeBetween(
                 teamRoomId, startDateTime, endDateTime);
 
-        // 6. 참석자 수 일괄 조회 (N+1 방지)
         Map<Long, Integer> participantCountMap = getParticipantCountMap(meetings);
 
-        // 7. MeetingListResponse 반환
         List<MeetingListResponse.MeetingSummary> meetingSummaries = meetings.stream()
                 .map(meeting -> MeetingListResponse.MeetingSummary.from(
                         meeting,
@@ -181,42 +223,5 @@ public class MeetingService {
                         row -> (Long) row[0],
                         row -> ((Long) row[1]).intValue()
                 ));
-    }
-
-    private List<Meeting> createMeetings(MeetingSeries meetingSeries, MeetingCreateRequest request,
-                                          LocalDateTime deadline) {
-        List<Meeting> meetings = new ArrayList<>();
-
-        if (!request.isRecurring()) {
-            // 일회성: 1개만 생성
-            Meeting meeting = Meeting.create(
-                    meetingSeries,
-                    request.title(),
-                    request.location(),
-                    request.startTime(),
-                    request.durationMinutes(),
-                    request.color(),
-                    request.description()
-            );
-            meetings.add(meeting);
-        } else {
-            // 반복: deadline까지 매주 생성
-            LocalDateTime currentStartTime = request.startTime();
-            while (!currentStartTime.isAfter(deadline)) {
-                Meeting meeting = Meeting.create(
-                        meetingSeries,
-                        request.title(),
-                        request.location(),
-                        currentStartTime,
-                        request.durationMinutes(),
-                        request.color(),
-                        request.description()
-                );
-                meetings.add(meeting);
-                currentStartTime = currentStartTime.plusWeeks(1);
-            }
-        }
-
-        return meetings;
     }
 }
