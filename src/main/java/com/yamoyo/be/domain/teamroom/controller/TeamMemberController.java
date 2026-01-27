@@ -26,7 +26,7 @@ public class TeamMemberController {
     ) {
         Long userId = claims.userId();
         teamMemberService.leaveTeamRoom(teamRoomId, userId);
-        return ApiResponse.success(null);
+        return ApiResponse.success();
     }
 
     /**
@@ -41,7 +41,7 @@ public class TeamMemberController {
     ) {
         Long userId = claims.userId();
         teamMemberService.kickMember(teamRoomId, userId, memberId);
-        return ApiResponse.success(null);
+        return ApiResponse.success();
     }
 
     /**
@@ -55,6 +55,6 @@ public class TeamMemberController {
     ) {
         Long userId = claims.userId();
         teamMemberService.changeLeader(teamRoomId, userId, request.newLeaderMemberId());
-        return ApiResponse.success(null);
+        return ApiResponse.success();
     }
 }
