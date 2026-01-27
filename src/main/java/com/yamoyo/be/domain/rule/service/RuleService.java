@@ -79,5 +79,61 @@ public class RuleService {
         log.info("규칙 투표 제출 완료");
     }
 
+    /**
+     * 규칙 투표 참여 현황 조회
+     *
+     * @param teamRoomId 팀룸 ID
+     * @param userId 요청자 ID
+     * @return 투표 참여 현황
+     */
+    public RuleVoteParticipationResponse getRuleVoteParticipation(Long teamRoomId, Long userId) {
+        log.info("규칙 투표 참여 현황 조회 시작 - teamRoomId: {}, userId: {}", teamRoomId, userId);
 
+        // 1. 팀룸 조회
+        TeamRoom teamRoom = teamRoomRepository.findById(teamRoomId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
+
+        // 2. 요청자가 팀원인지 확인
+        teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
+
+        // 3. 전체 팀원 조회
+        List<TeamMember> allMembers = teamMemberRepository.findByTeamRoomId(teamRoomId);
+
+        // 4. 투표한 팀원 ID 목록 조회 (중복 제거)
+        List<MemberRuleVote> votes = memberRuleVoteRepository.findByTeamRoomId(teamRoomId);
+        Set<Long> votedMemberIds = votes.stream()
+                .map(vote -> vote.getMember().getId())
+                .collect(Collectors.toSet());
+
+        // 5. 투표 완료/미완료 팀원 분류
+        List<MemberInfo> voted = new ArrayList<>();
+        List<MemberInfo> notVoted = new ArrayList<>();
+
+        for (TeamMember member : allMembers) {
+            User user = member.getUser();
+            MemberInfo memberInfo =
+                    new MemberInfo(
+                            user.getId(),
+                            user.getName(),
+                            user.getProfileImageId()
+                    );
+
+            if (votedMemberIds.contains(member.getId())) {
+                voted.add(memberInfo);
+            } else {
+                notVoted.add(memberInfo);
+            }
+        }
+
+        log.info("규칙 투표 참여 현황 조회 완료 - 전체: {}, 투표완료: {}",
+                allMembers.size(), voted.size());
+
+        return new RuleVoteParticipationResponse(
+                allMembers.size(),
+                voted.size(),
+                voted,
+                notVoted
+        );
+    }
 }

@@ -33,5 +33,19 @@ public class RuleController {
         return ApiResponse.success();
     }
 
+    /**
+     * 규칙 투표 참여 현황 조회
+     */
+    @GetMapping("/votes/participation")
+    public ApiResponse<RuleVoteParticipationResponse> getRuleVoteParticipation(
+            @PathVariable Long teamRoomId,
+            @AuthenticationPrincipal JwtTokenClaims claims
+    ) {
+        RuleVoteParticipationResponse response = ruleService.getRuleVoteParticipation(
+                teamRoomId,
+                claims.userId()
+        );
+        return ApiResponse.success(response);
+    }
 
 }
