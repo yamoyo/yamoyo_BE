@@ -20,4 +20,16 @@ public enum DayOfWeek {
             case SUNDAY -> SUN;
         };
     }
+
+    public java.time.DayOfWeek toJavaDayOfWeek() {
+        return switch (this) {
+            case MON -> java.time.DayOfWeek.MONDAY;
+            case TUE -> java.time.DayOfWeek.TUESDAY;
+            case WED -> java.time.DayOfWeek.WEDNESDAY;
+            case THU -> java.time.DayOfWeek.THURSDAY;
+            case FRI -> java.time.DayOfWeek.FRIDAY;
+            case SAT -> java.time.DayOfWeek.SATURDAY;
+            case SUN -> java.time.DayOfWeek.SUNDAY;
+        };
+    }
 }

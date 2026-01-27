@@ -36,6 +36,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -43,6 +44,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+
+import com.yamoyo.be.domain.meeting.entity.enums.DayOfWeek;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -938,20 +941,36 @@ class MeetingServiceTest {
             return meeting;
         }
 
-        private MeetingUpdateRequest createValidUpdateRequest() {
+        private MeetingUpdateRequest createValidUpdateRequestForSingle() {
             return new MeetingUpdateRequest(
                     "수정된 회의",
                     "수정된 설명",
                     "수정된 장소",
+                    LocalDate.of(2026, 2, 20),
+                    null,
                     LocalTime.of(15, 0),
-                    90,
+                    LocalTime.of(16, 30),  // endTime: 90분 후
+                    MeetingColor.YELLOW,
+                    Arrays.asList(1L, 2L)
+            );
+        }
+
+        private MeetingUpdateRequest createValidUpdateRequestForThisAndFuture() {
+            return new MeetingUpdateRequest(
+                    "수정된 회의",
+                    "수정된 설명",
+                    "수정된 장소",
+                    null,
+                    DayOfWeek.FRI,
+                    LocalTime.of(15, 0),
+                    LocalTime.of(16, 30),  // endTime: 90분 후
                     MeetingColor.YELLOW,
                     Arrays.asList(1L, 2L)
             );
         }
 
         @Test
-        @DisplayName("단일 회의 수정 성공")
+        @DisplayName("단일 회의 수정 성공 - 날짜와 시간 변경")
         void updateMeeting_SingleScope_Success() {
             // given
             Long meetingId = 1L;
@@ -970,7 +989,7 @@ class MeetingServiceTest {
             TeamMember member1 = createMockTeamMember(1L, participant1);
             TeamMember member2 = createMockTeamMember(2L, participant2);
 
-            MeetingUpdateRequest request = createValidUpdateRequest();
+            MeetingUpdateRequest request = createValidUpdateRequestForSingle();
 
             given(meetingRepository.findByIdWithSeriesAndTeamRoom(meetingId)).willReturn(Optional.of(meeting));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
@@ -990,7 +1009,7 @@ class MeetingServiceTest {
             assertThat(response.skippedMeetingIds()).isEmpty();
 
             verify(meeting).update(eq("수정된 회의"), eq("수정된 설명"), eq("수정된 장소"),
-                    any(LocalDateTime.class), eq(90), eq(MeetingColor.YELLOW));
+                    eq(LocalDateTime.of(2026, 2, 20, 15, 0)), eq(90), eq(MeetingColor.YELLOW));
             verify(meeting).markAsIndividuallyModified();
             verify(meetingParticipantRepository).deleteByMeetingId(meetingId);
             verify(meetingParticipantRepository).saveAll(anyList());
@@ -1016,7 +1035,8 @@ class MeetingServiceTest {
 
             MeetingUpdateRequest request = new MeetingUpdateRequest(
                     "수정된 회의", "수정된 설명", "수정된 장소",
-                    LocalTime.of(15, 0), 60, MeetingColor.YELLOW,
+                    LocalDate.of(2026, 2, 20), null,
+                    LocalTime.of(15, 0), LocalTime.of(16, 0), MeetingColor.YELLOW,
                     List.of(1L)
             );
 
@@ -1035,12 +1055,13 @@ class MeetingServiceTest {
         }
 
         @Test
-        @DisplayName("THIS_AND_FUTURE 범위 회의 수정 성공")
+        @DisplayName("THIS_AND_FUTURE 범위 회의 수정 성공 - 요일과 시간 변경")
         void updateMeeting_ThisAndFuture_Success() {
             // given
             Long meetingId = 1L;
             Long userId = 1L;
             Long teamRoomId = 1L;
+            // 2026-02-15은 일요일
             LocalDateTime startTime = LocalDateTime.of(2026, 2, 15, 14, 0);
 
             TeamRoom teamRoom = createMockTeamRoom(teamRoomId, LocalDateTime.now().plusDays(30));
@@ -1056,7 +1077,8 @@ class MeetingServiceTest {
 
             MeetingUpdateRequest request = new MeetingUpdateRequest(
                     "수정된 회의", "수정된 설명", "수정된 장소",
-                    LocalTime.of(15, 0), 60, MeetingColor.YELLOW,
+                    null, DayOfWeek.FRI,
+                    LocalTime.of(15, 0), LocalTime.of(16, 0), MeetingColor.YELLOW,
                     List.of(1L)
             );
 
@@ -1079,9 +1101,10 @@ class MeetingServiceTest {
             assertThat(response.updatedMeetingIds()).containsExactly(1L, 2L, 3L);
             assertThat(response.skippedMeetingIds()).isEmpty();
 
-            verify(meeting1).markAsIndividuallyModified();
-            verify(meeting2).markAsIndividuallyModified();
-            verify(meeting3).markAsIndividuallyModified();
+            // THIS_AND_FUTURE에서는 markAsIndividuallyModified가 호출되지 않음
+            verify(meeting1, never()).markAsIndividuallyModified();
+            verify(meeting2, never()).markAsIndividuallyModified();
+            verify(meeting3, never()).markAsIndividuallyModified();
         }
 
         @Test
@@ -1106,7 +1129,8 @@ class MeetingServiceTest {
 
             MeetingUpdateRequest request = new MeetingUpdateRequest(
                     "수정된 회의", "수정된 설명", "수정된 장소",
-                    LocalTime.of(15, 0), 60, MeetingColor.YELLOW,
+                    null, DayOfWeek.FRI,
+                    LocalTime.of(15, 0), LocalTime.of(16, 0), MeetingColor.YELLOW,
                     List.of(1L)
             );
 
@@ -1127,9 +1151,10 @@ class MeetingServiceTest {
             assertThat(response.updatedMeetingIds()).containsExactly(1L, 3L);
             assertThat(response.skippedMeetingIds()).containsExactly(2L);
 
-            verify(meeting1).markAsIndividuallyModified();
+            // THIS_AND_FUTURE에서는 markAsIndividuallyModified가 호출되지 않음
+            verify(meeting1, never()).markAsIndividuallyModified();
             verify(meeting2, never()).markAsIndividuallyModified();
-            verify(meeting3).markAsIndividuallyModified();
+            verify(meeting3, never()).markAsIndividuallyModified();
         }
 
         @Test
@@ -1150,7 +1175,8 @@ class MeetingServiceTest {
 
             MeetingUpdateRequest request = new MeetingUpdateRequest(
                     "수정된 회의", "수정된 설명", "수정된 장소",
-                    LocalTime.of(15, 0), 60, MeetingColor.PURPLE,
+                    LocalDate.of(2026, 2, 20), null,
+                    LocalTime.of(15, 0), LocalTime.of(16, 0), MeetingColor.PURPLE,
                     List.of(1L)
             );
 
@@ -1182,7 +1208,8 @@ class MeetingServiceTest {
 
             MeetingUpdateRequest request = new MeetingUpdateRequest(
                     "수정된 회의", "수정된 설명", "수정된 장소",
-                    LocalTime.of(15, 0), 60, MeetingColor.YELLOW, // 색상 변경 시도
+                    LocalDate.of(2026, 2, 20), null,
+                    LocalTime.of(15, 0), LocalTime.of(16, 0), MeetingColor.YELLOW, // 색상 변경 시도
                     List.of(1L)
             );
 
@@ -1214,7 +1241,8 @@ class MeetingServiceTest {
 
             MeetingUpdateRequest request = new MeetingUpdateRequest(
                     "수정된 회의", "수정된 설명", "수정된 장소",
-                    LocalTime.of(15, 0), 60, MeetingColor.YELLOW,
+                    LocalDate.of(2026, 2, 20), null,
+                    LocalTime.of(15, 0), LocalTime.of(16, 0), MeetingColor.YELLOW,
                     List.of(1L)
             );
 
@@ -1247,7 +1275,8 @@ class MeetingServiceTest {
 
             MeetingUpdateRequest request = new MeetingUpdateRequest(
                     "수정된 회의", "수정된 설명", "수정된 장소",
-                    LocalTime.of(15, 0), 60, MeetingColor.YELLOW,
+                    null, DayOfWeek.FRI,
+                    LocalTime.of(15, 0), LocalTime.of(16, 0), MeetingColor.YELLOW,
                     List.of(1L)
             );
 
@@ -1263,7 +1292,7 @@ class MeetingServiceTest {
         }
 
         @Test
-        @DisplayName("회의 수정 실패 - 참석자 0명")
+        @DisplayName("회의 수정 실패 - 참석자가 팀원이 아님")
         void updateMeeting_EmptyParticipants_BadRequest() {
             // given - DTO validation에서 @Size(min=1)이 처리하므로, 팀원이 아닌 참석자 테스트로 대체
             Long meetingId = 1L;
@@ -1282,7 +1311,8 @@ class MeetingServiceTest {
 
             MeetingUpdateRequest request = new MeetingUpdateRequest(
                     "수정된 회의", "수정된 설명", "수정된 장소",
-                    LocalTime.of(15, 0), 60, MeetingColor.YELLOW,
+                    LocalDate.of(2026, 2, 20), null,
+                    LocalTime.of(15, 0), LocalTime.of(16, 0), MeetingColor.YELLOW,
                     List.of(999L) // 팀원이 아닌 사용자
             );
 
@@ -1296,6 +1326,209 @@ class MeetingServiceTest {
             assertThatThrownBy(() -> meetingService.updateMeeting(meetingId, UpdateScope.SINGLE, request, userId))
                     .isInstanceOf(YamoyoException.class)
                     .hasMessageContaining(ErrorCode.MEETING_PARTICIPANT_NOT_TEAM_MEMBER.getMessage());
+        }
+
+        @Test
+        @DisplayName("SINGLE scope 수정 시 date가 없으면 에러")
+        void updateMeeting_SingleScope_RequiresDate() {
+            // given
+            Long meetingId = 1L;
+            Long userId = 1L;
+            Long teamRoomId = 1L;
+            LocalDateTime startTime = LocalDateTime.of(2026, 2, 15, 14, 0);
+
+            TeamRoom teamRoom = createMockTeamRoom(teamRoomId, LocalDateTime.now().plusDays(30));
+            MeetingSeries meetingSeries = createMockMeetingSeriesWithType(1L, teamRoom, MeetingType.ADDITIONAL_ONE_TIME);
+            Meeting meeting = createMockMeetingForUpdate(meetingId, meetingSeries, startTime, MeetingColor.YELLOW, false);
+
+            User user = createMockUser(userId, "참석자");
+            TeamMember teamMember = createMockTeamMemberWithRole(1L, user, TeamRole.MEMBER);
+            User participant1 = createMockUser(1L, "참석자1");
+            TeamMember member1 = createMockTeamMember(1L, participant1);
+
+            MeetingUpdateRequest request = new MeetingUpdateRequest(
+                    "수정된 회의", "수정된 설명", "수정된 장소",
+                    null, null, // date가 없음
+                    LocalTime.of(15, 0), LocalTime.of(16, 0), MeetingColor.YELLOW,
+                    List.of(1L)
+            );
+
+            given(meetingRepository.findByIdWithSeriesAndTeamRoom(meetingId)).willReturn(Optional.of(meeting));
+            given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
+                    .willReturn(Optional.of(teamMember));
+            given(meetingParticipantRepository.existsByMeetingIdAndUserId(meetingId, userId)).willReturn(true);
+            given(teamMemberRepository.findByTeamRoomId(teamRoomId)).willReturn(List.of(member1));
+
+            // when / then
+            assertThatThrownBy(() -> meetingService.updateMeeting(meetingId, UpdateScope.SINGLE, request, userId))
+                    .isInstanceOf(YamoyoException.class)
+                    .hasMessageContaining(ErrorCode.MEETING_SINGLE_SCOPE_REQUIRES_DATE.getMessage());
+        }
+
+        @Test
+        @DisplayName("THIS_AND_FUTURE scope 수정 시 dayOfWeek가 없으면 에러")
+        void updateMeeting_ThisAndFuture_RequiresDayOfWeek() {
+            // given
+            Long meetingId = 1L;
+            Long userId = 1L;
+            Long teamRoomId = 1L;
+            LocalDateTime startTime = LocalDateTime.of(2026, 2, 15, 14, 0);
+
+            TeamRoom teamRoom = createMockTeamRoom(teamRoomId, LocalDateTime.now().plusDays(30));
+            MeetingSeries meetingSeries = createMockMeetingSeriesWithType(1L, teamRoom, MeetingType.ADDITIONAL_RECURRING);
+            Meeting meeting = createMockMeetingForUpdate(meetingId, meetingSeries, startTime, MeetingColor.YELLOW, false);
+
+            User user = createMockUser(userId, "참석자");
+            TeamMember teamMember = createMockTeamMemberWithRole(1L, user, TeamRole.MEMBER);
+            User participant1 = createMockUser(1L, "참석자1");
+            TeamMember member1 = createMockTeamMember(1L, participant1);
+
+            MeetingUpdateRequest request = new MeetingUpdateRequest(
+                    "수정된 회의", "수정된 설명", "수정된 장소",
+                    null, null, // dayOfWeek가 없음
+                    LocalTime.of(15, 0), LocalTime.of(16, 0), MeetingColor.YELLOW,
+                    List.of(1L)
+            );
+
+            given(meetingRepository.findByIdWithSeriesAndTeamRoom(meetingId)).willReturn(Optional.of(meeting));
+            given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
+                    .willReturn(Optional.of(teamMember));
+            given(meetingParticipantRepository.existsByMeetingIdAndUserId(meetingId, userId)).willReturn(true);
+            given(teamMemberRepository.findByTeamRoomId(teamRoomId)).willReturn(List.of(member1));
+
+            // when / then
+            assertThatThrownBy(() -> meetingService.updateMeeting(meetingId, UpdateScope.THIS_AND_FUTURE, request, userId))
+                    .isInstanceOf(YamoyoException.class)
+                    .hasMessageContaining(ErrorCode.MEETING_FUTURE_SCOPE_REQUIRES_DAY_OF_WEEK.getMessage());
+        }
+
+        @Test
+        @DisplayName("THIS_AND_FUTURE scope 수정 시 요일 변경이 올바르게 적용됨")
+        void updateMeeting_ThisAndFuture_MovesToCorrectDayOfWeek() {
+            // given
+            Long meetingId = 1L;
+            Long userId = 1L;
+            Long teamRoomId = 1L;
+            // 2026-02-04는 수요일
+            LocalDateTime startTime = LocalDateTime.of(2026, 2, 4, 14, 0);
+
+            TeamRoom teamRoom = createMockTeamRoom(teamRoomId, LocalDateTime.now().plusDays(30));
+            MeetingSeries meetingSeries = createMockMeetingSeriesWithType(1L, teamRoom, MeetingType.ADDITIONAL_RECURRING);
+            Meeting meeting = createMockMeetingForUpdate(meetingId, meetingSeries, startTime, MeetingColor.YELLOW, false);
+
+            User user = createMockUser(userId, "참석자");
+            TeamMember teamMember = createMockTeamMemberWithRole(1L, user, TeamRole.MEMBER);
+            User participant1 = createMockUser(1L, "참석자1");
+            TeamMember member1 = createMockTeamMember(1L, participant1);
+
+            // 금요일로 변경 요청
+            MeetingUpdateRequest request = new MeetingUpdateRequest(
+                    "수정된 회의", "수정된 설명", "수정된 장소",
+                    null, DayOfWeek.FRI,
+                    LocalTime.of(15, 0), LocalTime.of(16, 0), MeetingColor.YELLOW,
+                    List.of(1L)
+            );
+
+            given(meetingRepository.findByIdWithSeriesAndTeamRoom(meetingId)).willReturn(Optional.of(meeting));
+            given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
+                    .willReturn(Optional.of(teamMember));
+            given(meetingParticipantRepository.existsByMeetingIdAndUserId(meetingId, userId)).willReturn(true);
+            given(teamMemberRepository.findByTeamRoomId(teamRoomId)).willReturn(List.of(member1));
+            given(meetingRepository.findByMeetingSeriesIdAndStartTimeGreaterThanEqual(1L, startTime))
+                    .willReturn(List.of(meeting));
+            given(userRepository.findAllById(anyList())).willReturn(List.of(participant1));
+
+            // when
+            meetingService.updateMeeting(meetingId, UpdateScope.THIS_AND_FUTURE, request, userId);
+
+            // then
+            // 수요일(2/4)에서 금요일(2/6)로 변경됨
+            verify(meeting).update(eq("수정된 회의"), eq("수정된 설명"), eq("수정된 장소"),
+                    eq(LocalDateTime.of(2026, 2, 6, 15, 0)), eq(60), eq(MeetingColor.YELLOW));
+        }
+
+        @Test
+        @DisplayName("자정을 넘기는 회의 시간 계산 - 22:00~02:00 = 240분")
+        void updateMeeting_CalculatesDurationAcrossMidnight() {
+            // given
+            Long meetingId = 1L;
+            Long userId = 1L;
+            Long teamRoomId = 1L;
+            LocalDateTime startTime = LocalDateTime.of(2026, 2, 15, 14, 0);
+
+            TeamRoom teamRoom = createMockTeamRoom(teamRoomId, LocalDateTime.now().plusDays(30));
+            MeetingSeries meetingSeries = createMockMeetingSeriesWithType(1L, teamRoom, MeetingType.ADDITIONAL_ONE_TIME);
+            Meeting meeting = createMockMeetingForUpdate(meetingId, meetingSeries, startTime, MeetingColor.YELLOW, false);
+
+            User user = createMockUser(userId, "참석자");
+            TeamMember teamMember = createMockTeamMemberWithRole(1L, user, TeamRole.MEMBER);
+            User participant1 = createMockUser(1L, "참석자1");
+            TeamMember member1 = createMockTeamMember(1L, participant1);
+
+            // time: 22:00, endTime: 02:00 → 자정 넘김 → 240분
+            MeetingUpdateRequest request = new MeetingUpdateRequest(
+                    "야간 회의", "자정을 넘기는 회의", "야간 회의실",
+                    LocalDate.of(2026, 2, 20), null,
+                    LocalTime.of(22, 0), LocalTime.of(2, 0), MeetingColor.YELLOW,
+                    List.of(1L)
+            );
+
+            given(meetingRepository.findByIdWithSeriesAndTeamRoom(meetingId)).willReturn(Optional.of(meeting));
+            given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
+                    .willReturn(Optional.of(teamMember));
+            given(meetingParticipantRepository.existsByMeetingIdAndUserId(meetingId, userId)).willReturn(true);
+            given(teamMemberRepository.findByTeamRoomId(teamRoomId)).willReturn(List.of(member1));
+            given(userRepository.findAllById(anyList())).willReturn(List.of(participant1));
+
+            // when
+            meetingService.updateMeeting(meetingId, UpdateScope.SINGLE, request, userId);
+
+            // then
+            // 22:00 ~ 02:00 = 240분 (4시간)
+            verify(meeting).update(eq("야간 회의"), eq("자정을 넘기는 회의"), eq("야간 회의실"),
+                    eq(LocalDateTime.of(2026, 2, 20, 22, 0)), eq(240), eq(MeetingColor.YELLOW));
+        }
+
+        @Test
+        @DisplayName("같은 날 회의 시간 계산 - 14:00~16:00 = 120분")
+        void updateMeeting_CalculatesDurationSameDay() {
+            // given
+            Long meetingId = 1L;
+            Long userId = 1L;
+            Long teamRoomId = 1L;
+            LocalDateTime startTime = LocalDateTime.of(2026, 2, 15, 14, 0);
+
+            TeamRoom teamRoom = createMockTeamRoom(teamRoomId, LocalDateTime.now().plusDays(30));
+            MeetingSeries meetingSeries = createMockMeetingSeriesWithType(1L, teamRoom, MeetingType.ADDITIONAL_ONE_TIME);
+            Meeting meeting = createMockMeetingForUpdate(meetingId, meetingSeries, startTime, MeetingColor.YELLOW, false);
+
+            User user = createMockUser(userId, "참석자");
+            TeamMember teamMember = createMockTeamMemberWithRole(1L, user, TeamRole.MEMBER);
+            User participant1 = createMockUser(1L, "참석자1");
+            TeamMember member1 = createMockTeamMember(1L, participant1);
+
+            // time: 14:00, endTime: 16:00 → 같은 날 → 120분
+            MeetingUpdateRequest request = new MeetingUpdateRequest(
+                    "오후 회의", "같은 날 회의", "회의실",
+                    LocalDate.of(2026, 2, 20), null,
+                    LocalTime.of(14, 0), LocalTime.of(16, 0), MeetingColor.YELLOW,
+                    List.of(1L)
+            );
+
+            given(meetingRepository.findByIdWithSeriesAndTeamRoom(meetingId)).willReturn(Optional.of(meeting));
+            given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
+                    .willReturn(Optional.of(teamMember));
+            given(meetingParticipantRepository.existsByMeetingIdAndUserId(meetingId, userId)).willReturn(true);
+            given(teamMemberRepository.findByTeamRoomId(teamRoomId)).willReturn(List.of(member1));
+            given(userRepository.findAllById(anyList())).willReturn(List.of(participant1));
+
+            // when
+            meetingService.updateMeeting(meetingId, UpdateScope.SINGLE, request, userId);
+
+            // then
+            // 14:00 ~ 16:00 = 120분 (2시간)
+            verify(meeting).update(eq("오후 회의"), eq("같은 날 회의"), eq("회의실"),
+                    eq(LocalDateTime.of(2026, 2, 20, 14, 0)), eq(120), eq(MeetingColor.YELLOW));
         }
     }
 }
