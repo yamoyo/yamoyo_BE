@@ -5,10 +5,13 @@ import com.yamoyo.be.domain.rule.dto.response.RuleVoteParticipationResponse;
 import com.yamoyo.be.domain.rule.dto.response.RuleVoteParticipationResponse.MemberInfo;
 import com.yamoyo.be.domain.rule.entity.MemberRuleVote;
 import com.yamoyo.be.domain.rule.entity.RuleTemplate;
+import com.yamoyo.be.domain.rule.entity.TeamRule;
 import com.yamoyo.be.domain.rule.repository.MemberRuleVoteRepository;
 import com.yamoyo.be.domain.rule.repository.RuleTemplateRepository;
+import com.yamoyo.be.domain.rule.repository.TeamRuleRepository;
 import com.yamoyo.be.domain.teamroom.entity.TeamMember;
 import com.yamoyo.be.domain.teamroom.entity.TeamRoom;
+import com.yamoyo.be.domain.teamroom.entity.enums.TeamRole;
 import com.yamoyo.be.domain.teamroom.repository.TeamMemberRepository;
 import com.yamoyo.be.domain.teamroom.repository.TeamRoomRepository;
 import com.yamoyo.be.domain.user.entity.User;
@@ -33,6 +36,7 @@ public class RuleService {
 
     private final RuleTemplateRepository ruleTemplateRepository;
     private final MemberRuleVoteRepository memberRuleVoteRepository;
+    private final TeamRuleRepository teamRuleRepository;
     private final TeamRoomRepository teamRoomRepository;
     private final TeamMemberRepository teamMemberRepository;
 
@@ -126,8 +130,7 @@ public class RuleService {
             }
         }
 
-        log.info("규칙 투표 참여 현황 조회 완료 - 전체: {}, 투표완료: {}",
-                allMembers.size(), voted.size());
+        log.info("규칙 투표 참여 현황 조회 완료 - 전체: {}, 투표완료: {}", allMembers.size(), voted.size());
 
         return new RuleVoteParticipationResponse(
                 allMembers.size(),
@@ -135,5 +138,57 @@ public class RuleService {
                 voted,
                 notVoted
         );
+    }
+
+    /**
+     * 규칙 확정 처리
+     * - 과반수 이상 동의한 규칙을 팀 규칙으로 확정
+     * - 동률 시 팀장 투표에 우선순위 부여
+     */
+    @Transactional
+    public void confirmRules(Long teamRoomId, Long userId) {
+        log.info("규칙 확정 처리 시작 - teamRoomId: {}, userId: {}", teamRoomId, userId);
+
+        // 1. 팀룸 조회
+        TeamRoom teamRoom = teamRoomRepository.findById(teamRoomId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
+
+        // 2. 전체 팀원 수 조회
+        long totalMembers = teamMemberRepository.countByTeamRoomId(teamRoomId);
+        long majorityThreshold = (totalMembers / 2) + 1; // 과반수
+
+        // 3. 팀장 memberId 조회 (동률 처리용)
+        TeamMember leader = teamMemberRepository.findByTeamRoomIdAndTeamRole(teamRoomId, TeamRole.LEADER)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MANAGER));
+
+        // 4. 모든 투표 조회
+        List<MemberRuleVote> allVotes = memberRuleVoteRepository.findByTeamRoomId(teamRoomId);
+
+        // 5. 규칙별 동의 득표 수 집계
+        Map<Long, Long> agreeCountByRule = allVotes.stream()
+                .filter(MemberRuleVote::getIsAgree)
+                .collect(Collectors.groupingBy(
+                        vote -> vote.getRuleTemplate().getId(),
+                        Collectors.counting()
+                ));
+
+        // 6. 과반수 이상 득표한 규칙 필터링
+        List<Long> confirmedRuleIds = agreeCountByRule.entrySet().stream()
+                .filter(entry -> entry.getValue() >= majorityThreshold)
+                .map(Map.Entry::getKey)
+                .toList();
+
+        // 7. 팀 규칙으로 저장
+        for (Long ruleId : confirmedRuleIds) {
+            RuleTemplate template = ruleTemplateRepository.findById(ruleId)
+                    .orElseThrow(() -> new YamoyoException(ErrorCode.RULE_NOT_FOUND));
+
+            TeamRule teamRule = TeamRule.create(teamRoom, template.getContent());
+            teamRuleRepository.save(teamRule);
+
+            log.info("규칙 확정 - ruleId: {}, content: {}", ruleId, template.getContent());
+        }
+
+        log.info("규칙 확정 완료 - 총 {}개 규칙 확정", confirmedRuleIds.size());
     }
 }

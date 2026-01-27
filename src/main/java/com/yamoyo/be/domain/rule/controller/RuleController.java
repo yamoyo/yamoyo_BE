@@ -29,7 +29,8 @@ public class RuleController {
             @Valid @RequestBody RuleVoteRequest request,
             @AuthenticationPrincipal JwtTokenClaims claims
     ) {
-        ruleService.submitRuleVote(teamRoomId, request, claims.userId());
+        Long userId = claims.userId();
+        ruleService.submitRuleVote(teamRoomId, request, userId);
         return ApiResponse.success();
     }
 
@@ -41,11 +42,25 @@ public class RuleController {
             @PathVariable Long teamRoomId,
             @AuthenticationPrincipal JwtTokenClaims claims
     ) {
+        Long userId = claims.userId();
         RuleVoteParticipationResponse response = ruleService.getRuleVoteParticipation(
                 teamRoomId,
-                claims.userId()
+                userId
         );
         return ApiResponse.success(response);
+    }
+
+    /**
+     * 규칙 확정 처리
+     */
+    @PostMapping("/confirm")
+    public ApiResponse<Void> confirmRules(
+            @PathVariable Long teamRoomId,
+            @AuthenticationPrincipal JwtTokenClaims claims
+    ) {
+        Long userId = claims.userId();
+        ruleService.confirmRules(teamRoomId, userId);
+        return ApiResponse.success();
     }
 
 }
