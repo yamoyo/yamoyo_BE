@@ -21,10 +21,10 @@ public class TeamRoom {
     @Column(name = "team_room_id", nullable = false)
     private Long id;
 
-    @Column(name = "title")
+    @Column(name = "title", nullable = false, length = 20)
     private String title;
 
-    @Column(name = "description")
+    @Column(name = "description", length = 50)
     private String description;
 
     @Column(name = "deadline", nullable = false)
