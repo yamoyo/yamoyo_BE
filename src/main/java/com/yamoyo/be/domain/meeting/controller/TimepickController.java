@@ -8,8 +8,8 @@ import com.yamoyo.be.domain.meeting.service.TimepickService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import com.yamoyo.be.domain.security.jwt.JwtTokenClaims;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 
 
@@ -24,9 +24,9 @@ public class TimepickController {
     @GetMapping
     public ApiResponse<TimepickResponse> getTimepick(
             @PathVariable Long teamRoomId,
-            @AuthenticationPrincipal OAuth2User oAuth2User
+            @AuthenticationPrincipal JwtTokenClaims claims
     ) {
-        Long userId = (Long) oAuth2User.getAttributes().get("userId");
+        Long userId = claims.userId();
         log.info("타임픽 조회 요청 - TeamRoomId: {}, UserId: {}", teamRoomId, userId);
 
         TimepickResponse response = timepickService.getTimepick(teamRoomId, userId);
@@ -37,10 +37,10 @@ public class TimepickController {
     @PostMapping("/availability")
     public ApiResponse<Void> submitAvailability(
             @PathVariable Long teamRoomId,
-            @AuthenticationPrincipal OAuth2User oAuth2User,
+            @AuthenticationPrincipal JwtTokenClaims claims,
             @Valid @RequestBody AvailabilitySubmitRequest request
     ) {
-        Long userId = (Long) oAuth2User.getAttributes().get("userId");
+        Long userId = claims.userId();
         log.info("가용시간 제출 요청 - TeamRoomId: {}, UserId: {}", teamRoomId, userId);
         timepickService.submitAvailability(teamRoomId, userId, request);
         return ApiResponse.success();
@@ -49,10 +49,10 @@ public class TimepickController {
     @PostMapping("/preferred-block")
     public ApiResponse<Void> submitPreferredBlock(
             @PathVariable Long teamRoomId,
-            @AuthenticationPrincipal OAuth2User oAuth2User,
+            @AuthenticationPrincipal JwtTokenClaims claims,
             @Valid @RequestBody PreferredBlockSubmitRequest request
     ) {
-        Long userId = (Long) oAuth2User.getAttributes().get("userId");
+        Long userId = claims.userId();
         log.info("선호시간대 제출 요청 - TeamRoomId: {}, UserId: {}", teamRoomId, userId);
         timepickService.submitPreferredBlock(teamRoomId, userId, request);
         return ApiResponse.success();

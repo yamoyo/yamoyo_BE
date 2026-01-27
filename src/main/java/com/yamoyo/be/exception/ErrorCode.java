@@ -45,6 +45,21 @@ public enum ErrorCode {
     CANNOT_KICK_MANAGER(HttpStatus.BAD_REQUEST, "관리자는 강퇴할 수 없습니다."),
     BANNED_MEMBER(HttpStatus.FORBIDDEN, "해당 팀룸에서 강퇴된 사용자입니다."),
 
+    // Meeting
+    MEETING_NOT_FOUND(HttpStatus.NOT_FOUND, "회의를 찾을 수 없습니다."),
+    MEETING_INVALID_START_TIME(HttpStatus.BAD_REQUEST, "시작 시간은 30분 단위여야 합니다."),
+    MEETING_INVALID_DURATION(HttpStatus.BAD_REQUEST, "회의 시간은 30분 단위여야 합니다."),
+    MEETING_PURPLE_COLOR_FORBIDDEN(HttpStatus.BAD_REQUEST, "PURPLE 색상은 정기 회의 전용입니다."),
+    MEETING_PARTICIPANT_NOT_TEAM_MEMBER(HttpStatus.BAD_REQUEST, "참석자 중 팀원이 아닌 사용자가 있습니다."),
+    MEETING_INVALID_YEAR_MONTH_PARAMETER(HttpStatus.BAD_REQUEST, "year와 month는 둘 다 입력해야 합니다."),
+    MEETING_EDIT_FORBIDDEN(HttpStatus.FORBIDDEN, "회의 수정 권한이 없습니다."),
+    MEETING_COLOR_CHANGE_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "최초 정기회의의 색상은 변경할 수 없습니다."),
+    INVALID_UPDATE_SCOPE(HttpStatus.BAD_REQUEST, "일회성 회의에는 해당 수정 범위를 사용할 수 없습니다."),
+    MEETING_SINGLE_SCOPE_REQUIRES_DATE(HttpStatus.BAD_REQUEST, "단일 회의 수정 시 날짜(date)는 필수입니다."),
+    MEETING_FUTURE_SCOPE_REQUIRES_DAY_OF_WEEK(HttpStatus.BAD_REQUEST, "이후 회의 수정 시 요일(dayOfWeek)은 필수입니다."),
+    MEETING_DELETE_FORBIDDEN(HttpStatus.FORBIDDEN, "회의 삭제 권한이 없습니다."),
+    INVALID_DELETE_SCOPE(HttpStatus.BAD_REQUEST, "일회성 회의에는 해당 삭제 범위를 사용할 수 없습니다."),
+  
     // Team Rule
     RULE_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 규칙을 찾을 수 없습니다."),
 

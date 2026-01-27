@@ -6,6 +6,7 @@ import com.yamoyo.be.domain.meeting.entity.enums.TimepickParticipantStatus;
 import com.yamoyo.be.domain.user.entity.User;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -44,26 +45,8 @@ public class TimepickParticipant {
     @Column(name = "preferred_block_status", nullable = false, length = 20)
     private TimepickParticipantStatus preferredBlockStatus;
 
-    @Column(name = "availability_mon", nullable = false)
-    private Long availabilityMon;
-
-    @Column(name = "availability_tue", nullable = false)
-    private Long availabilityTue;
-
-    @Column(name = "availability_wed", nullable = false)
-    private Long availabilityWed;
-
-    @Column(name = "availability_thu", nullable = false)
-    private Long availabilityThu;
-
-    @Column(name = "availability_fri", nullable = false)
-    private Long availabilityFri;
-
-    @Column(name = "availability_sat", nullable = false)
-    private Long availabilitySat;
-
-    @Column(name = "availability_sun", nullable = false)
-    private Long availabilitySun;
+    @Embedded
+    private WeeklyAvailability availability = WeeklyAvailability.empty();
 
     @Column(name = "submitted_at")
     private LocalDateTime submittedAt;
@@ -74,25 +57,31 @@ public class TimepickParticipant {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
+    @Builder(access = AccessLevel.PRIVATE)
+    private TimepickParticipant(Timepick timepick, User user, PreferredBlock preferredBlock,
+                                TimepickParticipantStatus availabilityStatus,
+                                TimepickParticipantStatus preferredBlockStatus,
+                                WeeklyAvailability availability) {
+        this.timepick = timepick;
+        this.user = user;
+        this.preferredBlock = preferredBlock;
+        this.availabilityStatus = availabilityStatus;
+        this.preferredBlockStatus = preferredBlockStatus;
+        this.availability = availability;
     }
 
-    @PreUpdate
-    protected void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
+    public static TimepickParticipant create(Timepick timepick, User user) {
+        return TimepickParticipant.builder()
+                .timepick(timepick)
+                .user(user)
+                .availabilityStatus(TimepickParticipantStatus.PENDING)
+                .preferredBlockStatus(TimepickParticipantStatus.PENDING)
+                .availability(WeeklyAvailability.empty())
+                .build();
     }
 
     public void submitAvailability(Map<DayOfWeek, Long> bitmaps) {
-        this.availabilityMon = bitmaps.getOrDefault(DayOfWeek.MON, 0L);
-        this.availabilityTue = bitmaps.getOrDefault(DayOfWeek.TUE, 0L);
-        this.availabilityWed = bitmaps.getOrDefault(DayOfWeek.WED, 0L);
-        this.availabilityThu = bitmaps.getOrDefault(DayOfWeek.THU, 0L);
-        this.availabilityFri = bitmaps.getOrDefault(DayOfWeek.FRI, 0L);
-        this.availabilitySat = bitmaps.getOrDefault(DayOfWeek.SAT, 0L);
-        this.availabilitySun = bitmaps.getOrDefault(DayOfWeek.SUN, 0L);
+        this.availability.update(bitmaps);
         this.availabilityStatus = TimepickParticipantStatus.SUBMITTED;
         this.submittedAt = LocalDateTime.now();
     }
@@ -110,19 +99,14 @@ public class TimepickParticipant {
         return this.preferredBlockStatus == TimepickParticipantStatus.SUBMITTED;
     }
 
-    public static TimepickParticipant create(Timepick timepick, User user) {
-        TimepickParticipant participant = new TimepickParticipant();
-        participant.timepick = timepick;
-        participant.user = user;
-        participant.availabilityStatus = TimepickParticipantStatus.PENDING;
-        participant.preferredBlockStatus = TimepickParticipantStatus.PENDING;
-        participant.availabilityMon = 0L;
-        participant.availabilityTue = 0L;
-        participant.availabilityWed = 0L;
-        participant.availabilityThu = 0L;
-        participant.availabilityFri = 0L;
-        participant.availabilitySat = 0L;
-        participant.availabilitySun = 0L;
-        return participant;
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
     }
 }

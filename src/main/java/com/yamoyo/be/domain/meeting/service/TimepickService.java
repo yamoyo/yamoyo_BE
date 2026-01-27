@@ -54,25 +54,16 @@ public class TimepickService {
 
     @Transactional
     public void submitAvailability(Long teamRoomId, Long userId, AvailabilitySubmitRequest request) {
-        Timepick timepick = timepickRepository.findByTeamRoomId(teamRoomId)
-                .orElseThrow(() -> new YamoyoException(ErrorCode.TIMEPICK_NOT_FOUND));
+        TimepickSubmissionContext context = validateSubmissionContext(teamRoomId, userId);
 
-        if (timepick.isFinalized()) {
-            throw new YamoyoException(ErrorCode.TIMEPICK_NOT_OPEN);
-        }
-
-        TimepickParticipant participant = timepickParticipantRepository
-                .findByTimepickIdAndUserId(timepick.getId(), userId)
-                .orElseThrow(() -> new YamoyoException(ErrorCode.TIMEPICK_NOT_PARTICIPANT));
-
-        if (participant.hasSubmittedAvailability()) {
+        if (context.participant().hasSubmittedAvailability()) {
             throw new YamoyoException(ErrorCode.TIMEPICK_AVAILABILITY_ALREADY_SUBMITTED);
         }
 
         Map<DayOfWeek, boolean[]> availabilityMap = request.availability().toDayOfWeekMap();
         Map<DayOfWeek, Long> bitmaps = AvailabilityBitmapConverter.toBitmaps(availabilityMap);
 
-        participant.submitAvailability(bitmaps);
+        context.participant().submitAvailability(bitmaps);
         userTimepickDefaultService.updateAvailability(userId, bitmaps);
 
         log.info("가용시간 제출 완료 - TeamRoomId: {}, UserId: {}", teamRoomId, userId);
@@ -80,22 +71,13 @@ public class TimepickService {
 
     @Transactional
     public void submitPreferredBlock(Long teamRoomId, Long userId, PreferredBlockSubmitRequest request) {
-        Timepick timepick = timepickRepository.findByTeamRoomId(teamRoomId)
-                .orElseThrow(() -> new YamoyoException(ErrorCode.TIMEPICK_NOT_FOUND));
+        TimepickSubmissionContext context = validateSubmissionContext(teamRoomId, userId);
 
-        if (timepick.isFinalized()) {
-            throw new YamoyoException(ErrorCode.TIMEPICK_NOT_OPEN);
-        }
-
-        TimepickParticipant participant = timepickParticipantRepository
-                .findByTimepickIdAndUserId(timepick.getId(), userId)
-                .orElseThrow(() -> new YamoyoException(ErrorCode.TIMEPICK_NOT_PARTICIPANT));
-
-        if (participant.hasSubmittedPreferredBlock()) {
+        if (context.participant().hasSubmittedPreferredBlock()) {
             throw new YamoyoException(ErrorCode.TIMEPICK_PREFERRED_BLOCK_ALREADY_SUBMITTED);
         }
 
-        participant.submitPreferredBlock(request.preferredBlock());
+        context.participant().submitPreferredBlock(request.preferredBlock());
         userTimepickDefaultService.updatePreferredBlock(userId, request.preferredBlock());
 
         log.info("선호시간대 제출 완료 - TeamRoomId: {}, UserId: {}", teamRoomId, userId);
@@ -130,5 +112,22 @@ public class TimepickService {
 
         log.info("타임픽 생성 완료 - TeamRoomId: {}, TimepickId: {}, 참가자 수: {}",
                 teamRoomId, timepick.getId(), participants.size());
+    }
+
+    private record TimepickSubmissionContext(Timepick timepick, TimepickParticipant participant) {}
+
+    private TimepickSubmissionContext validateSubmissionContext(Long teamRoomId, Long userId) {
+        Timepick timepick = timepickRepository.findByTeamRoomId(teamRoomId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.TIMEPICK_NOT_FOUND));
+
+        if (timepick.isFinalized()) {
+            throw new YamoyoException(ErrorCode.TIMEPICK_NOT_OPEN);
+        }
+
+        TimepickParticipant participant = timepickParticipantRepository
+                .findByTimepickIdAndUserId(timepick.getId(), userId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.TIMEPICK_NOT_PARTICIPANT));
+
+        return new TimepickSubmissionContext(timepick, participant);
     }
 }

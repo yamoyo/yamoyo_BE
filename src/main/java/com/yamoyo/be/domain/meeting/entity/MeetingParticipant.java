@@ -3,6 +3,7 @@ package com.yamoyo.be.domain.meeting.entity;
 import com.yamoyo.be.domain.user.entity.User;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -30,6 +31,19 @@ public class MeetingParticipant {
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    @Builder(access = AccessLevel.PRIVATE)
+    private MeetingParticipant(Meeting meeting, User user) {
+        this.meeting = meeting;
+        this.user = user;
+    }
+
+    public static MeetingParticipant create(Meeting meeting, User user) {
+        return MeetingParticipant.builder()
+                .meeting(meeting)
+                .user(user)
+                .build();
+    }
 
     @PrePersist
     protected void onCreate() {

@@ -155,3 +155,9 @@ app:
       onboarding:
         terms: /onboarding/terms
         profile: /onboarding/profile
+
+# Actuator 설정
+management:
+  endpoints:
+    web:
+      base-path: /api/actuator
