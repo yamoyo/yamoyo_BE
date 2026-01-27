@@ -2,6 +2,7 @@ package com.yamoyo.be.domain.meeting.service;
 
 import com.yamoyo.be.domain.meeting.dto.request.MeetingCreateRequest;
 import com.yamoyo.be.domain.meeting.dto.response.MeetingCreateResponse;
+import com.yamoyo.be.domain.meeting.dto.response.MeetingDetailResponse;
 import com.yamoyo.be.domain.meeting.dto.response.MeetingListResponse;
 import com.yamoyo.be.domain.meeting.entity.Meeting;
 import com.yamoyo.be.domain.meeting.entity.MeetingParticipant;
@@ -11,7 +12,9 @@ import com.yamoyo.be.domain.meeting.entity.enums.MeetingType;
 import com.yamoyo.be.domain.meeting.repository.MeetingParticipantRepository;
 import com.yamoyo.be.domain.meeting.repository.MeetingRepository;
 import com.yamoyo.be.domain.meeting.repository.MeetingSeriesRepository;
+import com.yamoyo.be.domain.teamroom.entity.TeamMember;
 import com.yamoyo.be.domain.teamroom.entity.TeamRoom;
+import com.yamoyo.be.domain.teamroom.entity.enums.TeamRole;
 import com.yamoyo.be.domain.teamroom.repository.TeamMemberRepository;
 import com.yamoyo.be.domain.teamroom.repository.TeamRoomRepository;
 import com.yamoyo.be.domain.user.entity.User;
@@ -223,5 +226,35 @@ public class MeetingService {
                         row -> (Long) row[0],
                         row -> ((Long) row[1]).intValue()
                 ));
+    }
+
+    public MeetingDetailResponse getMeetingDetail(Long meetingId, Long userId) {
+        log.info("회의 상세 조회 시작 - meetingId: {}, userId: {}", meetingId, userId);
+
+        Meeting meeting = meetingRepository.findByIdWithSeriesAndTeamRoom(meetingId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.MEETING_NOT_FOUND));
+
+        Long teamRoomId = meeting.getMeetingSeries().getTeamRoom().getId();
+        TeamMember teamMember = teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
+
+        List<MeetingParticipant> participants = meetingParticipantRepository.findByMeetingIdWithUser(meetingId);
+
+        boolean canEditAndDelete = determineEditDeletePermission(meeting, teamMember, userId);
+
+        log.info("회의 상세 조회 완료 - meetingId: {}, canEdit: {}, canDelete: {}",
+                meetingId, canEditAndDelete, canEditAndDelete);
+
+        return MeetingDetailResponse.from(meeting, participants, canEditAndDelete);
+    }
+
+    private boolean determineEditDeletePermission(Meeting meeting, TeamMember teamMember, Long userId) {
+        MeetingType meetingType = meeting.getMeetingSeries().getMeetingType();
+
+        if (meetingType == MeetingType.INITIAL_REGULAR) {
+            return teamMember.getTeamRole() == TeamRole.LEADER;
+        } else {
+            return meetingParticipantRepository.existsByMeetingIdAndUserId(meeting.getId(), userId);
+        }
     }
 }

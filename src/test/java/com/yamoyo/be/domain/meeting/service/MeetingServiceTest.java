@@ -2,15 +2,19 @@ package com.yamoyo.be.domain.meeting.service;
 
 import com.yamoyo.be.domain.meeting.dto.request.MeetingCreateRequest;
 import com.yamoyo.be.domain.meeting.dto.response.MeetingCreateResponse;
+import com.yamoyo.be.domain.meeting.dto.response.MeetingDetailResponse;
 import com.yamoyo.be.domain.meeting.dto.response.MeetingListResponse;
 import com.yamoyo.be.domain.meeting.entity.Meeting;
+import com.yamoyo.be.domain.meeting.entity.MeetingParticipant;
 import com.yamoyo.be.domain.meeting.entity.MeetingSeries;
 import com.yamoyo.be.domain.meeting.entity.enums.MeetingColor;
+import com.yamoyo.be.domain.meeting.entity.enums.MeetingType;
 import com.yamoyo.be.domain.meeting.repository.MeetingParticipantRepository;
 import com.yamoyo.be.domain.meeting.repository.MeetingRepository;
 import com.yamoyo.be.domain.meeting.repository.MeetingSeriesRepository;
 import com.yamoyo.be.domain.teamroom.entity.TeamMember;
 import com.yamoyo.be.domain.teamroom.entity.TeamRoom;
+import com.yamoyo.be.domain.teamroom.entity.enums.TeamRole;
 import com.yamoyo.be.domain.teamroom.repository.TeamMemberRepository;
 import com.yamoyo.be.domain.teamroom.repository.TeamRoomRepository;
 import com.yamoyo.be.domain.user.entity.User;
@@ -30,7 +34,6 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
 import java.time.LocalDateTime;
-import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -625,5 +628,271 @@ class MeetingServiceTest {
             verify(meetingParticipantRepository, never()).countByMeetingIds(any());
         }
 
+    }
+
+    // ==================== 회의 상세 조회 테스트 ====================
+
+    @Nested
+    @DisplayName("회의 상세 조회")
+    class GetMeetingDetailTest {
+
+        private TeamMember createMockTeamMemberWithRole(Long memberId, User user, TeamRole teamRole) {
+            TeamMember member = mock(TeamMember.class);
+            given(member.getId()).willReturn(memberId);
+            given(member.getUser()).willReturn(user);
+            given(member.getTeamRole()).willReturn(teamRole);
+            return member;
+        }
+
+        private MeetingSeries createMockMeetingSeriesWithType(Long seriesId, TeamRoom teamRoom, MeetingType meetingType) {
+            MeetingSeries meetingSeries = mock(MeetingSeries.class);
+            given(meetingSeries.getId()).willReturn(seriesId);
+            given(meetingSeries.getTeamRoom()).willReturn(teamRoom);
+            given(meetingSeries.getMeetingType()).willReturn(meetingType);
+            given(meetingSeries.getDayOfWeek()).willReturn(
+                    com.yamoyo.be.domain.meeting.entity.enums.DayOfWeek.MON);
+            given(meetingSeries.getCreatorName()).willReturn("생성자");
+            return meetingSeries;
+        }
+
+        private Meeting createMockMeetingWithSeries(Long meetingId, MeetingSeries meetingSeries, LocalDateTime startTime) {
+            Meeting meeting = mock(Meeting.class);
+            given(meeting.getId()).willReturn(meetingId);
+            given(meeting.getMeetingSeries()).willReturn(meetingSeries);
+            given(meeting.getTitle()).willReturn("테스트 회의");
+            given(meeting.getDescription()).willReturn("회의 설명");
+            given(meeting.getLocation()).willReturn("회의실");
+            given(meeting.getStartTime()).willReturn(startTime);
+            given(meeting.getDurationMinutes()).willReturn(60);
+            given(meeting.getColor()).willReturn(MeetingColor.YELLOW);
+            given(meeting.getIsIndividuallyModified()).willReturn(false);
+            return meeting;
+        }
+
+        private MeetingParticipant createMockMeetingParticipant(Long id, Meeting meeting, User user) {
+            MeetingParticipant participant = mock(MeetingParticipant.class);
+            given(participant.getId()).willReturn(id);
+            given(participant.getMeeting()).willReturn(meeting);
+            given(participant.getUser()).willReturn(user);
+            return participant;
+        }
+
+        @Test
+        @DisplayName("회의 상세 조회 성공")
+        void getMeetingDetail_Success() {
+            // given
+            Long meetingId = 1L;
+            Long userId = 1L;
+            Long teamRoomId = 1L;
+            LocalDateTime startTime = LocalDateTime.of(2026, 2, 15, 14, 0);
+
+            TeamRoom teamRoom = createMockTeamRoom(teamRoomId, LocalDateTime.now().plusDays(30));
+            MeetingSeries meetingSeries = createMockMeetingSeriesWithType(1L, teamRoom, MeetingType.ADDITIONAL_ONE_TIME);
+            Meeting meeting = createMockMeetingWithSeries(meetingId, meetingSeries, startTime);
+
+            User user = createMockUser(userId, "참석자");
+            TeamMember teamMember = createMockTeamMemberWithRole(1L, user, TeamRole.MEMBER);
+            MeetingParticipant participant = createMockMeetingParticipant(1L, meeting, user);
+
+            given(meetingRepository.findByIdWithSeriesAndTeamRoom(meetingId)).willReturn(Optional.of(meeting));
+            given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
+                    .willReturn(Optional.of(teamMember));
+            given(meetingParticipantRepository.findByMeetingIdWithUser(meetingId))
+                    .willReturn(List.of(participant));
+            given(meetingParticipantRepository.existsByMeetingIdAndUserId(meetingId, userId))
+                    .willReturn(true);
+
+            // when
+            MeetingDetailResponse response = meetingService.getMeetingDetail(meetingId, userId);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.meetingId()).isEqualTo(meetingId);
+            assertThat(response.title()).isEqualTo("테스트 회의");
+            assertThat(response.participants()).hasSize(1);
+            assertThat(response.canModify()).isTrue();
+
+            verify(meetingRepository).findByIdWithSeriesAndTeamRoom(meetingId);
+            verify(teamMemberRepository).findByTeamRoomIdAndUserId(teamRoomId, userId);
+            verify(meetingParticipantRepository).findByMeetingIdWithUser(meetingId);
+        }
+
+        @Test
+        @DisplayName("회의 상세 조회 실패 - 회의 없음")
+        void getMeetingDetail_NotFound() {
+            // given
+            Long meetingId = 999L;
+            Long userId = 1L;
+
+            given(meetingRepository.findByIdWithSeriesAndTeamRoom(meetingId)).willReturn(Optional.empty());
+
+            // when / then
+            assertThatThrownBy(() -> meetingService.getMeetingDetail(meetingId, userId))
+                    .isInstanceOf(YamoyoException.class)
+                    .hasMessageContaining(ErrorCode.MEETING_NOT_FOUND.getMessage());
+
+            verify(meetingRepository).findByIdWithSeriesAndTeamRoom(meetingId);
+            verify(teamMemberRepository, never()).findByTeamRoomIdAndUserId(any(), any());
+        }
+
+        @Test
+        @DisplayName("회의 상세 조회 실패 - 팀원 아님")
+        void getMeetingDetail_NotTeamMember() {
+            // given
+            Long meetingId = 1L;
+            Long userId = 999L;
+            Long teamRoomId = 1L;
+            LocalDateTime startTime = LocalDateTime.of(2026, 2, 15, 14, 0);
+
+            TeamRoom teamRoom = createMockTeamRoom(teamRoomId, LocalDateTime.now().plusDays(30));
+            MeetingSeries meetingSeries = createMockMeetingSeriesWithType(1L, teamRoom, MeetingType.ADDITIONAL_ONE_TIME);
+            Meeting meeting = createMockMeetingWithSeries(meetingId, meetingSeries, startTime);
+
+            given(meetingRepository.findByIdWithSeriesAndTeamRoom(meetingId)).willReturn(Optional.of(meeting));
+            given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
+                    .willReturn(Optional.empty());
+
+            // when / then
+            assertThatThrownBy(() -> meetingService.getMeetingDetail(meetingId, userId))
+                    .isInstanceOf(YamoyoException.class)
+                    .hasMessageContaining(ErrorCode.NOT_TEAM_MEMBER.getMessage());
+
+            verify(meetingRepository).findByIdWithSeriesAndTeamRoom(meetingId);
+            verify(teamMemberRepository).findByTeamRoomIdAndUserId(teamRoomId, userId);
+            verify(meetingParticipantRepository, never()).findByMeetingIdWithUser(any());
+        }
+
+        @Test
+        @DisplayName("INITIAL_REGULAR 회의 - LEADER는 수정/삭제 가능")
+        void getMeetingDetail_InitialRegular_LeaderCanEdit() {
+            // given
+            Long meetingId = 1L;
+            Long userId = 1L;
+            Long teamRoomId = 1L;
+            LocalDateTime startTime = LocalDateTime.of(2026, 2, 15, 14, 0);
+
+            TeamRoom teamRoom = createMockTeamRoom(teamRoomId, LocalDateTime.now().plusDays(30));
+            MeetingSeries meetingSeries = createMockMeetingSeriesWithType(1L, teamRoom, MeetingType.INITIAL_REGULAR);
+            Meeting meeting = createMockMeetingWithSeries(meetingId, meetingSeries, startTime);
+
+            User user = createMockUser(userId, "팀장");
+            TeamMember teamMember = createMockTeamMemberWithRole(1L, user, TeamRole.LEADER);
+            MeetingParticipant participant = createMockMeetingParticipant(1L, meeting, user);
+
+            given(meetingRepository.findByIdWithSeriesAndTeamRoom(meetingId)).willReturn(Optional.of(meeting));
+            given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
+                    .willReturn(Optional.of(teamMember));
+            given(meetingParticipantRepository.findByMeetingIdWithUser(meetingId))
+                    .willReturn(List.of(participant));
+
+            // when
+            MeetingDetailResponse response = meetingService.getMeetingDetail(meetingId, userId);
+
+            // then
+            assertThat(response.canModify()).isTrue();
+
+            verify(meetingParticipantRepository, never()).existsByMeetingIdAndUserId(any(), any());
+        }
+
+        @Test
+        @DisplayName("INITIAL_REGULAR 회의 - MEMBER는 수정/삭제 불가")
+        void getMeetingDetail_InitialRegular_MemberCannotEdit() {
+            // given
+            Long meetingId = 1L;
+            Long userId = 1L;
+            Long teamRoomId = 1L;
+            LocalDateTime startTime = LocalDateTime.of(2026, 2, 15, 14, 0);
+
+            TeamRoom teamRoom = createMockTeamRoom(teamRoomId, LocalDateTime.now().plusDays(30));
+            MeetingSeries meetingSeries = createMockMeetingSeriesWithType(1L, teamRoom, MeetingType.INITIAL_REGULAR);
+            Meeting meeting = createMockMeetingWithSeries(meetingId, meetingSeries, startTime);
+
+            User user = createMockUser(userId, "일반멤버");
+            TeamMember teamMember = createMockTeamMemberWithRole(1L, user, TeamRole.MEMBER);
+            MeetingParticipant participant = createMockMeetingParticipant(1L, meeting, user);
+
+            given(meetingRepository.findByIdWithSeriesAndTeamRoom(meetingId)).willReturn(Optional.of(meeting));
+            given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
+                    .willReturn(Optional.of(teamMember));
+            given(meetingParticipantRepository.findByMeetingIdWithUser(meetingId))
+                    .willReturn(List.of(participant));
+
+            // when
+            MeetingDetailResponse response = meetingService.getMeetingDetail(meetingId, userId);
+
+            // then
+            assertThat(response.canModify()).isFalse();
+
+            verify(meetingParticipantRepository, never()).existsByMeetingIdAndUserId(any(), any());
+        }
+
+        @Test
+        @DisplayName("ADDITIONAL 회의 - 참석자는 수정/삭제 가능")
+        void getMeetingDetail_AdditionalMeeting_ParticipantCanEdit() {
+            // given
+            Long meetingId = 1L;
+            Long userId = 1L;
+            Long teamRoomId = 1L;
+            LocalDateTime startTime = LocalDateTime.of(2026, 2, 15, 14, 0);
+
+            TeamRoom teamRoom = createMockTeamRoom(teamRoomId, LocalDateTime.now().plusDays(30));
+            MeetingSeries meetingSeries = createMockMeetingSeriesWithType(1L, teamRoom, MeetingType.ADDITIONAL_ONE_TIME);
+            Meeting meeting = createMockMeetingWithSeries(meetingId, meetingSeries, startTime);
+
+            User user = createMockUser(userId, "참석자");
+            TeamMember teamMember = createMockTeamMemberWithRole(1L, user, TeamRole.MEMBER);
+            MeetingParticipant participant = createMockMeetingParticipant(1L, meeting, user);
+
+            given(meetingRepository.findByIdWithSeriesAndTeamRoom(meetingId)).willReturn(Optional.of(meeting));
+            given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
+                    .willReturn(Optional.of(teamMember));
+            given(meetingParticipantRepository.findByMeetingIdWithUser(meetingId))
+                    .willReturn(List.of(participant));
+            given(meetingParticipantRepository.existsByMeetingIdAndUserId(meetingId, userId))
+                    .willReturn(true);
+
+            // when
+            MeetingDetailResponse response = meetingService.getMeetingDetail(meetingId, userId);
+
+            // then
+            assertThat(response.canModify()).isTrue();
+
+            verify(meetingParticipantRepository).existsByMeetingIdAndUserId(meetingId, userId);
+        }
+
+        @Test
+        @DisplayName("ADDITIONAL 회의 - 비참석자는 수정/삭제 불가")
+        void getMeetingDetail_AdditionalMeeting_NonParticipantCannotEdit() {
+            // given
+            Long meetingId = 1L;
+            Long userId = 2L;
+            Long teamRoomId = 1L;
+            LocalDateTime startTime = LocalDateTime.of(2026, 2, 15, 14, 0);
+
+            TeamRoom teamRoom = createMockTeamRoom(teamRoomId, LocalDateTime.now().plusDays(30));
+            MeetingSeries meetingSeries = createMockMeetingSeriesWithType(1L, teamRoom, MeetingType.ADDITIONAL_RECURRING);
+            Meeting meeting = createMockMeetingWithSeries(meetingId, meetingSeries, startTime);
+
+            User participantUser = createMockUser(1L, "참석자");
+            User nonParticipantUser = createMockUser(userId, "비참석자");
+            TeamMember teamMember = createMockTeamMemberWithRole(2L, nonParticipantUser, TeamRole.MEMBER);
+            MeetingParticipant participant = createMockMeetingParticipant(1L, meeting, participantUser);
+
+            given(meetingRepository.findByIdWithSeriesAndTeamRoom(meetingId)).willReturn(Optional.of(meeting));
+            given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
+                    .willReturn(Optional.of(teamMember));
+            given(meetingParticipantRepository.findByMeetingIdWithUser(meetingId))
+                    .willReturn(List.of(participant));
+            given(meetingParticipantRepository.existsByMeetingIdAndUserId(meetingId, userId))
+                    .willReturn(false);
+
+            // when
+            MeetingDetailResponse response = meetingService.getMeetingDetail(meetingId, userId);
+
+            // then
+            assertThat(response.canModify()).isFalse();
+
+            verify(meetingParticipantRepository).existsByMeetingIdAndUserId(meetingId, userId);
+        }
     }
 }

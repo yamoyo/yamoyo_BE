@@ -3,6 +3,7 @@ package com.yamoyo.be.domain.meeting.controller;
 import com.yamoyo.be.common.dto.ApiResponse;
 import com.yamoyo.be.domain.meeting.dto.request.MeetingCreateRequest;
 import com.yamoyo.be.domain.meeting.dto.response.MeetingCreateResponse;
+import com.yamoyo.be.domain.meeting.dto.response.MeetingDetailResponse;
 import com.yamoyo.be.domain.meeting.dto.response.MeetingListResponse;
 import com.yamoyo.be.domain.meeting.service.MeetingService;
 import com.yamoyo.be.domain.security.jwt.JwtTokenClaims;
@@ -12,13 +13,12 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/team-rooms/{teamRoomId}/meetings")
 @RequiredArgsConstructor
 public class MeetingController {
 
     private final MeetingService meetingService;
 
-    @PostMapping
+    @PostMapping("/api/team-rooms/{teamRoomId}/meetings")
     public ApiResponse<MeetingCreateResponse> createMeeting(
             @PathVariable Long teamRoomId,
             @Valid @RequestBody MeetingCreateRequest request,
@@ -29,7 +29,7 @@ public class MeetingController {
         return ApiResponse.success(response);
     }
 
-    @GetMapping
+    @GetMapping("/api/team-rooms/{teamRoomId}/meetings")
     public ApiResponse<MeetingListResponse> getMeetingList(
             @PathVariable Long teamRoomId,
             @RequestParam(required = false) Integer year,
@@ -38,6 +38,16 @@ public class MeetingController {
     ) {
         Long userId = claims.userId();
         MeetingListResponse response = meetingService.getMeetingList(teamRoomId, userId, year, month);
+        return ApiResponse.success(response);
+    }
+
+    @GetMapping("/api/meetings/{meetingId}")
+    public ApiResponse<MeetingDetailResponse> getMeetingDetail(
+            @PathVariable Long meetingId,
+            @AuthenticationPrincipal JwtTokenClaims claims
+    ) {
+        Long userId = claims.userId();
+        MeetingDetailResponse response = meetingService.getMeetingDetail(meetingId, userId);
         return ApiResponse.success(response);
     }
 }

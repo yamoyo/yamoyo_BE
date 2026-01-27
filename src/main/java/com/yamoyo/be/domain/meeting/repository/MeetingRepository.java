@@ -8,9 +8,18 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface MeetingRepository extends JpaRepository<Meeting, Long> {
+
+    @Query("""
+            SELECT m FROM Meeting m
+            JOIN FETCH m.meetingSeries ms
+            JOIN FETCH ms.teamRoom
+            WHERE m.id = :meetingId
+            """)
+    Optional<Meeting> findByIdWithSeriesAndTeamRoom(@Param("meetingId") Long meetingId);
 
     @Query("""
             SELECT m FROM Meeting m

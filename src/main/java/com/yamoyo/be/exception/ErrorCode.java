@@ -46,6 +46,7 @@ public enum ErrorCode {
     BANNED_MEMBER(HttpStatus.FORBIDDEN, "해당 팀룸에서 강퇴된 사용자입니다."),
 
     // Meeting
+    MEETING_NOT_FOUND(HttpStatus.NOT_FOUND, "회의를 찾을 수 없습니다."),
     MEETING_INVALID_START_TIME(HttpStatus.BAD_REQUEST, "시작 시간은 30분 단위여야 합니다."),
     MEETING_INVALID_DURATION(HttpStatus.BAD_REQUEST, "회의 시간은 30분 단위여야 합니다."),
     MEETING_PURPLE_COLOR_FORBIDDEN(HttpStatus.BAD_REQUEST, "PURPLE 색상은 정기 회의 전용입니다."),

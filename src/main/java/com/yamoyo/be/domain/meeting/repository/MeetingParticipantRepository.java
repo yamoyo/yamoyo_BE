@@ -18,4 +18,13 @@ public interface MeetingParticipantRepository extends JpaRepository<MeetingParti
             GROUP BY mp.meeting.id
             """)
     List<Object[]> countByMeetingIds(@Param("meetingIds") List<Long> meetingIds);
+
+    @Query("""
+            SELECT mp FROM MeetingParticipant mp
+            JOIN FETCH mp.user
+            WHERE mp.meeting.id = :meetingId
+            """)
+    List<MeetingParticipant> findByMeetingIdWithUser(@Param("meetingId") Long meetingId);
+
+    boolean existsByMeetingIdAndUserId(Long meetingId, Long userId);
 }
