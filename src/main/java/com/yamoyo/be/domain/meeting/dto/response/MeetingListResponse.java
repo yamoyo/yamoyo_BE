@@ -34,7 +34,7 @@ public record MeetingListResponse(
                     meeting.getDurationMinutes(),
                     meeting.getColor(),
                     meeting.getMeetingSeries().getMeetingType(),
-                    meeting.getIsIndividuallyModified(),
+                    meeting.isIndividuallyModified(),
                     participantCount
             );
         }

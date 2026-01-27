@@ -452,7 +452,7 @@ class MeetingServiceTest {
             given(meeting.getStartTime()).willReturn(startTime);
             given(meeting.getDurationMinutes()).willReturn(60);
             given(meeting.getColor()).willReturn(MeetingColor.YELLOW);
-            given(meeting.getIsIndividuallyModified()).willReturn(false);
+            given(meeting.isIndividuallyModified()).willReturn(false);
             return meeting;
         }
 
@@ -521,7 +521,7 @@ class MeetingServiceTest {
             given(meeting2.getStartTime()).willReturn(meetingTime2);
             given(meeting2.getDurationMinutes()).willReturn(90);
             given(meeting2.getColor()).willReturn(MeetingColor.YELLOW);
-            given(meeting2.getIsIndividuallyModified()).willReturn(false);
+            given(meeting2.isIndividuallyModified()).willReturn(false);
 
             given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
@@ -673,7 +673,7 @@ class MeetingServiceTest {
             given(meeting.getStartTime()).willReturn(startTime);
             given(meeting.getDurationMinutes()).willReturn(60);
             given(meeting.getColor()).willReturn(MeetingColor.YELLOW);
-            given(meeting.getIsIndividuallyModified()).willReturn(false);
+            given(meeting.isIndividuallyModified()).willReturn(false);
             return meeting;
         }
 
@@ -937,8 +937,8 @@ class MeetingServiceTest {
             given(meeting.getStartTime()).willReturn(startTime);
             given(meeting.getDurationMinutes()).willReturn(60);
             given(meeting.getColor()).willReturn(color);
-            given(meeting.getIsIndividuallyModified()).willReturn(isModified);
-            given(meeting.isModified()).willReturn(isModified);
+            given(meeting.isIndividuallyModified()).willReturn(isModified);
+            given(meeting.isIndividuallyModified()).willReturn(isModified);
             return meeting;
         }
 
@@ -1289,7 +1289,7 @@ class MeetingServiceTest {
             // when / then
             assertThatThrownBy(() -> meetingService.updateMeeting(meetingId, UpdateScope.THIS_AND_FUTURE, request, userId))
                     .isInstanceOf(YamoyoException.class)
-                    .hasMessageContaining(ErrorCode.INVALID_UPDATE_SCOPE.getMessage());
+                    .hasMessageContaining(ErrorCode.MEETING_INVALID_UPDATE_SCOPE.getMessage());
         }
 
         @Test
@@ -1566,8 +1566,8 @@ class MeetingServiceTest {
             given(meeting.getStartTime()).willReturn(startTime);
             given(meeting.getDurationMinutes()).willReturn(60);
             given(meeting.getColor()).willReturn(color);
-            given(meeting.getIsIndividuallyModified()).willReturn(isModified);
-            given(meeting.isModified()).willReturn(isModified);
+            given(meeting.isIndividuallyModified()).willReturn(isModified);
+            given(meeting.isIndividuallyModified()).willReturn(isModified);
             return meeting;
         }
 
@@ -1829,7 +1829,7 @@ class MeetingServiceTest {
             // when / then
             assertThatThrownBy(() -> meetingService.deleteMeeting(meetingId, UpdateScope.THIS_AND_FUTURE, userId))
                     .isInstanceOf(YamoyoException.class)
-                    .hasMessageContaining(ErrorCode.INVALID_DELETE_SCOPE.getMessage());
+                    .hasMessageContaining(ErrorCode.MEETING_INVALID_DELETE_SCOPE.getMessage());
 
             verify(meetingRepository, never()).delete(any());
             verify(meetingRepository, never()).deleteAll(any());
