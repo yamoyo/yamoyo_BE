@@ -40,4 +40,14 @@ public interface MemberToolVoteRepository extends JpaRepository<MemberToolVote,L
      * 특정 멤버가 이미 투표했는지 확인 (중복 투표 방지)
      */
     boolean existsByMemberId(Long memberId);
+
+    /**
+     * 팀룸의 모든 투표 조회 (확정 처리용)
+     */
+    @Query("""
+        SELECT tv
+        FROM MemberToolVote tv
+        WHERE tv.teamRoomId = :teamRoomId
+        """)
+    List<MemberToolVote> findByTeamRoomId(@Param("teamRoomId") Long teamRoomId);
 }

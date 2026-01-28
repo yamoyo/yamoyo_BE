@@ -2,6 +2,7 @@ package com.yamoyo.be.domain.collabtool.controller;
 
 import com.yamoyo.be.common.dto.ApiResponse;
 import com.yamoyo.be.domain.collabtool.dto.request.ToolVoteRequest;
+import com.yamoyo.be.domain.collabtool.dto.response.ConfirmedToolsResponse;
 import com.yamoyo.be.domain.collabtool.dto.response.ToolVoteCountResponse;
 import com.yamoyo.be.domain.collabtool.dto.response.ToolVoteParticipationResponse;
 import com.yamoyo.be.domain.collabtool.service.ToolService;
@@ -61,5 +62,32 @@ public class ToolController {
         Long userId = claims.userId();
         ToolVoteParticipationResponse response = toolService.getVotedMemberParticipation(teamRoomId, userId);
         return ApiResponse.success(response);
+    }
+
+    /**
+     * 확정된 협업툴 조회
+     */
+    @GetMapping
+    public ApiResponse<ConfirmedToolsResponse> getConfirmedTools(
+            @PathVariable Long teamRoomId,
+            @AuthenticationPrincipal JwtTokenClaims claims
+    ) {
+        Long userId = claims.userId();
+        ConfirmedToolsResponse response = toolService.getConfirmedTools(teamRoomId, userId);
+        return ApiResponse.success(response);
+    }
+
+    /**
+     * 협업툴 삭제 (팀장만)
+     */
+    @DeleteMapping("/{teamToolId}")
+    public ApiResponse<Void> deleteTeamTool(
+            @PathVariable Long teamRoomId,
+            @PathVariable Long teamToolId,
+            @AuthenticationPrincipal JwtTokenClaims claims
+    ) {
+        Long userId = claims.userId();
+        toolService.deleteTeamTool(teamRoomId, teamToolId, userId);
+        return ApiResponse.success();
     }
 }
