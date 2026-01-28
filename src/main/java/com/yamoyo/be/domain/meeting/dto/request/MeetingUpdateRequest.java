@@ -26,7 +26,7 @@ public record MeetingUpdateRequest(
          * - SINGLE scope에서 필수
          * - THIS_AND_FUTURE scope에서는 무시됨
          */
-        LocalDate date,
+        LocalDate startDate,
 
         /**
          * [THIS_AND_FUTURE scope 전용] 변경할 요일
@@ -40,7 +40,7 @@ public record MeetingUpdateRequest(
          * - 모든 scope에서 필수
          */
         @NotNull(message = "시작 시간은 필수입니다")
-        LocalTime time,
+        LocalTime startTime,
 
         /**
          * [공통] 변경할 종료 시간

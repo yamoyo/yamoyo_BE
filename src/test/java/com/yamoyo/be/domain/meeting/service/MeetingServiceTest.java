@@ -104,13 +104,14 @@ class MeetingServiceTest {
         return member;
     }
 
-    private MeetingCreateRequest createValidRequest(LocalDateTime startTime, boolean isRecurring) {
+    private MeetingCreateRequest createValidRequest(LocalDate startDate, LocalTime startTime, LocalTime endTime, boolean isRecurring) {
         return new MeetingCreateRequest(
                 "스프린트 회고",
                 "2주차 스프린트 회고",
                 "줌 회의실",
+                startDate,
                 startTime,
-                60,
+                endTime,
                 MeetingColor.YELLOW,
                 isRecurring,
                 Arrays.asList(1L, 2L)
@@ -129,11 +130,12 @@ class MeetingServiceTest {
             // given
             Long teamRoomId = 1L;
             Long userId = 1L;
-            LocalDateTime startTime = LocalDateTime.now().plusDays(7)
-                    .withHour(14).withMinute(0).withSecond(0).withNano(0);
+            LocalDate date = LocalDate.now().plusDays(7);
+            LocalTime time = LocalTime.of(14, 0);
+            LocalTime endTime = LocalTime.of(15, 0);
             LocalDateTime deadline = LocalDateTime.now().plusDays(30);
 
-            MeetingCreateRequest request = createValidRequest(startTime, false);
+            MeetingCreateRequest request = createValidRequest(date, time, endTime, false);
 
             TeamRoom teamRoom = createMockTeamRoom(teamRoomId, deadline);
             User creator = createMockUser(userId, "테스트유저");
@@ -180,11 +182,12 @@ class MeetingServiceTest {
             // given
             Long teamRoomId = 1L;
             Long userId = 1L;
-            LocalDateTime startTime = LocalDateTime.now().plusDays(1)
-                    .withHour(14).withMinute(30).withSecond(0).withNano(0);
+            LocalDate date = LocalDate.now().plusDays(1);
+            LocalTime time = LocalTime.of(14, 30);
+            LocalTime endTime = LocalTime.of(15, 30);
             LocalDateTime deadline = LocalDateTime.now().plusWeeks(4); // 4주 후 deadline
 
-            MeetingCreateRequest request = createValidRequest(startTime, true);
+            MeetingCreateRequest request = createValidRequest(date, time, endTime, true);
 
             TeamRoom teamRoom = createMockTeamRoom(teamRoomId, deadline);
             User creator = createMockUser(userId, "테스트유저");
@@ -224,9 +227,10 @@ class MeetingServiceTest {
             // given
             Long teamRoomId = 999L;
             Long userId = 1L;
-            LocalDateTime startTime = LocalDateTime.now().plusDays(7)
-                    .withHour(14).withMinute(0).withSecond(0).withNano(0);
-            MeetingCreateRequest request = createValidRequest(startTime, false);
+            LocalDate date = LocalDate.now().plusDays(7);
+            LocalTime time = LocalTime.of(14, 0);
+            LocalTime endTime = LocalTime.of(15, 0);
+            MeetingCreateRequest request = createValidRequest(date, time, endTime, false);
 
             given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.empty());
 
@@ -245,10 +249,11 @@ class MeetingServiceTest {
             // given
             Long teamRoomId = 1L;
             Long userId = 999L;
-            LocalDateTime startTime = LocalDateTime.now().plusDays(7)
-                    .withHour(14).withMinute(0).withSecond(0).withNano(0);
+            LocalDate date = LocalDate.now().plusDays(7);
+            LocalTime time = LocalTime.of(14, 0);
+            LocalTime endTime = LocalTime.of(15, 0);
             LocalDateTime deadline = LocalDateTime.now().plusDays(30);
-            MeetingCreateRequest request = createValidRequest(startTime, false);
+            MeetingCreateRequest request = createValidRequest(date, time, endTime, false);
 
             TeamRoom teamRoom = createMockTeamRoom(teamRoomId, deadline);
 
@@ -272,11 +277,12 @@ class MeetingServiceTest {
             // given
             Long teamRoomId = 1L;
             Long userId = 1L;
-            LocalDateTime startTime = LocalDateTime.now().plusDays(7)
-                    .withHour(14).withMinute(15).withSecond(0).withNano(0); // 15분 - 잘못된 시간
+            LocalDate date = LocalDate.now().plusDays(7);
+            LocalTime time = LocalTime.of(14, 15); // 15분 - 잘못된 시간
+            LocalTime endTime = LocalTime.of(15, 15);
             LocalDateTime deadline = LocalDateTime.now().plusDays(30);
 
-            MeetingCreateRequest request = createValidRequest(startTime, false);
+            MeetingCreateRequest request = createValidRequest(date, time, endTime, false);
 
             TeamRoom teamRoom = createMockTeamRoom(teamRoomId, deadline);
             User creator = createMockUser(userId, "테스트유저");
@@ -309,16 +315,18 @@ class MeetingServiceTest {
             // given
             Long teamRoomId = 1L;
             Long userId = 1L;
-            LocalDateTime startTime = LocalDateTime.now().plusDays(7)
-                    .withHour(14).withMinute(0).withSecond(0).withNano(0);
+            LocalDate date = LocalDate.now().plusDays(7);
+            LocalTime time = LocalTime.of(14, 0);
+            LocalTime endTime = LocalTime.of(14, 45); // 45분 - 잘못된 시간
             LocalDateTime deadline = LocalDateTime.now().plusDays(30);
 
             MeetingCreateRequest request = new MeetingCreateRequest(
                     "스프린트 회고",
                     "2주차 스프린트 회고",
                     "줌 회의실",
-                    startTime,
-                    45, // 45분 - 잘못된 시간
+                    date,
+                    time,
+                    endTime,
                     MeetingColor.YELLOW,
                     false,
                     Arrays.asList(1L, 2L)
@@ -355,16 +363,18 @@ class MeetingServiceTest {
             // given
             Long teamRoomId = 1L;
             Long userId = 1L;
-            LocalDateTime startTime = LocalDateTime.now().plusDays(7)
-                    .withHour(14).withMinute(0).withSecond(0).withNano(0);
+            LocalDate date = LocalDate.now().plusDays(7);
+            LocalTime time = LocalTime.of(14, 0);
+            LocalTime endTime = LocalTime.of(15, 0);
             LocalDateTime deadline = LocalDateTime.now().plusDays(30);
 
             MeetingCreateRequest request = new MeetingCreateRequest(
                     "스프린트 회고",
                     "2주차 스프린트 회고",
                     "줌 회의실",
-                    startTime,
-                    60,
+                    date,
+                    time,
+                    endTime,
                     MeetingColor.PURPLE, // PURPLE - 금지된 색상
                     false,
                     Arrays.asList(1L, 2L)
@@ -401,16 +411,18 @@ class MeetingServiceTest {
             // given
             Long teamRoomId = 1L;
             Long userId = 1L;
-            LocalDateTime startTime = LocalDateTime.now().plusDays(7)
-                    .withHour(14).withMinute(0).withSecond(0).withNano(0);
+            LocalDate date = LocalDate.now().plusDays(7);
+            LocalTime time = LocalTime.of(14, 0);
+            LocalTime endTime = LocalTime.of(15, 0);
             LocalDateTime deadline = LocalDateTime.now().plusDays(30);
 
             MeetingCreateRequest request = new MeetingCreateRequest(
                     "스프린트 회고",
                     "2주차 스프린트 회고",
                     "줌 회의실",
-                    startTime,
-                    60,
+                    date,
+                    time,
+                    endTime,
                     MeetingColor.YELLOW,
                     false,
                     Arrays.asList(1L, 999L) // 999L은 팀원이 아님

@@ -60,7 +60,8 @@ public enum ErrorCode {
     MEETING_FUTURE_SCOPE_REQUIRES_DAY_OF_WEEK(HttpStatus.BAD_REQUEST, "이후 회의 수정 시 요일(dayOfWeek)은 필수입니다."),
     MEETING_DELETE_FORBIDDEN(HttpStatus.FORBIDDEN, "회의 삭제 권한이 없습니다."),
     MEETING_INVALID_DELETE_SCOPE(HttpStatus.BAD_REQUEST, "일회성 회의에는 해당 삭제 범위를 사용할 수 없습니다."),
-  
+    MEETING_DURATION_OUT_OF_RANGE(HttpStatus.BAD_REQUEST, "회의 시간은 30분 이상 240분(4시간) 이하여야 합니다."),
+
     // Team Rule
     RULE_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 규칙을 찾을 수 없습니다."),
 

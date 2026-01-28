@@ -10,6 +10,7 @@ import com.yamoyo.be.domain.meeting.dto.response.MeetingUpdateResponse;
 import com.yamoyo.be.domain.meeting.entity.Meeting;
 import com.yamoyo.be.domain.meeting.entity.MeetingParticipant;
 import com.yamoyo.be.domain.meeting.entity.MeetingSeries;
+import com.yamoyo.be.domain.meeting.entity.WeeklyAvailability;
 import com.yamoyo.be.domain.meeting.entity.enums.DayOfWeek;
 import com.yamoyo.be.domain.meeting.entity.enums.MeetingColor;
 import com.yamoyo.be.domain.meeting.entity.enums.MeetingType;
@@ -290,7 +291,7 @@ public class MeetingService {
 
     private void validateTimeFieldsByScope(UpdateScope scope, MeetingUpdateRequest request) {
         if (scope == UpdateScope.SINGLE) {
-            if (request.date() == null) {
+            if (request.startDate() == null) {
                 throw new YamoyoException(ErrorCode.MEETING_SINGLE_SCOPE_REQUIRES_DATE);
             }
         } else {
@@ -303,6 +304,15 @@ public class MeetingService {
     private void validateDeleteScope(MeetingType meetingType, UpdateScope scope) {
         if (meetingType == MeetingType.ADDITIONAL_ONE_TIME && scope == UpdateScope.THIS_AND_FUTURE) {
             throw new YamoyoException(ErrorCode.MEETING_INVALID_DELETE_SCOPE);
+        }
+    }
+
+    private void validateDurationMinutes(int durationMinutes) {
+        if (durationMinutes % WeeklyAvailability.SLOT_DURATION_MINUTES != 0) {
+            throw new YamoyoException(ErrorCode.MEETING_INVALID_DURATION);
+        }
+        if (durationMinutes < 30 || durationMinutes > 240) {
+            throw new YamoyoException(ErrorCode.MEETING_DURATION_OUT_OF_RANGE);
         }
     }
 
@@ -328,14 +338,16 @@ public class MeetingService {
         MeetingType meetingType = request.isRecurring()
                 ? MeetingType.ADDITIONAL_RECURRING
                 : MeetingType.ADDITIONAL_ONE_TIME;
-        DayOfWeek dayOfWeek = DayOfWeek.from(request.startTime().getDayOfWeek());
+        DayOfWeek dayOfWeek = DayOfWeek.from(request.startDate().getDayOfWeek());
+        int durationMinutes = calculateDurationMinutes(request.startTime(), request.endTime());
+        validateDurationMinutes(durationMinutes);
 
         MeetingSeries meetingSeries = MeetingSeries.create(
                 teamRoom,
                 meetingType,
                 dayOfWeek,
-                request.startTime().toLocalTime(),
-                request.durationMinutes(),
+                request.startTime(),
+                durationMinutes,
                 creator.getName()
         );
         meetingSeriesRepository.save(meetingSeries);
@@ -345,27 +357,29 @@ public class MeetingService {
     private List<Meeting> createMeetingInstances(MeetingSeries meetingSeries, MeetingCreateRequest request,
                                                   LocalDateTime deadline) {
         List<Meeting> meetings = new ArrayList<>();
+        LocalDateTime startDateTime = LocalDateTime.of(request.startDate(), request.startTime());
+        int durationMinutes = calculateDurationMinutes(request.startTime(), request.endTime());
 
         if (!request.isRecurring()) {
             Meeting meeting = Meeting.create(
                     meetingSeries,
                     request.title(),
                     request.location(),
-                    request.startTime(),
-                    request.durationMinutes(),
+                    startDateTime,
+                    durationMinutes,
                     request.color(),
                     request.description()
             );
             meetings.add(meeting);
         } else {
-            LocalDateTime currentStartTime = request.startTime();
+            LocalDateTime currentStartTime = startDateTime;
             while (!currentStartTime.isAfter(deadline)) {
                 Meeting meeting = Meeting.create(
                         meetingSeries,
                         request.title(),
                         request.location(),
                         currentStartTime,
-                        request.durationMinutes(),
+                        durationMinutes,
                         request.color(),
                         request.description()
                 );
@@ -419,8 +433,8 @@ public class MeetingService {
     }
 
     private void updateMeetingWithDate(Meeting meeting, MeetingUpdateRequest request) {
-        LocalDateTime newStartTime = LocalDateTime.of(request.date(), request.time());
-        int durationMinutes = calculateDurationMinutes(request.time(), request.endTime());
+        LocalDateTime newStartTime = LocalDateTime.of(request.startDate(), request.startTime());
+        int durationMinutes = calculateDurationMinutes(request.startTime(), request.endTime());
 
         meeting.update(
                 request.title(),
@@ -446,8 +460,8 @@ public class MeetingService {
             newDate = currentDate.with(TemporalAdjusters.nextOrSame(targetDayOfWeek));
         }
 
-        LocalDateTime newStartTime = LocalDateTime.of(newDate, request.time());
-        int durationMinutes = calculateDurationMinutes(request.time(), request.endTime());
+        LocalDateTime newStartTime = LocalDateTime.of(newDate, request.startTime());
+        int durationMinutes = calculateDurationMinutes(request.startTime(), request.endTime());
 
         meeting.update(
                 request.title(),
