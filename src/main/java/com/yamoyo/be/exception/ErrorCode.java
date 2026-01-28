@@ -66,6 +66,7 @@ public enum ErrorCode {
     RULE_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 규칙을 찾을 수 없습니다."),
     TOOL_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 협업툴을 찾을 수 없습니다."),
     ALREADY_VOTED(HttpStatus.BAD_REQUEST, "이미 투표를 완료했습니다."),
+    PROPOSAL_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 제안을 찾을 수 없습니다."),
 
 
     // Server

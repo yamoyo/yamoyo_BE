@@ -1,8 +1,11 @@
 package com.yamoyo.be.domain.collabtool.controller;
 
 import com.yamoyo.be.common.dto.ApiResponse;
+import com.yamoyo.be.domain.collabtool.dto.request.ApproveProposalRequest;
+import com.yamoyo.be.domain.collabtool.dto.request.ProposeToolRequest;
 import com.yamoyo.be.domain.collabtool.dto.request.ToolVoteRequest;
 import com.yamoyo.be.domain.collabtool.dto.response.ConfirmedToolsResponse;
+import com.yamoyo.be.domain.collabtool.dto.response.ProposalDetailResponse;
 import com.yamoyo.be.domain.collabtool.dto.response.ToolVoteCountResponse;
 import com.yamoyo.be.domain.collabtool.dto.response.ToolVoteParticipationResponse;
 import com.yamoyo.be.domain.collabtool.service.ToolService;
@@ -89,5 +92,48 @@ public class ToolController {
         Long userId = claims.userId();
         toolService.deleteTeamTool(teamRoomId, teamToolId, userId);
         return ApiResponse.success();
+    }
+
+    /**
+     * 협업툴 제안
+     */
+    @PostMapping("/proposals")
+    public ApiResponse<Void> proposeTool(
+            @PathVariable Long teamRoomId,
+            @Valid @RequestBody ProposeToolRequest request,
+            @AuthenticationPrincipal JwtTokenClaims claims
+    ) {
+        Long userId = claims.userId();
+        toolService.proposeTool(teamRoomId, userId, request);
+        return ApiResponse.success();
+    }
+
+    /**
+     * 제안 승인/반려 (팀장만)
+     */
+    @PutMapping("/proposals/{proposalId}")
+    public ApiResponse<Void> approveOrRejectProposal(
+            @PathVariable Long teamRoomId,
+            @PathVariable Long proposalId,
+            @Valid @RequestBody ApproveProposalRequest request,
+            @AuthenticationPrincipal JwtTokenClaims claims
+    ) {
+        Long userId = claims.userId();
+        toolService.approveOrRejectProposal(teamRoomId, proposalId, userId, request);
+        return ApiResponse.success();
+    }
+
+    /**
+     * 제안 상세 조회 (단일)
+     */
+    @GetMapping("/proposals/{proposalId}")
+    public ApiResponse<ProposalDetailResponse> getProposalDetail(
+            @PathVariable Long teamRoomId,
+            @PathVariable Long proposalId,
+            @AuthenticationPrincipal JwtTokenClaims claims
+    ) {
+        Long userId = claims.userId();
+        ProposalDetailResponse response = toolService.getProposalDetail(teamRoomId, proposalId, userId);
+        return ApiResponse.success(response);
     }
 }

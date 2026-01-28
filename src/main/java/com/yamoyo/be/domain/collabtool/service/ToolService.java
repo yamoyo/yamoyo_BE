@@ -1,18 +1,24 @@
 package com.yamoyo.be.domain.collabtool.service;
 
+import com.yamoyo.be.domain.collabtool.dto.request.ApproveProposalRequest;
+import com.yamoyo.be.domain.collabtool.dto.request.ProposeToolRequest;
 import com.yamoyo.be.domain.collabtool.dto.request.ToolVoteRequest;
 import com.yamoyo.be.domain.collabtool.dto.response.ConfirmedToolsResponse;
+import com.yamoyo.be.domain.collabtool.dto.response.ProposalDetailResponse;
 import com.yamoyo.be.domain.collabtool.dto.response.ToolVoteCountResponse;
 import com.yamoyo.be.domain.collabtool.dto.response.ToolVoteParticipationResponse;
 import com.yamoyo.be.domain.collabtool.entity.MemberToolVote;
 import com.yamoyo.be.domain.collabtool.entity.TeamTool;
+import com.yamoyo.be.domain.collabtool.entity.ToolProposal;
 import com.yamoyo.be.domain.collabtool.repository.MemberToolVoteRepository;
 import com.yamoyo.be.domain.collabtool.repository.TeamToolRepository;
+import com.yamoyo.be.domain.collabtool.repository.ToolProposalRepository;
 import com.yamoyo.be.domain.teamroom.entity.TeamMember;
 import com.yamoyo.be.domain.teamroom.entity.TeamRoom;
 import com.yamoyo.be.domain.teamroom.repository.TeamMemberRepository;
 import com.yamoyo.be.domain.teamroom.repository.TeamRoomRepository;
 import com.yamoyo.be.domain.user.entity.User;
+import com.yamoyo.be.domain.user.repository.UserRepository;
 import com.yamoyo.be.exception.ErrorCode;
 import com.yamoyo.be.exception.YamoyoException;
 import lombok.RequiredArgsConstructor;
@@ -31,8 +37,10 @@ public class ToolService {
 
     private final MemberToolVoteRepository toolVoteRepository;
     private final TeamToolRepository teamToolRepository;
+    private final ToolProposalRepository toolProposalRepository;
     private final TeamMemberRepository teamMemberRepository;
     private final TeamRoomRepository teamRoomRepository;
+    private final UserRepository userRepository;
 
     /**
      * 협업툴 투표 일괄 제출
@@ -302,5 +310,117 @@ public class ToolService {
         teamToolRepository.deleteById(teamToolId);
 
         log.info("협업툴 삭제 완료 - teamToolId: {}", teamToolId);
+    }
+
+    /**
+     * 협업툴 제안
+     */
+    @Transactional
+    public void proposeTool(Long teamRoomId, Long userId, ProposeToolRequest request) {
+        log.info("협업툴 제안 시작 - teamRoomId: {}, userId: {}, categoryId: {}, toolId: {}",
+                teamRoomId, userId, request.categoryId(), request.toolId());
+
+        // 1. 팀룸 조회
+        TeamRoom teamRoom = teamRoomRepository.findById(teamRoomId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
+
+        // 2. 팀원 확인
+        teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
+
+        // 3. 제안 생성
+        ToolProposal proposal = ToolProposal.create(
+                teamRoom,
+                request.categoryId(),
+                request.toolId(),
+                userId
+        );
+
+        toolProposalRepository.save(proposal);
+
+        log.info("협업툴 제안 완료 - proposalId: {}", proposal.getId());
+    }
+
+    /**
+     * 제안 승인/반려 (팀장만)
+     */
+    @Transactional
+    public void approveOrRejectProposal(Long teamRoomId, Long proposalId, Long userId, ApproveProposalRequest request) {
+        log.info("제안 승인/반려 시작 - teamRoomId: {}, proposalId: {}, isApproved: {}",
+                teamRoomId, proposalId, request.isApproved());
+
+        // 1. 팀룸 조회
+        TeamRoom teamRoom = teamRoomRepository.findById(teamRoomId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
+
+        // 2. 팀장 권한 확인
+        TeamMember member = teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
+
+        if (!member.hasManagementAuthority()) {
+            throw new YamoyoException(ErrorCode.NOT_TEAM_MANAGER);
+        }
+
+        // 3. 제안 조회
+        ToolProposal proposal = toolProposalRepository.findById(proposalId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.PROPOSAL_NOT_FOUND));
+
+        // 4. 제안이 해당 팀룸에 속하는지 확인
+        if (!toolProposalRepository.existsByIdAndTeamRoomId(proposalId, teamRoomId)) {
+            throw new YamoyoException(ErrorCode.PROPOSAL_NOT_FOUND);
+        }
+
+        // 5. 승인/반려 처리
+        proposal.updateApprovalStatus(request.isApproved());
+
+        // 6. 승인 시 확정 테이블에 추가
+        if (request.isApproved()) {
+            TeamTool teamTool = TeamTool.create(
+                    teamRoom,
+                    proposal.getCategoryId(),
+                    proposal.getToolId()
+            );
+            teamToolRepository.save(teamTool);
+            log.info("승인된 협업툴 확정 테이블 추가 - categoryId: {}, toolId: {}",
+                    proposal.getCategoryId(), proposal.getToolId());
+        }
+
+        log.info("제안 승인/반려 완료 - proposalId: {}, isApproved: {}", proposalId, request.isApproved());
+    }
+
+    /**
+     * 제안 상세 조회 (단일)
+     */
+    public ProposalDetailResponse getProposalDetail(Long teamRoomId, Long proposalId, Long userId) {
+        log.info("제안 상세 조회 - teamRoomId: {}, proposalId: {}", teamRoomId, proposalId);
+
+        // 1. 팀룸 조회
+        TeamRoom teamRoom = teamRoomRepository.findById(teamRoomId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
+
+        // 2. 팀장 권한 확인
+        TeamMember member = teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
+
+        if (!member.hasManagementAuthority()) {
+            throw new YamoyoException(ErrorCode.NOT_TEAM_MANAGER);
+        }
+
+        // 3. 제안 조회
+        ToolProposal proposal = toolProposalRepository.findById(proposalId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.PROPOSAL_NOT_FOUND));
+
+        // 4. 제안이 해당 팀룸에 속하는지 확인
+        if (!toolProposalRepository.existsByIdAndTeamRoomId(proposalId, teamRoomId)) {
+            throw new YamoyoException(ErrorCode.PROPOSAL_NOT_FOUND);
+        }
+
+        // 5. 제안자 정보 조회 (1명만)
+        User proposer = userRepository.findById(proposal.getRequestedBy())
+                .orElseThrow(() -> new YamoyoException(ErrorCode.USER_NOT_FOUND));
+
+        log.info("제안 상세 조회 완료 - proposerName: {}", proposer.getName());
+
+        return ProposalDetailResponse.from(proposal, proposer);
     }
 }
