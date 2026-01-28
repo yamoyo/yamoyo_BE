@@ -99,6 +99,62 @@ public class TimepickParticipant {
         return this.preferredBlockStatus == TimepickParticipantStatus.SUBMITTED;
     }
 
+    /**
+     * 가용시간과 선호시간대 모두 제출했는지 확인한다.
+     */
+    public boolean hasSubmittedBoth() {
+        return hasSubmittedAvailability() && hasSubmittedPreferredBlock();
+    }
+
+    /**
+     * 미제출(PENDING) 상태인 항목을 EXPIRED로 변경한다.
+     * 타임픽 마감 시 미응답자 처리에 사용된다.
+     */
+    public void expireIfPending() {
+        if (this.availabilityStatus == TimepickParticipantStatus.PENDING) {
+            this.availabilityStatus = TimepickParticipantStatus.EXPIRED;
+        }
+        if (this.preferredBlockStatus == TimepickParticipantStatus.PENDING) {
+            this.preferredBlockStatus = TimepickParticipantStatus.EXPIRED;
+        }
+    }
+
+    /**
+     * 해당 요일의 유효 가용시간 비트맵을 반환한다.
+     * 미제출 시 전체 가용(0xFFFFFFFF)으로 간주한다.
+     */
+    public long getEffectiveAvailabilityFor(DayOfWeek dayOfWeek) {
+        if (this.availabilityStatus != TimepickParticipantStatus.SUBMITTED) {
+            return WeeklyAvailability.ALL_AVAILABLE;
+        }
+        return this.availability.getFor(dayOfWeek);
+    }
+
+    /**
+     * 유효 선호시간대를 반환한다.
+     * 미제출 시 BLOCK_20_24를 기본값으로 사용한다.
+     */
+    public PreferredBlock getEffectivePreferredBlock() {
+        if (this.preferredBlockStatus != TimepickParticipantStatus.SUBMITTED) {
+            return PreferredBlock.BLOCK_20_24;
+        }
+        return this.preferredBlock != null ? this.preferredBlock : PreferredBlock.BLOCK_20_24;
+    }
+
+    /**
+     * 해당 요일/슬롯에 1시간 회의 참석이 가능한지 확인한다.
+     */
+    public boolean canAttendOneHourMeetingAt(DayOfWeek dayOfWeek, int slotIndex) {
+        if (this.availabilityStatus != TimepickParticipantStatus.SUBMITTED) {
+            return true;
+        }
+        return this.availability.canAttendOneHourMeetingAt(dayOfWeek, slotIndex);
+    }
+
+    public boolean prefersSlot(int slotIndex) {
+        return getEffectivePreferredBlock().containsOneHourMeetingAt(slotIndex);
+    }
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();

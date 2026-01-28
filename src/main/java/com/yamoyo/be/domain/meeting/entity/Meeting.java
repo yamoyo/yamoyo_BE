@@ -92,15 +92,32 @@ public class Meeting {
                 .build();
     }
 
+    public static Meeting createInitialRegular(MeetingSeries meetingSeries, String title,
+                                               LocalDateTime startTime, Integer durationMinutes) {
+        validateStartTime(startTime);
+        validateDuration(durationMinutes);
+
+        return Meeting.builder()
+                .meetingSeries(meetingSeries)
+                .title(title)
+                .location(null)
+                .startTime(startTime)
+                .durationMinutes(durationMinutes)
+                .color(MeetingColor.PURPLE)
+                .description(null)
+                .isIndividuallyModified(false)
+                .build();
+    }
+
     private static void validateStartTime(LocalDateTime startTime) {
         int minute = startTime.getMinute();
-        if (minute != 0 && minute != 30) {
+        if (minute != 0 && minute != WeeklyAvailability.SLOT_DURATION_MINUTES) {
             throw new YamoyoException(ErrorCode.MEETING_INVALID_START_TIME);
         }
     }
 
     private static void validateDuration(Integer durationMinutes) {
-        if (durationMinutes % 30 != 0) {
+        if (durationMinutes % WeeklyAvailability.SLOT_DURATION_MINUTES != 0) {
             throw new YamoyoException(ErrorCode.MEETING_INVALID_DURATION);
         }
     }

@@ -26,6 +26,7 @@ public enum ErrorCode {
     TIMEPICK_NOT_OPEN(HttpStatus.BAD_REQUEST, "타임픽이 진행 중이 아닙니다."),
     TIMEPICK_AVAILABILITY_ALREADY_SUBMITTED(HttpStatus.BAD_REQUEST, "이미 가용시간을 제출했습니다."),
     TIMEPICK_PREFERRED_BLOCK_ALREADY_SUBMITTED(HttpStatus.BAD_REQUEST, "이미 선호시간대를 제출했습니다."),
+    TIMEPICK_ALREADY_FINALIZED(HttpStatus.BAD_REQUEST, "이미 마감된 타임픽입니다."),
 
     // TeamRoom
     INVALID_DEADLINE(HttpStatus.BAD_REQUEST, "마감일은 현재 날짜 +1일 이후여야 합니다."),
