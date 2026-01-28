@@ -57,6 +57,11 @@ public class Timepick {
         return this.status == TimepickStatus.FINALIZED;
     }
 
+    public void markAsFinalized() {
+        this.status = TimepickStatus.FINALIZED;
+        this.finalizedAt = LocalDateTime.now();
+    }
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();

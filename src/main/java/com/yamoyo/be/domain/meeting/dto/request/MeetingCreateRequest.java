@@ -3,7 +3,8 @@ package com.yamoyo.be.domain.meeting.dto.request;
 import com.yamoyo.be.domain.meeting.entity.enums.MeetingColor;
 import jakarta.validation.constraints.*;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 
 public record MeetingCreateRequest(
@@ -17,14 +18,15 @@ public record MeetingCreateRequest(
         @Size(max = 100, message = "장소는 100자 이내여야 합니다")
         String location,
 
-        @NotNull(message = "시작 시간은 필수입니다")
-        @Future(message = "시작 시간은 현재 시간 이후여야 합니다")
-        LocalDateTime startTime,
+        @NotNull(message = "회의 날짜는 필수입니다")
+        @Future(message = "회의 날짜는 현재 날짜 이후여야 합니다")
+        LocalDate startDate,
 
-        @NotNull(message = "회의 시간은 필수입니다")
-        @Min(value = 30, message = "회의 시간은 최소 30분 이상이어야 합니다")
-        @Max(value = 240, message = "회의 시간은 최대 240분 이내여야 합니다")
-        Integer durationMinutes,
+        @NotNull(message = "시작 시간은 필수입니다")
+        LocalTime startTime,
+
+        @NotNull(message = "종료 시간은 필수입니다")
+        LocalTime endTime,
 
         @NotNull(message = "색상은 필수입니다")
         MeetingColor color,

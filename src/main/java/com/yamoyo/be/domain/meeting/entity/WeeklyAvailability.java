@@ -15,6 +15,10 @@ import java.util.Map;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class WeeklyAvailability {
 
+    public static final int SLOT_COUNT = 32;
+    public static final int SLOT_DURATION_MINUTES = 30;
+    public static final long ALL_AVAILABLE = 0xFFFFFFFFL;
+
     @Column(name = "availability_mon", nullable = false)
     private Long availabilityMon = 0L;
 
@@ -52,6 +56,13 @@ public class WeeklyAvailability {
         return new WeeklyAvailability(0L, 0L, 0L, 0L, 0L, 0L, 0L);
     }
 
+    public static WeeklyAvailability allAvailable() {
+        return new WeeklyAvailability(
+                ALL_AVAILABLE, ALL_AVAILABLE, ALL_AVAILABLE,
+                ALL_AVAILABLE, ALL_AVAILABLE, ALL_AVAILABLE, ALL_AVAILABLE
+        );
+    }
+
     public static WeeklyAvailability from(Map<DayOfWeek, Long> bitmaps) {
         return new WeeklyAvailability(
                 bitmaps.getOrDefault(DayOfWeek.MON, 0L),
@@ -84,5 +95,23 @@ public class WeeklyAvailability {
         bitmaps.put(DayOfWeek.SAT, availabilitySat);
         bitmaps.put(DayOfWeek.SUN, availabilitySun);
         return bitmaps;
+    }
+
+    public long getFor(DayOfWeek dayOfWeek) {
+        return switch (dayOfWeek) {
+            case MON -> availabilityMon;
+            case TUE -> availabilityTue;
+            case WED -> availabilityWed;
+            case THU -> availabilityThu;
+            case FRI -> availabilityFri;
+            case SAT -> availabilitySat;
+            case SUN -> availabilitySun;
+        };
+    }
+
+    public boolean canAttendOneHourMeetingAt(DayOfWeek dayOfWeek, int slotIndex) {
+        long availability = getFor(dayOfWeek);
+        long requiredMask = (1L << slotIndex) | (1L << (slotIndex + 1));
+        return (availability & requiredMask) == requiredMask;
     }
 }

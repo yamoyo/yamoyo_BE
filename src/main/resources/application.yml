@@ -161,3 +161,11 @@ management:
   endpoints:
     web:
       base-path: /api/actuator
+
+# SpringDoc (Swagger/OpenAPI) 설정
+springdoc:
+  swagger-ui:
+    tags-sorter: alpha
+    operations-sorter: method
+  packages-to-scan: com.yamoyo.be.domain
+  paths-to-match: /api/**

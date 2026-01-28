@@ -73,7 +73,12 @@ public class SecurityConfig {
         "/api/auth/refresh",
 
         // 시스템 관리 (Health Check)
-        "/api/actuator/health"
+        "/api/actuator/health",
+
+        // Swagger UI
+        "/swagger-ui.html",
+        "/swagger-ui/**",
+        "/v3/api-docs/**"
     };
 
     /**
