@@ -51,7 +51,7 @@ public class Meeting {
     private String description;
 
     @Column(name = "is_individually_modified", nullable = false)
-    private Boolean isIndividuallyModified;
+    private boolean isIndividuallyModified;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -62,7 +62,7 @@ public class Meeting {
     @Builder(access = AccessLevel.PRIVATE)
     private Meeting(MeetingSeries meetingSeries, String title, String location,
                    LocalDateTime startTime, Integer durationMinutes, MeetingColor color,
-                   String description, Boolean isIndividuallyModified) {
+                   String description, boolean isIndividuallyModified) {
         this.meetingSeries = meetingSeries;
         this.title = title;
         this.location = location;
@@ -70,7 +70,7 @@ public class Meeting {
         this.durationMinutes = durationMinutes;
         this.color = color;
         this.description = description;
-        this.isIndividuallyModified = isIndividuallyModified != null ? isIndividuallyModified : false;
+        this.isIndividuallyModified = isIndividuallyModified;
     }
 
     public static Meeting create(MeetingSeries meetingSeries, String title, String location,
@@ -92,15 +92,32 @@ public class Meeting {
                 .build();
     }
 
+    public static Meeting createInitialRegular(MeetingSeries meetingSeries, String title,
+                                               LocalDateTime startTime, Integer durationMinutes) {
+        validateStartTime(startTime);
+        validateDuration(durationMinutes);
+
+        return Meeting.builder()
+                .meetingSeries(meetingSeries)
+                .title(title)
+                .location(null)
+                .startTime(startTime)
+                .durationMinutes(durationMinutes)
+                .color(MeetingColor.PURPLE)
+                .description(null)
+                .isIndividuallyModified(false)
+                .build();
+    }
+
     private static void validateStartTime(LocalDateTime startTime) {
         int minute = startTime.getMinute();
-        if (minute != 0 && minute != 30) {
+        if (minute != 0 && minute != WeeklyAvailability.SLOT_DURATION_MINUTES) {
             throw new YamoyoException(ErrorCode.MEETING_INVALID_START_TIME);
         }
     }
 
     private static void validateDuration(Integer durationMinutes) {
-        if (durationMinutes % 30 != 0) {
+        if (durationMinutes % WeeklyAvailability.SLOT_DURATION_MINUTES != 0) {
             throw new YamoyoException(ErrorCode.MEETING_INVALID_DURATION);
         }
     }
@@ -139,7 +156,7 @@ public class Meeting {
         this.isIndividuallyModified = true;
     }
 
-    public boolean isModified() {
-        return Boolean.TRUE.equals(this.isIndividuallyModified);
+    public boolean isIndividuallyModified() {
+        return this.isIndividuallyModified;
     }
 }

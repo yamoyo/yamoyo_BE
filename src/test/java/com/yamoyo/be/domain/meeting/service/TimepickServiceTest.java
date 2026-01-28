@@ -5,11 +5,16 @@ import com.yamoyo.be.domain.meeting.dto.request.PreferredBlockSubmitRequest;
 import com.yamoyo.be.domain.meeting.dto.response.TimepickResponse;
 import com.yamoyo.be.domain.meeting.entity.Timepick;
 import com.yamoyo.be.domain.meeting.entity.TimepickParticipant;
+import com.yamoyo.be.domain.meeting.entity.WeeklyAvailability;
+import com.yamoyo.be.domain.meeting.entity.enums.DayOfWeek;
 import com.yamoyo.be.domain.meeting.entity.enums.PreferredBlock;
 import com.yamoyo.be.domain.meeting.entity.enums.TimepickParticipantStatus;
 import com.yamoyo.be.domain.meeting.entity.enums.TimepickStatus;
-import com.yamoyo.be.domain.meeting.repository.TimepickParticipantRepository;
-import com.yamoyo.be.domain.meeting.repository.TimepickRepository;
+import com.yamoyo.be.domain.meeting.repository.*;
+import com.yamoyo.be.domain.teamroom.entity.TeamRoom;
+import com.yamoyo.be.domain.teamroom.repository.TeamMemberRepository;
+import com.yamoyo.be.domain.teamroom.repository.TeamRoomRepository;
+import com.yamoyo.be.domain.user.entity.User;
 import com.yamoyo.be.exception.ErrorCode;
 import com.yamoyo.be.exception.YamoyoException;
 import org.junit.jupiter.api.DisplayName;
@@ -22,6 +27,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -29,7 +36,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("TimepickService 단위 테스트")
@@ -43,6 +50,24 @@ class TimepickServiceTest {
 
     @Mock
     private UserTimepickDefaultService userTimepickDefaultService;
+
+    @Mock
+    private TeamRoomRepository teamRoomRepository;
+
+    @Mock
+    private TeamMemberRepository teamMemberRepository;
+
+    @Mock
+    private MeetingScheduleAlgorithmService meetingScheduleAlgorithmService;
+
+    @Mock
+    private MeetingSeriesRepository meetingSeriesRepository;
+
+    @Mock
+    private MeetingRepository meetingRepository;
+
+    @Mock
+    private MeetingParticipantRepository meetingParticipantRepository;
 
     @InjectMocks
     private TimepickService timepickService;
@@ -183,6 +208,9 @@ class TimepickServiceTest {
                     .willReturn(Optional.of(timepick));
             given(timepickParticipantRepository.findByTimepickIdAndUserId(TIMEPICK_ID, USER_ID))
                     .willReturn(Optional.of(participant));
+            // checkAndFinalizeIfAllSubmitted에서 호출됨
+            given(timepickParticipantRepository.findByTimepickIdWithUser(TIMEPICK_ID))
+                    .willReturn(List.of(participant));
 
             // when
             timepickService.submitAvailability(TEAM_ROOM_ID, USER_ID, request);
@@ -295,6 +323,9 @@ class TimepickServiceTest {
                     .willReturn(Optional.of(timepick));
             given(timepickParticipantRepository.findByTimepickIdAndUserId(TIMEPICK_ID, USER_ID))
                     .willReturn(Optional.of(participant));
+            // checkAndFinalizeIfAllSubmitted에서 호출됨
+            given(timepickParticipantRepository.findByTimepickIdWithUser(TIMEPICK_ID))
+                    .willReturn(List.of(participant));
 
             // when
             timepickService.submitPreferredBlock(TEAM_ROOM_ID, USER_ID, request);
@@ -389,7 +420,143 @@ class TimepickServiceTest {
         }
     }
 
+    @Nested
+    @DisplayName("finalizeTimepick() - 타임픽 마감")
+    class FinalizeTimepickTest {
+
+        @Test
+        @DisplayName("정상 마감 - 회의가 생성된다")
+        void finalizeTimepick_정상마감_회의생성() {
+            // given
+            TeamRoom teamRoom = createTeamRoom();
+            Timepick timepick = createTimepickWithTeamRoom(TimepickStatus.OPEN, teamRoom);
+            User user = createUser(1L);
+            TimepickParticipant participant = createParticipantWithUserAndAvailability(
+                    user,
+                    TimepickParticipantStatus.SUBMITTED,
+                    TimepickParticipantStatus.SUBMITTED
+            );
+
+            given(timepickRepository.findById(TIMEPICK_ID))
+                    .willReturn(Optional.of(timepick));
+            given(timepickParticipantRepository.findByTimepickIdWithUser(TIMEPICK_ID))
+                    .willReturn(List.of(participant));
+            given(meetingScheduleAlgorithmService.calculateOptimalSchedule(any()))
+                    .willReturn(new MeetingScheduleAlgorithmService.ScheduleResult(
+                            DayOfWeek.MON, LocalTime.of(10, 0), 1, 1
+                    ));
+
+            // when
+            timepickService.finalizeTimepick(TIMEPICK_ID);
+
+            // then
+            assertThat(timepick.isFinalized()).isTrue();
+            verify(meetingSeriesRepository).save(any());
+            verify(meetingRepository, atLeastOnce()).save(any());
+            verify(meetingParticipantRepository, atLeastOnce()).save(any());
+        }
+
+        @Test
+        @DisplayName("이미 마감된 타임픽 - TIMEPICK_ALREADY_FINALIZED 예외")
+        void finalizeTimepick_이미마감_예외() {
+            // given
+            Timepick timepick = createTimepick(TimepickStatus.FINALIZED);
+
+            given(timepickRepository.findById(TIMEPICK_ID))
+                    .willReturn(Optional.of(timepick));
+
+            // when & then
+            assertThatThrownBy(() -> timepickService.finalizeTimepick(TIMEPICK_ID))
+                    .isInstanceOf(YamoyoException.class)
+                    .satisfies(exception -> {
+                        YamoyoException yamoyoException = (YamoyoException) exception;
+                        assertThat(yamoyoException.getErrorCode()).isEqualTo(ErrorCode.TIMEPICK_ALREADY_FINALIZED);
+                    });
+        }
+
+        @Test
+        @DisplayName("타임픽 미발견 - TIMEPICK_NOT_FOUND 예외")
+        void finalizeTimepick_타임픽미발견_예외() {
+            // given
+            given(timepickRepository.findById(TIMEPICK_ID))
+                    .willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> timepickService.finalizeTimepick(TIMEPICK_ID))
+                    .isInstanceOf(YamoyoException.class)
+                    .satisfies(exception -> {
+                        YamoyoException yamoyoException = (YamoyoException) exception;
+                        assertThat(yamoyoException.getErrorCode()).isEqualTo(ErrorCode.TIMEPICK_NOT_FOUND);
+                    });
+        }
+    }
+
     // ========== Helper Methods ==========
+
+    private TeamRoom createTeamRoom() {
+        try {
+            var constructor = TeamRoom.class.getDeclaredConstructor(
+                    String.class, String.class, LocalDateTime.class, Long.class
+            );
+            constructor.setAccessible(true);
+            TeamRoom teamRoom = constructor.newInstance(
+                    "테스트 팀룸", "설명", LocalDateTime.now().plusDays(30), null
+            );
+            ReflectionTestUtils.setField(teamRoom, "id", 1L);
+            return teamRoom;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private User createUser(Long id) {
+        try {
+            var constructor = User.class.getDeclaredConstructor();
+            constructor.setAccessible(true);
+            User user = constructor.newInstance();
+            ReflectionTestUtils.setField(user, "id", id);
+            ReflectionTestUtils.setField(user, "name", "테스트유저");
+            return user;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private Timepick createTimepickWithTeamRoom(TimepickStatus status, TeamRoom teamRoom) {
+        try {
+            var constructor = Timepick.class.getDeclaredConstructor();
+            constructor.setAccessible(true);
+            Timepick timepick = constructor.newInstance();
+            ReflectionTestUtils.setField(timepick, "id", TIMEPICK_ID);
+            ReflectionTestUtils.setField(timepick, "status", status);
+            ReflectionTestUtils.setField(timepick, "deadline", LocalDateTime.now().plusDays(7));
+            ReflectionTestUtils.setField(timepick, "teamRoom", teamRoom);
+            return timepick;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private TimepickParticipant createParticipantWithUserAndAvailability(
+            User user,
+            TimepickParticipantStatus availabilityStatus,
+            TimepickParticipantStatus preferredBlockStatus
+    ) {
+        try {
+            var constructor = TimepickParticipant.class.getDeclaredConstructor();
+            constructor.setAccessible(true);
+            TimepickParticipant participant = constructor.newInstance();
+            ReflectionTestUtils.setField(participant, "id", 1L);
+            ReflectionTestUtils.setField(participant, "user", user);
+            ReflectionTestUtils.setField(participant, "availability", WeeklyAvailability.empty());
+            ReflectionTestUtils.setField(participant, "preferredBlock", PreferredBlock.BLOCK_08_12);
+            ReflectionTestUtils.setField(participant, "availabilityStatus", availabilityStatus);
+            ReflectionTestUtils.setField(participant, "preferredBlockStatus", preferredBlockStatus);
+            return participant;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     private Timepick createTimepick(TimepickStatus status) {
         try {

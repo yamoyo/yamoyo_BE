@@ -1,13 +1,12 @@
 package com.yamoyo.be.domain.meeting.util;
 
+import com.yamoyo.be.domain.meeting.entity.WeeklyAvailability;
 import com.yamoyo.be.domain.meeting.entity.enums.DayOfWeek;
 
 import java.util.EnumMap;
 import java.util.Map;
 
 public final class AvailabilityBitmapConverter {
-
-    private static final int SLOT_COUNT = 32;
 
     private AvailabilityBitmapConverter() {
     }
@@ -24,19 +23,19 @@ public final class AvailabilityBitmapConverter {
     public static Map<DayOfWeek, Long> toBitmaps(Map<DayOfWeek, boolean[]> booleanArrays) {
         Map<DayOfWeek, Long> result = new EnumMap<>(DayOfWeek.class);
         for (DayOfWeek day : DayOfWeek.values()) {
-            boolean[] array = booleanArrays.getOrDefault(day, new boolean[SLOT_COUNT]);
+            boolean[] array = booleanArrays.getOrDefault(day, new boolean[WeeklyAvailability.SLOT_COUNT]);
             result.put(day, toBitmap(array));
         }
         return result;
     }
 
     public static boolean[] toBooleanArray(Long bitmap) {
-        boolean[] result = new boolean[SLOT_COUNT];
+        boolean[] result = new boolean[WeeklyAvailability.SLOT_COUNT];
         if (bitmap == null) {
             return result;
         }
         
-        for (int i = 0; i < SLOT_COUNT; i++) {
+        for (int i = 0; i < WeeklyAvailability.SLOT_COUNT; i++) {
             result[i] = (bitmap & (1L << i)) != 0;
         }
         
@@ -49,7 +48,7 @@ public final class AvailabilityBitmapConverter {
             return 0L;
         }
         long result = 0L;
-        int length = Math.min(booleanArray.length, SLOT_COUNT);
+        int length = Math.min(booleanArray.length, WeeklyAvailability.SLOT_COUNT);
 
         for (int i = 0; i < length; i++) {
             if (booleanArray[i]) {
@@ -62,7 +61,7 @@ public final class AvailabilityBitmapConverter {
     public static Map<DayOfWeek, boolean[]> createEmptyAvailability() {
         Map<DayOfWeek, boolean[]> result = new EnumMap<>(DayOfWeek.class);
         for (DayOfWeek day : DayOfWeek.values()) {
-            result.put(day, new boolean[SLOT_COUNT]);
+            result.put(day, new boolean[WeeklyAvailability.SLOT_COUNT]);
         }
         return result;
     }

@@ -77,6 +77,9 @@ dependencies {
     implementation 'org.flywaydb:flyway-core'
     implementation 'org.flywaydb:flyway-mysql'
 
+    // Swagger/OpenAPI 문서
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.4'
+
     // JUnit 플랫폼 런처
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }

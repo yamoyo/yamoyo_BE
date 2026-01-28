@@ -61,7 +61,7 @@ public record MeetingDetailResponse(
                 endTime,
                 meeting.getDurationMinutes(),
                 meeting.getColor(),
-                meeting.getIsIndividuallyModified(),
+                meeting.isIndividuallyModified(),
                 meeting.getMeetingSeries().getId(),
                 meeting.getMeetingSeries().getMeetingType(),
                 meeting.getMeetingSeries().getDayOfWeek(),
