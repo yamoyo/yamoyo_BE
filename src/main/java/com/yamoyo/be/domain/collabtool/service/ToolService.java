@@ -189,7 +189,7 @@ public class ToolService {
      * - 카테고리별 최다 득표 Top3 확정
      * - 동률 시 모두 확정
      */
-    private void confirmTools(Long teamRoomId) {
+    public void confirmTools(Long teamRoomId) {
         log.info("협업툴 확정 처리 시작 - teamRoomId: {}", teamRoomId);
 
         // 1. 모든 투표 조회

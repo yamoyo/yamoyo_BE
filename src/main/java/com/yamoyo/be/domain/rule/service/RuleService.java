@@ -163,14 +163,19 @@ public class RuleService {
         TeamRoom teamRoom = teamRoomRepository.findById(teamRoomId)
                 .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
 
-        // 2. 전체 팀원 수 조회
-        long totalMembers = teamMemberRepository.countByTeamRoomId(teamRoomId);
-        long majorityThreshold = (totalMembers / 2) + 1; // 과반수
-
-        // 3. 모든 투표 조회
+        // 2. 모든 투표 조회
         List<MemberRuleVote> allVotes = memberRuleVoteRepository.findByTeamRoomId(teamRoomId);
 
-        // 4. 규칙별 동의 득표 수 집계
+        // 3. 투표한 팀원 수 계산
+        long votedMembers = allVotes.stream()
+                .map(vote -> vote.getMember().getId())
+                .distinct()
+                .count();
+
+        // 4. 과반수 = 투표한 사람 기준
+        long majorityThreshold = (votedMembers / 2) + 1;
+
+        // 5. 규칙별 동의 득표 수 집계
         Map<Long, Long> agreeCountByRule = allVotes.stream()
                 .filter(MemberRuleVote::getIsAgree)
                 .collect(Collectors.groupingBy(
@@ -178,13 +183,13 @@ public class RuleService {
                         Collectors.counting()
                 ));
 
-        // 5. 과반수 이상 득표한 규칙 필터링
+        // 6. 과반수 이상 득표한 규칙 필터링
         List<Long> confirmedRuleIds = agreeCountByRule.entrySet().stream()
                 .filter(entry -> entry.getValue() >= majorityThreshold)
                 .map(Map.Entry::getKey)
                 .toList();
 
-        // 6. 팀 규칙으로 저장
+        // 7. 팀 규칙으로 저장
         for (Long ruleId : confirmedRuleIds) {
             RuleTemplate template = ruleTemplateRepository.findById(ruleId)
                     .orElseThrow(() -> new YamoyoException(ErrorCode.RULE_NOT_FOUND));
