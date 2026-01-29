@@ -36,7 +36,7 @@ public class ToolProposal {
      * 승인 상태
      * tinyint(1): 0(PENDING), 1(APPROVED), 2(REJECTED)
      */
-    @Column(name = "is_approval", nullable = false)
+    @Column(name = "is_approval", nullable = false, columnDefinition = "TINYINT")
     private Integer isApproval;
 
     @Column(name = "created_at", nullable = false)

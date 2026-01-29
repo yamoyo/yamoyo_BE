@@ -26,21 +26,21 @@ public class TeamRoomSetup {
      * 협업툴 확정 완료 여부
      * 0: 미완료, 1: 완료
      */
-    @Column(name = "tool_completed", nullable = false)
+    @Column(name = "tool_completed", nullable = false, columnDefinition = "TINYINT")
     private Integer toolCompleted;
 
     /**
      * 규칙 확정 완료 여부
      * 0: 미완료, 1: 완료
      */
-    @Column(name = "rule_completed", nullable = false)
+    @Column(name = "rule_completed", nullable = false, columnDefinition = "TINYINT")
     private Integer ruleCompleted;
 
     /**
      * 정기회의 확정 완료 여부
      * 0: 미완료, 1: 완료
      */
-    @Column(name = "meeting_completed", nullable = false)
+    @Column(name = "meeting_completed", nullable = false, columnDefinition = "TINYINT")
     private Integer meetingCompleted;
 
     @Column(name = "created_at", nullable = false)
