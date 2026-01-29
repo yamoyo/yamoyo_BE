@@ -15,8 +15,10 @@ import com.yamoyo.be.domain.collabtool.repository.TeamToolRepository;
 import com.yamoyo.be.domain.collabtool.repository.ToolProposalRepository;
 import com.yamoyo.be.domain.teamroom.entity.TeamMember;
 import com.yamoyo.be.domain.teamroom.entity.TeamRoom;
+import com.yamoyo.be.domain.teamroom.entity.TeamRoomSetup;
 import com.yamoyo.be.domain.teamroom.repository.TeamMemberRepository;
 import com.yamoyo.be.domain.teamroom.repository.TeamRoomRepository;
+import com.yamoyo.be.domain.teamroom.repository.TeamRoomSetupRepository;
 import com.yamoyo.be.domain.user.entity.User;
 import com.yamoyo.be.domain.user.repository.UserRepository;
 import com.yamoyo.be.exception.ErrorCode;
@@ -41,6 +43,7 @@ public class ToolService {
     private final TeamMemberRepository teamMemberRepository;
     private final TeamRoomRepository teamRoomRepository;
     private final UserRepository userRepository;
+    private final TeamRoomSetupRepository setupRepository;
 
     /**
      * 협업툴 투표 일괄 제출
@@ -240,6 +243,10 @@ public class ToolService {
                 log.info("협업툴 확정 - categoryId: {}, toolId: {}", categoryId, toolId);
             }
         }
+
+        TeamRoomSetup setup = setupRepository.findByTeamRoomId(teamRoomId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.SETUP_NOT_FOUND));
+        setup.completeToolSetup();
 
         log.info("협업툴 확정 완료 - teamRoomId: {}", teamRoomId);
     }

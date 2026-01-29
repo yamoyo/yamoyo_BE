@@ -34,6 +34,7 @@ public enum ErrorCode {
     INVITE_INVALID(HttpStatus.GONE, "만료되거나 유효하지 않은 초대링크입니다."),
     TEAMROOM_JOIN_FORBIDDEN(HttpStatus.FORBIDDEN, "팀룸 입장이 불가합니다."),
     TEAMROOM_FULL(HttpStatus.BAD_REQUEST, "이미 꽉 찬 팀룸입니다."),
+    SETUP_NOT_FOUND(HttpStatus.NOT_FOUND, "팀룸 설정 정보를 찾을 수 없습니다."),
 
     // TeamMember
     NOT_TEAM_MEMBER(HttpStatus.FORBIDDEN, "팀룸의 팀원이 아닙니다."),
