@@ -15,7 +15,7 @@ import com.yamoyo.be.domain.collabtool.repository.TeamToolRepository;
 import com.yamoyo.be.domain.collabtool.repository.ToolProposalRepository;
 import com.yamoyo.be.domain.teamroom.entity.TeamMember;
 import com.yamoyo.be.domain.teamroom.entity.TeamRoom;
-import com.yamoyo.be.domain.teamroom.scheduler.TeamRoomSetup;
+import com.yamoyo.be.domain.teamroom.entity.TeamRoomSetup;
 import com.yamoyo.be.domain.teamroom.repository.TeamMemberRepository;
 import com.yamoyo.be.domain.teamroom.repository.TeamRoomRepository;
 import com.yamoyo.be.domain.teamroom.repository.TeamRoomSetupRepository;
@@ -192,6 +192,7 @@ public class ToolService {
      * - 카테고리별 최다 득표 Top3 확정
      * - 동률 시 모두 확정
      */
+    @Transactional
     public void confirmTools(Long teamRoomId) {
         log.info("협업툴 확정 처리 시작 - teamRoomId: {}", teamRoomId);
 

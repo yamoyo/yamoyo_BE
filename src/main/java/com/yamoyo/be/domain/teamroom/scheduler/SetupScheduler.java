@@ -1,8 +1,8 @@
-package com.yamoyo.be.domain.teamroom.service;
+package com.yamoyo.be.domain.teamroom.scheduler;
 
 import com.yamoyo.be.domain.collabtool.service.ToolService;
 import com.yamoyo.be.domain.rule.service.RuleService;
-import com.yamoyo.be.domain.teamroom.scheduler.TeamRoomSetup;
+import com.yamoyo.be.domain.teamroom.entity.TeamRoomSetup;
 import com.yamoyo.be.domain.teamroom.repository.TeamRoomSetupRepository;
 import com.yamoyo.be.exception.YamoyoException;
 import lombok.RequiredArgsConstructor;

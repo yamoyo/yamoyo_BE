@@ -1,6 +1,5 @@
-package com.yamoyo.be.domain.teamroom.scheduler;
+package com.yamoyo.be.domain.teamroom.entity;
 
-import com.yamoyo.be.domain.teamroom.entity.TeamRoom;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -56,6 +55,7 @@ public class TeamRoomSetup {
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
+        this.deadline = this.createdAt.plusHours(6);
     }
 
     /**
@@ -68,7 +68,6 @@ public class TeamRoomSetup {
         setup.toolCompleted = 0;
         setup.ruleCompleted = 0;
         setup.meetingCompleted = 0;
-        setup.deadline = LocalDateTime.now().plusHours(6);
         return setup;
     }
 
