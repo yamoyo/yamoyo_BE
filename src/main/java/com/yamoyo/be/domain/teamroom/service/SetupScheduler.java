@@ -2,8 +2,9 @@ package com.yamoyo.be.domain.teamroom.service;
 
 import com.yamoyo.be.domain.collabtool.service.ToolService;
 import com.yamoyo.be.domain.rule.service.RuleService;
-import com.yamoyo.be.domain.teamroom.entity.TeamRoomSetup;
+import com.yamoyo.be.domain.teamroom.scheduler.TeamRoomSetup;
 import com.yamoyo.be.domain.teamroom.repository.TeamRoomSetupRepository;
+import com.yamoyo.be.exception.YamoyoException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -44,32 +45,39 @@ public class SetupScheduler {
             Long teamRoomId = setup.getTeamRoom().getId();
 
             try {
-                // 협업툴 미확정 시 자동 확정
+                // 협업툴 미확정 시 처리
                 if (!setup.isToolCompleted()) {
-                    log.info("협업툴 자동 확정 시작 - teamRoomId: {}", teamRoomId);
                     toolService.confirmTools(teamRoomId);
                     setup.completeToolSetup();
-                    log.info("협업툴 자동 확정 완료 - teamRoomId: {}", teamRoomId);
                 }
+            } catch (YamoyoException e) {
+                log.error("협업툴 확정 실패 - teamRoomId: {}, errorCode: {}",
+                        teamRoomId, e.getErrorCode(), e);
+            }
 
-                // 규칙 미확정 시 자동 확정
+            try {
+                // 규칙 미확정 시 처리
                 if (!setup.isRuleCompleted()) {
-                    log.info("규칙 자동 확정 시작 - teamRoomId: {}", teamRoomId);
                     ruleService.confirmRules(teamRoomId);
                     setup.completeRuleSetup();
-                    log.info("규칙 자동 확정 완료 - teamRoomId: {}", teamRoomId);
                 }
-
-                // 정기회의는 추후 추가
-                // if (!setup.isMeetingCompleted()) {
-                //     meetingService.confirmMeeting(teamRoomId);
-                //     setup.completeMeetingSetup();
-                // }
-
-            } catch (Exception e) {
-                log.error("Setup 자동 확정 실패 - teamRoomId: {}, error: {}", teamRoomId, e.getMessage(), e);
+            } catch (YamoyoException e) {
+                log.error("규칙 확정 실패 - teamRoomId: {}, errorCode: {}",
+                        teamRoomId, e.getErrorCode(), e);
             }
-        }
+
+            // ===== 정기회의는 추후 추가 =====
+            // TODO : 정기 회의 자동 확정 처리 로직
+            // try {
+            //     if (!setup.isMeetingCompleted()) {
+            //         meetingService.confirmMeeting(teamRoomId);
+            //         setup.completeMeetingSetup();
+            //     }
+            // } catch (YamoyoException e) {
+            //     log.error("정기회의 확정 실패 - teamRoomId: {}, errorCode: {}",
+            //         teamRoomId, e.getErrorCode(), e);
+            // }
+                    }
 
         log.info("만료된 Setup 처리 완료");
     }

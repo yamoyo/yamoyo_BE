@@ -15,7 +15,7 @@ import com.yamoyo.be.domain.collabtool.repository.TeamToolRepository;
 import com.yamoyo.be.domain.collabtool.repository.ToolProposalRepository;
 import com.yamoyo.be.domain.teamroom.entity.TeamMember;
 import com.yamoyo.be.domain.teamroom.entity.TeamRoom;
-import com.yamoyo.be.domain.teamroom.entity.TeamRoomSetup;
+import com.yamoyo.be.domain.teamroom.scheduler.TeamRoomSetup;
 import com.yamoyo.be.domain.teamroom.repository.TeamMemberRepository;
 import com.yamoyo.be.domain.teamroom.repository.TeamRoomRepository;
 import com.yamoyo.be.domain.teamroom.repository.TeamRoomSetupRepository;

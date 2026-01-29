@@ -1,6 +1,6 @@
 package com.yamoyo.be.domain.teamroom.repository;
 
-import com.yamoyo.be.domain.teamroom.entity.TeamRoomSetup;
+import com.yamoyo.be.domain.teamroom.scheduler.TeamRoomSetup;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

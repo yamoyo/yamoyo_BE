@@ -1,5 +1,6 @@
-package com.yamoyo.be.domain.teamroom.entity;
+package com.yamoyo.be.domain.teamroom.scheduler;
 
+import com.yamoyo.be.domain.teamroom.entity.TeamRoom;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -58,7 +59,8 @@ public class TeamRoomSetup {
     }
 
     /**
-     * Setup 생성 (팀장 정하기 완료 시 호출)
+     * Setup 생성
+     * TODO : 팀장 정하기 완료 시 호출하는 로직
      */
     public static TeamRoomSetup create(TeamRoom teamRoom) {
         TeamRoomSetup setup = new TeamRoomSetup();
