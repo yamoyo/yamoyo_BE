@@ -96,28 +96,28 @@ public class TeamRoomSetup {
      * 협업툴 확정 여부
      */
     public boolean isToolCompleted() {
-        return this.toolCompleted == true;
+        return this.toolCompleted;
     }
 
     /**
      * 규칙 확정 여부
      */
     public boolean isRuleCompleted() {
-        return this.ruleCompleted == true;
+        return this.ruleCompleted;
     }
 
     /**
      * 정기회의 확정 여부
      */
     public boolean isMeetingCompleted() {
-        return this.meetingCompleted == true;
+        return this.meetingCompleted;
     }
 
     /**
      * 모든 설정 완료 여부
      */
     public boolean isAllCompleted() {
-        return toolCompleted == true && ruleCompleted == true && meetingCompleted == true;
+        return toolCompleted && ruleCompleted && meetingCompleted;
     }
 
     /**
