@@ -13,9 +13,10 @@ import com.yamoyo.be.domain.rule.repository.RuleTemplateRepository;
 import com.yamoyo.be.domain.rule.repository.TeamRuleRepository;
 import com.yamoyo.be.domain.teamroom.entity.TeamMember;
 import com.yamoyo.be.domain.teamroom.entity.TeamRoom;
-import com.yamoyo.be.domain.teamroom.entity.enums.TeamRole;
+import com.yamoyo.be.domain.teamroom.entity.TeamRoomSetup;
 import com.yamoyo.be.domain.teamroom.repository.TeamMemberRepository;
 import com.yamoyo.be.domain.teamroom.repository.TeamRoomRepository;
+import com.yamoyo.be.domain.teamroom.repository.TeamRoomSetupRepository;
 import com.yamoyo.be.domain.user.entity.User;
 import com.yamoyo.be.exception.ErrorCode;
 import com.yamoyo.be.exception.YamoyoException;
@@ -41,6 +42,7 @@ public class RuleService {
     private final TeamRuleRepository teamRuleRepository;
     private final TeamRoomRepository teamRoomRepository;
     private final TeamMemberRepository teamMemberRepository;
+    private final TeamRoomSetupRepository setupRepository;
 
     /**
      * 규칙 투표 제출
@@ -90,7 +92,7 @@ public class RuleService {
 
         if (totalMembers == votedMembers) {
             log.info("전원 투표 완료 - 규칙 자동 확정");
-            confirmRules(teamRoomId, userId);
+            confirmRules(teamRoomId);
         }
 
         log.info("규칙 투표 제출 완료");
@@ -156,8 +158,8 @@ public class RuleService {
      * - 동률 시 팀장 투표에 우선순위 부여
      */
     @Transactional
-    public void confirmRules(Long teamRoomId, Long userId) {
-        log.info("규칙 확정 처리 시작 - teamRoomId: {}, userId: {}", teamRoomId, userId);
+    public void confirmRules(Long teamRoomId) {
+        log.info("규칙 확정 처리 시작 - teamRoomId: {}", teamRoomId);
 
         // 1. 팀룸 조회
         TeamRoom teamRoom = teamRoomRepository.findById(teamRoomId)
@@ -200,6 +202,10 @@ public class RuleService {
             log.info("규칙 확정 - ruleId: {}, content: {}", ruleId, template.getContent());
         }
 
+        // Setup 상태 업데이트
+        TeamRoomSetup setup = setupRepository.findByTeamRoomId(teamRoomId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.SETUP_NOT_FOUND));
+        setup.completeRuleSetup();
         log.info("규칙 확정 완료 - 총 {}개 규칙 확정", confirmedRuleIds.size());
     }
 
