@@ -29,7 +29,7 @@ public interface TeamRoomSetupRepository extends JpaRepository<TeamRoomSetup, Lo
     SELECT s
     FROM TeamRoomSetup s
     WHERE s.deadline < :now
-    AND (s.toolCompleted = 0 OR s.ruleCompleted = 0 OR s.meetingCompleted = 0)
+    AND (s.toolCompleted = false OR s.ruleCompleted = false OR s.meetingCompleted = false)
     """)
     List<TeamRoomSetup> findExpiredSetups(@Param("now") LocalDateTime now);
 }

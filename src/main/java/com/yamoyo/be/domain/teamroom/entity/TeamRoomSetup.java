@@ -27,21 +27,21 @@ public class TeamRoomSetup {
      * 0: 미완료, 1: 완료
      */
     @Column(name = "tool_completed", nullable = false, columnDefinition = "TINYINT")
-    private Integer toolCompleted;
+    private Boolean toolCompleted;
 
     /**
      * 규칙 확정 완료 여부
      * 0: 미완료, 1: 완료
      */
     @Column(name = "rule_completed", nullable = false, columnDefinition = "TINYINT")
-    private Integer ruleCompleted;
+    private Boolean ruleCompleted;
 
     /**
      * 정기회의 확정 완료 여부
      * 0: 미완료, 1: 완료
      */
     @Column(name = "meeting_completed", nullable = false, columnDefinition = "TINYINT")
-    private Integer meetingCompleted;
+    private Boolean meetingCompleted;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
@@ -65,9 +65,9 @@ public class TeamRoomSetup {
     public static TeamRoomSetup create(TeamRoom teamRoom) {
         TeamRoomSetup setup = new TeamRoomSetup();
         setup.teamRoom = teamRoom;
-        setup.toolCompleted = 0;
-        setup.ruleCompleted = 0;
-        setup.meetingCompleted = 0;
+        setup.toolCompleted = false;
+        setup.ruleCompleted = false;
+        setup.meetingCompleted = false;
         return setup;
     }
 
@@ -75,49 +75,49 @@ public class TeamRoomSetup {
      * 협업툴 확정 완료 처리
      */
     public void completeToolSetup() {
-        this.toolCompleted = 1;
+        this.toolCompleted = true;
     }
 
     /**
      * 규칙 확정 완료 처리
      */
     public void completeRuleSetup() {
-        this.ruleCompleted = 1;
+        this.ruleCompleted = true;
     }
 
     /**
      * 정기회의 확정 완료 처리
      */
     public void completeMeetingSetup() {
-        this.meetingCompleted = 1;
+        this.meetingCompleted = true;
     }
 
     /**
      * 협업툴 확정 여부
      */
     public boolean isToolCompleted() {
-        return this.toolCompleted == 1;
+        return this.toolCompleted == true;
     }
 
     /**
      * 규칙 확정 여부
      */
     public boolean isRuleCompleted() {
-        return this.ruleCompleted == 1;
+        return this.ruleCompleted == true;
     }
 
     /**
      * 정기회의 확정 여부
      */
     public boolean isMeetingCompleted() {
-        return this.meetingCompleted == 1;
+        return this.meetingCompleted == true;
     }
 
     /**
      * 모든 설정 완료 여부
      */
     public boolean isAllCompleted() {
-        return toolCompleted == 1 && ruleCompleted == 1 && meetingCompleted == 1;
+        return toolCompleted == true && ruleCompleted == true && meetingCompleted == true;
     }
 
     /**

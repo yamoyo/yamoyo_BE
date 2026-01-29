@@ -1,6 +1,7 @@
 package com.yamoyo.be.domain.collabtool.entity;
 
 import com.yamoyo.be.domain.teamroom.entity.TeamRoom;
+import com.yamoyo.be.domain.collabtool.entity.enums.ApprovalStatus;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -36,8 +37,9 @@ public class ToolProposal {
      * 승인 상태
      * tinyint(1): 0(PENDING), 1(APPROVED), 2(REJECTED)
      */
-    @Column(name = "is_approval", nullable = false, columnDefinition = "TINYINT")
-    private Integer isApproval;
+    @Enumerated(EnumType.ORDINAL)
+    @Column(name = "is_approval", nullable = false)
+    private ApprovalStatus isApproval;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
@@ -59,7 +61,7 @@ public class ToolProposal {
         proposal.categoryId = categoryId;
         proposal.toolId = toolId;
         proposal.requestedBy = requestedBy;
-        proposal.isApproval = 0;  // PENDING
+        proposal.isApproval = ApprovalStatus.PENDING;
         return proposal;
     }
 
@@ -68,7 +70,7 @@ public class ToolProposal {
      * @param isApproved true: 승인, false: 반려
      */
     public void updateApprovalStatus(boolean isApproved) {
-        this.isApproval = isApproved ? 1 : 2;
+        this.isApproval = isApproved ? ApprovalStatus.APPROVED : ApprovalStatus.REJECTED;
         this.decidedAt = LocalDateTime.now();
     }
 
@@ -76,6 +78,6 @@ public class ToolProposal {
      * 승인 대기 중인지 확인
      */
     public boolean isPending() {
-        return this.isApproval == 0;
+        return this.isApproval == ApprovalStatus.PENDING;
     }
 }
