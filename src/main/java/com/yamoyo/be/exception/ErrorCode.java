@@ -62,8 +62,12 @@ public enum ErrorCode {
     MEETING_INVALID_DELETE_SCOPE(HttpStatus.BAD_REQUEST, "일회성 회의에는 해당 삭제 범위를 사용할 수 없습니다."),
     MEETING_DURATION_OUT_OF_RANGE(HttpStatus.BAD_REQUEST, "회의 시간은 30분 이상 240분(4시간) 이하여야 합니다."),
 
-    // Team Rule
+    // Team Rule & Collaboration Tool
     RULE_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 규칙을 찾을 수 없습니다."),
+    TOOL_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 협업툴을 찾을 수 없습니다."),
+    ALREADY_VOTED(HttpStatus.BAD_REQUEST, "이미 투표를 완료했습니다."),
+    PROPOSAL_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 제안을 찾을 수 없습니다."),
+
 
     // Server
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 내부 오류입니다.");
