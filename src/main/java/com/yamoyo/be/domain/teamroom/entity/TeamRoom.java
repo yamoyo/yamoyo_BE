@@ -77,6 +77,11 @@ public class TeamRoom {
         if(this.lifecycle == Lifecycle.DELETED){
             throw new IllegalStateException("이미 삭제된 팀룸입니다.");
         }
+        // 아카이빙 된 팀룸은 삭제 불가
+        if (this.lifecycle == Lifecycle.ARCHIVED) {
+            throw new IllegalStateException("아카이빙된 팀룸은 삭제할 수 없습니다");
+        }
+
         this.lifecycle = Lifecycle.DELETED;
     }
 
@@ -85,7 +90,7 @@ public class TeamRoom {
      */
     public void archive() {
         if (this.lifecycle != Lifecycle.ACTIVE) {
-            throw new IllegalStateException("활성 상태에서만 아카이빙 가능합니다");
+            throw new IllegalStateException("진행 중인 팀룸에서만 아카이빙 가능합니다");
         }
         this.lifecycle = Lifecycle.ARCHIVED;
     }
@@ -94,6 +99,11 @@ public class TeamRoom {
      * 팀룸 정보 수정 (제목, 설명)
      */
     public void update(String title, String description, LocalDateTime deadline, Long bannerImageId) {
+        // 아카이빙된 팀룸은 수정 불가
+        if (this.lifecycle == Lifecycle.ARCHIVED) {
+            throw new IllegalStateException("아카이빙된 팀룸은 수정할 수 없습니다");
+        }
+
         // 제목 수정
         if (title != null && !title.isBlank()) {
             this.title = title;
