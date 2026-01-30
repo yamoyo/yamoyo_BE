@@ -73,7 +73,13 @@ public class SecurityConfig {
         "/api/auth/refresh",
 
         // 시스템 관리 (Health Check)
-        "/api/actuator/health"
+        "/api/actuator/health",
+
+        // WebSocket 엔드포인트
+        "/ws/**",
+
+        // 테스트 페이지
+        "/test/**"
     };
 
     /**

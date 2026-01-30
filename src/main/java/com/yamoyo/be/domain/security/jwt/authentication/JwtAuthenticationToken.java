@@ -99,4 +99,18 @@ public class JwtAuthenticationToken extends AbstractAuthenticationToken {
     public JwtTokenClaims getJwtClaims() {
         return (JwtTokenClaims) this.principal;
     }
+
+    /**
+     * convertAndSendToUser에서 사용하는 사용자 식별자 반환
+     * - Spring WebSocket의 User Destination 기능에서 Principal.getName()을 사용
+     *
+     * @return userId를 문자열로 반환
+     */
+    @Override
+    public String getName() {
+        if (principal instanceof JwtTokenClaims claims) {
+            return claims.userId().toString();
+        }
+        return super.getName();
+    }
 }
