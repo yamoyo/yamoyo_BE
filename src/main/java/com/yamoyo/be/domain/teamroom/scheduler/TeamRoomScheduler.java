@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -33,13 +34,15 @@ public class TeamRoomScheduler {
     public void archiveExpiredTeamRooms() {
         log.info("=== 팀룸 아카이빙 스케줄러 시작 ===");
 
-        // 오늘 날짜 기준으로 조회
-        LocalDate today = LocalDate.now();
+        // 오늘 - 7일 계산 (00:00:00 기준)
+        LocalDateTime archiveThreshold = LocalDate.now()
+                .minusDays(7)
+                .atStartOfDay();
 
-        // 아카이빙 대상 조회 (deadline + 7일이 지난 팀룸)
+        // 아카이빙 대상 조회
         List<TeamRoom> teamRoomsToArchive = teamRoomRepository.findByLifecycleAndDeadlineBefore(
                 Lifecycle.ACTIVE,
-                today
+                archiveThreshold
         );
 
         if (teamRoomsToArchive.isEmpty()) {
