@@ -4,7 +4,6 @@ import com.yamoyo.be.domain.collabtool.service.ToolService;
 import com.yamoyo.be.domain.rule.service.RuleService;
 import com.yamoyo.be.domain.teamroom.entity.TeamRoomSetup;
 import com.yamoyo.be.domain.teamroom.repository.TeamRoomSetupRepository;
-import com.yamoyo.be.exception.YamoyoException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -50,9 +49,9 @@ public class SetupScheduler {
                     toolService.confirmTools(teamRoomId);
                     setup.completeToolSetup();
                 }
-            } catch (YamoyoException e) {
-                log.error("협업툴 확정 실패 - teamRoomId: {}, errorCode: {}",
-                        teamRoomId, e.getErrorCode(), e);
+            } catch (Exception e) {
+                log.error("협업툴 확정 실패 - teamRoomId: {}",
+                        teamRoomId, e);
             }
 
             try {
@@ -61,9 +60,9 @@ public class SetupScheduler {
                     ruleService.confirmRules(teamRoomId);
                     setup.completeRuleSetup();
                 }
-            } catch (YamoyoException e) {
-                log.error("규칙 확정 실패 - teamRoomId: {}, errorCode: {}",
-                        teamRoomId, e.getErrorCode(), e);
+            } catch (Exception e) {
+                log.error("규칙 확정 실패 - teamRoomId: {}",
+                        teamRoomId, e);
             }
 
             // ===== 정기회의는 추후 추가 =====
@@ -73,11 +72,21 @@ public class SetupScheduler {
             //         meetingService.confirmMeeting(teamRoomId);
             //         setup.completeMeetingSetup();
             //     }
-            // } catch (YamoyoException e) {
-            //     log.error("정기회의 확정 실패 - teamRoomId: {}, errorCode: {}",
-            //         teamRoomId, e.getErrorCode(), e);
+            // } catch (Exception e) {
+            //     log.error("정기회의 확정 실패 - teamRoomId: {}",
+            //         teamRoomId, e);
             // }
-                    }
+
+            // 모든 설정이 완료되면 TeamRoom의 workflow를 COMPLETED로 변경
+            if (setup.isAllCompleted()) {
+                try {
+                    setup.getTeamRoom().completeSetup();
+                    log.info("팀룸 Setup 완료 처리 - teamRoomId: {}", teamRoomId);
+                } catch (Exception e) {
+                    log.error("팀룸 Setup 완료 처리 실패 - teamRoomId: {}", teamRoomId, e);
+                }
+            }
+        }
 
         log.info("만료된 Setup 처리 완료");
     }

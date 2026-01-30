@@ -119,11 +119,4 @@ public class TeamRoomSetup {
     public boolean isAllCompleted() {
         return toolCompleted && ruleCompleted && meetingCompleted;
     }
-
-    /**
-     * 마감 시각 지났는지 확인
-     */
-    public boolean isExpired() {
-        return LocalDateTime.now().isAfter(deadline);
-    }
 }
