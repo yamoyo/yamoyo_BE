@@ -1,5 +1,6 @@
 package com.yamoyo.be.event.listener;
 
+import com.yamoyo.be.domain.leadergame.service.LeaderGameService;
 import com.yamoyo.be.domain.leadergame.service.UserStatusService;
 import com.yamoyo.be.domain.security.jwt.JwtTokenClaims;
 import com.yamoyo.be.domain.user.dto.response.UserStatusResponse;
@@ -25,6 +26,7 @@ public class WebSocketEventListener {
     private final SimpMessagingTemplate messagingTemplate;
     private final UserRepository userRepository;
     private final UserStatusService userStatusService;
+    private final LeaderGameService leaderGameService;
 
     private static final String USER_STATUS_CHANGE = "USER_STATUS_CHANGE";
     private static final String ONLINE = "ONLINE";
@@ -75,6 +77,13 @@ public class WebSocketEventListener {
 
             // Redis에서 온라인 상태 제거
             userStatusService.removeUserOffline(roomId, userId);
+
+            // 게임 상태에서 접속자 제거 (비정상 종료 시에도 게임 상태 정리)
+            try {
+                leaderGameService.handleLeave(roomId, userId);
+            } catch (Exception e) {
+                log.warn("Failed to handle leave for user {} in room {}: {}", userId, roomId, e.getMessage());
+            }
 
             // 같은 방 사람들에게 이 사람 오프라인인지 브로드캐스트
             UserStatusResponse userStatusResponse = new UserStatusResponse(USER_STATUS_CHANGE, userId, null, OFFLINE);
