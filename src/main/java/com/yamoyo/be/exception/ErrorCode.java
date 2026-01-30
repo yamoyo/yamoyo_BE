@@ -28,6 +28,7 @@ public enum ErrorCode {
     TIMEPICK_NOT_OPEN(HttpStatus.BAD_REQUEST, "타임픽이 진행 중이 아닙니다."),
     TIMEPICK_AVAILABILITY_ALREADY_SUBMITTED(HttpStatus.BAD_REQUEST, "이미 가용시간을 제출했습니다."),
     TIMEPICK_PREFERRED_BLOCK_ALREADY_SUBMITTED(HttpStatus.BAD_REQUEST, "이미 선호시간대를 제출했습니다."),
+    TIMEPICK_ALREADY_FINALIZED(HttpStatus.BAD_REQUEST, "이미 마감된 타임픽입니다."),
 
     // TeamRoom
     INVALID_DEADLINE(HttpStatus.BAD_REQUEST, "마감일은 현재 날짜 +1일 이후여야 합니다."),
@@ -35,6 +36,7 @@ public enum ErrorCode {
     INVITE_INVALID(HttpStatus.GONE, "만료되거나 유효하지 않은 초대링크입니다."),
     TEAMROOM_JOIN_FORBIDDEN(HttpStatus.FORBIDDEN, "팀룸 입장이 불가합니다."),
     TEAMROOM_FULL(HttpStatus.BAD_REQUEST, "이미 꽉 찬 팀룸입니다."),
+    SETUP_NOT_FOUND(HttpStatus.NOT_FOUND, "팀룸 설정 정보를 찾을 수 없습니다."),
 
     // TeamMember
     NOT_TEAM_MEMBER(HttpStatus.FORBIDDEN, "팀룸의 팀원이 아닙니다."),
@@ -57,6 +59,29 @@ public enum ErrorCode {
     ROOM_NOT_IN_LEADER_SELECTION(HttpStatus.BAD_REQUEST, "팀장 선출 단계가 아닙니다."),
     ROOM_NOT_JOINABLE(HttpStatus.BAD_REQUEST, "현재 팀룸에 입장할 수 없는 상태입니다."),
     ALREADY_VOLUNTEER(HttpStatus.BAD_REQUEST, "이미 투표했습니다."),
+
+    // Meeting
+    MEETING_NOT_FOUND(HttpStatus.NOT_FOUND, "회의를 찾을 수 없습니다."),
+    MEETING_INVALID_START_TIME(HttpStatus.BAD_REQUEST, "시작 시간은 30분 단위여야 합니다."),
+    MEETING_INVALID_DURATION(HttpStatus.BAD_REQUEST, "회의 시간은 30분 단위여야 합니다."),
+    MEETING_PURPLE_COLOR_FORBIDDEN(HttpStatus.BAD_REQUEST, "PURPLE 색상은 정기 회의 전용입니다."),
+    MEETING_PARTICIPANT_NOT_TEAM_MEMBER(HttpStatus.BAD_REQUEST, "참석자 중 팀원이 아닌 사용자가 있습니다."),
+    MEETING_INVALID_YEAR_MONTH_PARAMETER(HttpStatus.BAD_REQUEST, "year와 month는 둘 다 입력해야 합니다."),
+    MEETING_EDIT_FORBIDDEN(HttpStatus.FORBIDDEN, "회의 수정 권한이 없습니다."),
+    MEETING_COLOR_CHANGE_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "최초 정기회의의 색상은 변경할 수 없습니다."),
+    MEETING_INVALID_UPDATE_SCOPE(HttpStatus.BAD_REQUEST, "일회성 회의에는 해당 수정 범위를 사용할 수 없습니다."),
+    MEETING_SINGLE_SCOPE_REQUIRES_DATE(HttpStatus.BAD_REQUEST, "단일 회의 수정 시 날짜(date)는 필수입니다."),
+    MEETING_FUTURE_SCOPE_REQUIRES_DAY_OF_WEEK(HttpStatus.BAD_REQUEST, "이후 회의 수정 시 요일(dayOfWeek)은 필수입니다."),
+    MEETING_DELETE_FORBIDDEN(HttpStatus.FORBIDDEN, "회의 삭제 권한이 없습니다."),
+    MEETING_INVALID_DELETE_SCOPE(HttpStatus.BAD_REQUEST, "일회성 회의에는 해당 삭제 범위를 사용할 수 없습니다."),
+    MEETING_DURATION_OUT_OF_RANGE(HttpStatus.BAD_REQUEST, "회의 시간은 30분 이상 240분(4시간) 이하여야 합니다."),
+
+    // Team Rule & Collaboration Tool
+    RULE_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 규칙을 찾을 수 없습니다."),
+    TOOL_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 협업툴을 찾을 수 없습니다."),
+    ALREADY_VOTED(HttpStatus.BAD_REQUEST, "이미 투표를 완료했습니다."),
+    PROPOSAL_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 제안을 찾을 수 없습니다."),
+
 
     // Server
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 내부 오류입니다.");

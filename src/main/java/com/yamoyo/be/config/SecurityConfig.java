@@ -80,6 +80,12 @@ public class SecurityConfig {
 
         // 테스트 페이지
         "/test/**"
+        "/api/actuator/health",
+
+        // Swagger UI
+        "/swagger-ui.html",
+        "/swagger-ui/**",
+        "/v3/api-docs/**"
     };
 
     /**
