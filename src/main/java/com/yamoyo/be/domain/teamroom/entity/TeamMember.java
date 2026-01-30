@@ -112,10 +112,4 @@ public class TeamMember {
         this.teamRole = TeamRole.LEADER;
     }
 
-    /**
-     * 방장 여부 확인
-     */
-    public boolean isHost() {
-        return this.teamRole == TeamRole.HOST;
-    }
 }

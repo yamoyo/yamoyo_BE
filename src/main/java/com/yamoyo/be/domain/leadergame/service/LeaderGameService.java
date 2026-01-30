@@ -115,7 +115,7 @@ public class LeaderGameService {
 
         TeamMember host = teamMemberRepository.findByTeamRoomIdAndUserId(roomId, userId)
                 .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
-        if (!host.isHost()) {
+        if (!host.hasManagementAuthority()) {
             throw new YamoyoException(ErrorCode.NOT_ROOM_HOST);
         }
 
@@ -233,7 +233,7 @@ public class LeaderGameService {
 
         TeamMember host = teamMemberRepository.findByTeamRoomIdAndUserId(roomId, userId)
                 .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
-        if (!host.isHost()) {
+        if (!host.hasManagementAuthority()) {
             throw new YamoyoException(ErrorCode.NOT_ROOM_HOST);
         }
 
@@ -273,7 +273,7 @@ public class LeaderGameService {
 
         TeamMember host = teamMemberRepository.findByTeamRoomIdAndUserId(roomId, userId)
                 .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
-        if (!host.isHost()) {
+        if (!host.hasManagementAuthority()) {
             throw new YamoyoException(ErrorCode.NOT_ROOM_HOST);
         }
 

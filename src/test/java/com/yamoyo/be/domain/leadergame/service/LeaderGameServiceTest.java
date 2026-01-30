@@ -94,7 +94,7 @@ class LeaderGameServiceTest {
         given(member.getTeamRoom()).willReturn(teamRoom);
         given(member.getUser()).willReturn(user);
         given(member.getTeamRole()).willReturn(role);
-        given(member.isHost()).willReturn(role == TeamRole.HOST);
+        given(member.hasManagementAuthority()).willReturn(role == TeamRole.HOST);
 
         return member;
     }

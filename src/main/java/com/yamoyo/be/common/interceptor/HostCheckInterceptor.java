@@ -67,7 +67,7 @@ public class HostCheckInterceptor implements HandlerInterceptor {
         TeamMember member = teamMemberRepository.findByTeamRoomIdAndUserId(roomId, userId)
                 .orElse(null);
 
-        if (member == null || !member.isHost()) {
+        if (member == null || !member.hasManagementAuthority()) {
             log.warn("방장 권한 없음 - UserId: {}, RoomId: {}", userId, roomId);
 
             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
