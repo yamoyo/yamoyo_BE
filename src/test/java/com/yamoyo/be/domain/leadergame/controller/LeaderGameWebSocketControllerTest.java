@@ -164,7 +164,7 @@ class LeaderGameWebSocketControllerTest {
             Long userId = 100L;
             Principal principal = createPrincipal(userId);
 
-            doThrow(new YamoyoException(ErrorCode.ALREADY_VOTED))
+            doThrow(new YamoyoException(ErrorCode.ALREADY_VOLUNTEER))
                     .when(leaderGameService).vote(roomId, userId, true);
 
             // when

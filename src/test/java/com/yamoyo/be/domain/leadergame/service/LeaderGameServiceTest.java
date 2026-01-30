@@ -15,7 +15,6 @@ import com.yamoyo.be.domain.teamroom.repository.TeamRoomRepository;
 import com.yamoyo.be.domain.user.entity.User;
 import com.yamoyo.be.exception.ErrorCode;
 import com.yamoyo.be.exception.YamoyoException;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -487,7 +486,7 @@ class LeaderGameServiceTest {
             assertThatThrownBy(() -> leaderGameService.vote(roomId, userId, true))
                     .isInstanceOf(YamoyoException.class)
                     .satisfies(e -> assertThat(((YamoyoException) e).getErrorCode())
-                            .isEqualTo(ErrorCode.ALREADY_VOTED));
+                            .isEqualTo(ErrorCode.ALREADY_VOLUNTEER));
         }
 
         @Test

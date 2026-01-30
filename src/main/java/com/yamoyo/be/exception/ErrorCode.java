@@ -56,7 +56,7 @@ public enum ErrorCode {
     TIMING_ALREADY_STOPPED(HttpStatus.BAD_REQUEST, "이미 타이밍을 기록했습니다."),
     ROOM_NOT_IN_LEADER_SELECTION(HttpStatus.BAD_REQUEST, "팀장 선출 단계가 아닙니다."),
     ROOM_NOT_JOINABLE(HttpStatus.BAD_REQUEST, "현재 팀룸에 입장할 수 없는 상태입니다."),
-    ALREADY_VOTED(HttpStatus.BAD_REQUEST, "이미 투표했습니다."),
+    ALREADY_VOLUNTEER(HttpStatus.BAD_REQUEST, "이미 투표했습니다."),
 
     // Server
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 내부 오류입니다.");

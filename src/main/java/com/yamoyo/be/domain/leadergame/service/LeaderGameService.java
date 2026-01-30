@@ -167,7 +167,7 @@ public class LeaderGameService {
                 .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
 
         if (redisService.hasVoted(roomId, userId)) {
-            throw new YamoyoException(ErrorCode.ALREADY_VOTED);
+            throw new YamoyoException(ErrorCode.ALREADY_VOLUNTEER);
         }
 
         // 투표 완료 기록
