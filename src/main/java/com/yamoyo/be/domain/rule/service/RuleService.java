@@ -86,11 +86,19 @@ public class RuleService {
 
         // 5. 전원 투표 완료 체크
         long totalMembers = teamMemberRepository.countByTeamRoomId(teamRoomId);
-        long votedMembers = memberRuleVoteRepository.countDistinctMembersByTeamRoom(teamRoomId);
+        long totalRules = ruleTemplateRepository.count();
 
-        log.info("투표 현황 - 전체: {}, 투표완료: {}", totalMembers, votedMembers);
+        // 모든 투표 조회
+        List<MemberRuleVote> allVotes = memberRuleVoteRepository.findByTeamRoomId(teamRoomId);
 
-        if (totalMembers == votedMembers) {
+        // 예상 투표 수 = 전체 팀원 수 * 전체 규칙 수
+        long expectedVotes = totalMembers * totalRules;
+        long actualVotes = allVotes.size();
+
+        log.info("투표 현황 - 전체 팀원: {}, 전체 규칙: {}, 예상 투표 수: {}, 실제 투표 수: {}",
+                totalMembers, totalRules, expectedVotes, actualVotes);
+
+        if (expectedVotes == actualVotes) {
             log.info("전원 투표 완료 - 규칙 자동 확정");
             confirmRules(teamRoomId);
         }
@@ -155,7 +163,6 @@ public class RuleService {
     /**
      * 규칙 확정 처리
      * - 과반수 이상 동의한 규칙을 팀 규칙으로 확정
-     * - 동률 시 팀장 투표에 우선순위 부여
      */
     @Transactional
     public void confirmRules(Long teamRoomId) {
@@ -165,33 +172,28 @@ public class RuleService {
         TeamRoom teamRoom = teamRoomRepository.findById(teamRoomId)
                 .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
 
-        // 2. 모든 투표 조회
-        List<MemberRuleVote> allVotes = memberRuleVoteRepository.findByTeamRoomId(teamRoomId);
+        // 2. 투표한 팀원 수 계산
+        long votedMembers = memberRuleVoteRepository.countDistinctMembersByTeamRoom(teamRoomId);
 
-        // 3. 투표한 팀원 수 계산
-        long votedMembers = allVotes.stream()
-                .map(vote -> vote.getMember().getId())
-                .distinct()
-                .count();
-
-        // 4. 과반수 = 투표한 사람 기준
+        // 3. 과반수 기준
         long majorityThreshold = (votedMembers / 2) + 1;
 
-        // 5. 규칙별 동의 득표 수 집계
-        Map<Long, Long> agreeCountByRule = allVotes.stream()
-                .filter(MemberRuleVote::getIsAgree)
-                .collect(Collectors.groupingBy(
-                        vote -> vote.getRuleTemplate().getId(),
-                        Collectors.counting()
+        // 4. DB에서 규칙별 동의 득표 수 집계
+        List<Object[]> agreeCountResults = memberRuleVoteRepository.countAgreeVotesByRule(teamRoomId);
+
+        Map<Long, Long> agreeCountByRule = agreeCountResults.stream()
+                .collect(Collectors.toMap(
+                        row -> (Long) row[0],  // ruleId
+                        row -> (Long) row[1]   // count
                 ));
 
-        // 6. 과반수 이상 득표한 규칙 필터링
+        // 5. 과반수 이상 득표한 규칙 필터링
         List<Long> confirmedRuleIds = agreeCountByRule.entrySet().stream()
                 .filter(entry -> entry.getValue() >= majorityThreshold)
                 .map(Map.Entry::getKey)
                 .toList();
 
-        // 7. 팀 규칙으로 저장
+        // 6. 팀 규칙으로 저장
         for (Long ruleId : confirmedRuleIds) {
             RuleTemplate template = ruleTemplateRepository.findById(ruleId)
                     .orElseThrow(() -> new YamoyoException(ErrorCode.RULE_NOT_FOUND));
@@ -202,10 +204,11 @@ public class RuleService {
             log.info("규칙 확정 - ruleId: {}, content: {}", ruleId, template.getContent());
         }
 
-        // Setup 상태 업데이트
+        // 7. Setup 상태 업데이트
         TeamRoomSetup setup = setupRepository.findByTeamRoomId(teamRoomId)
                 .orElseThrow(() -> new YamoyoException(ErrorCode.SETUP_NOT_FOUND));
         setup.completeRuleSetup();
+
         log.info("규칙 확정 완료 - 총 {}개 규칙 확정", confirmedRuleIds.size());
     }
 

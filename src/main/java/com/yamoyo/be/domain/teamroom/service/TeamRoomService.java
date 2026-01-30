@@ -53,7 +53,7 @@ public class TeamRoomService {
         log.info("팀룸 생성 시작 사용자 userId: {}", userId);
 
         // 마감일 검증 (현재 시간 +1일 이후)
-        if (request.deadline().isBefore(LocalDateTime.now().plusDays(1))) {
+        if (request.deadline().toLocalDate().isBefore(LocalDateTime.now().plusDays(1).toLocalDate())) {
             throw new YamoyoException(ErrorCode.INVALID_DEADLINE);
         }
 
@@ -288,7 +288,7 @@ public class TeamRoomService {
         }
 
         // 3. 마감일 검증
-        if (request.deadline().isBefore(LocalDateTime.now().plusDays(1))) {
+        if (request.deadline().toLocalDate().isBefore(LocalDateTime.now().plusDays(1).toLocalDate())) {
             throw new YamoyoException(ErrorCode.INVALID_DEADLINE);
         }
 
