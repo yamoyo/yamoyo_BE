@@ -17,6 +17,8 @@ public enum ErrorCode {
 
     // Auth
     INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "유효하지 않은 Refresh Token입니다."),
+    INVALID_ACCESSTOKEN(HttpStatus.UNAUTHORIZED, "유효하지 않은 Access Token입니다."),
+    UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "인증되지 않은 사용자입니다."),
     BAD_REQUEST(HttpStatus.BAD_REQUEST, "잘못된 요청입니다."),
 
     // Timepick
@@ -44,6 +46,17 @@ public enum ErrorCode {
     CANNOT_KICK_SELF(HttpStatus.BAD_REQUEST, "자기 자신을 강퇴할 수 없습니다."),
     CANNOT_KICK_MANAGER(HttpStatus.BAD_REQUEST, "관리자는 강퇴할 수 없습니다."),
     BANNED_MEMBER(HttpStatus.FORBIDDEN, "해당 팀룸에서 강퇴된 사용자입니다."),
+
+    // LeaderGame
+    GAME_NOT_FOUND(HttpStatus.NOT_FOUND, "게임을 찾을 수 없습니다."),
+    GAME_ALREADY_IN_PROGRESS(HttpStatus.CONFLICT, "이미 게임이 진행 중입니다."),
+    NOT_ALL_MEMBERS_CONNECTED(HttpStatus.BAD_REQUEST, "모든 멤버가 접속하지 않았습니다."),
+    NOT_ROOM_HOST(HttpStatus.FORBIDDEN, "방장만 수행할 수 있습니다."),
+    INVALID_GAME_PHASE(HttpStatus.BAD_REQUEST, "현재 단계에서는 수행할 수 없는 동작입니다."),
+    TIMING_ALREADY_STOPPED(HttpStatus.BAD_REQUEST, "이미 타이밍을 기록했습니다."),
+    ROOM_NOT_IN_LEADER_SELECTION(HttpStatus.BAD_REQUEST, "팀장 선출 단계가 아닙니다."),
+    ROOM_NOT_JOINABLE(HttpStatus.BAD_REQUEST, "현재 팀룸에 입장할 수 없는 상태입니다."),
+    ALREADY_VOTED(HttpStatus.BAD_REQUEST, "이미 투표했습니다."),
 
     // Server
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 내부 오류입니다.");
