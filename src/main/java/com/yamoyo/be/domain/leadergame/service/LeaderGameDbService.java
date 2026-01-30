@@ -1,0 +1,53 @@
+package com.yamoyo.be.domain.leadergame.service;
+
+import com.yamoyo.be.domain.teamroom.entity.TeamMember;
+import com.yamoyo.be.domain.teamroom.entity.TeamRoom;
+import com.yamoyo.be.domain.teamroom.entity.enums.TeamRole;
+import com.yamoyo.be.domain.teamroom.repository.TeamMemberRepository;
+import com.yamoyo.be.domain.teamroom.repository.TeamRoomRepository;
+import com.yamoyo.be.exception.ErrorCode;
+import com.yamoyo.be.exception.YamoyoException;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+@RequiredArgsConstructor
+public class LeaderGameDbService {
+
+    private final TeamRoomRepository teamRoomRepository;
+    private final TeamMemberRepository teamMemberRepository;
+
+    /**
+     * 팀장 선출 결과를 DB에 반영
+     * - 당첨자를 LEADER로 승격
+     * - 기존 HOST를 MEMBER로 강등
+     * - TeamRoom workflow를 SETUP으로 전환
+     */
+    @Transactional
+    public void applyLeaderResult(Long roomId, Long winnerId) {
+        // 당첨자를 LEADER로 승격
+        TeamMember winner = teamMemberRepository.findByTeamRoomIdAndUserId(roomId, winnerId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_MEMBER_NOT_FOUND));
+        winner.promoteToLeader();
+
+        // HOST를 MEMBER로 강등
+        teamMemberRepository.findByTeamRoomIdAndTeamRole(roomId, TeamRole.HOST)
+                .ifPresent(TeamMember::demoteToMember);
+
+        // TeamRoom 상태 변경
+        TeamRoom teamRoom = teamRoomRepository.findById(roomId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
+        teamRoom.completeLeaderSelection();
+    }
+
+    /**
+     * 게임 시작 시 TeamRoom workflow를 LEADER_SELECTION으로 전환
+     */
+    @Transactional
+    public void startLeaderSelection(Long roomId) {
+        TeamRoom teamRoom = teamRoomRepository.findById(roomId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
+        teamRoom.startLeaderSelection();
+    }
+}
