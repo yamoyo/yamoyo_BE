@@ -8,10 +8,12 @@ import com.yamoyo.be.domain.teamroom.entity.enums.Workflow;
 import com.yamoyo.be.domain.teamroom.repository.BannedTeamMemberRepository;
 import com.yamoyo.be.domain.teamroom.repository.TeamMemberRepository;
 import com.yamoyo.be.domain.teamroom.repository.TeamRoomRepository;
+import com.yamoyo.be.event.event.MemberRemovedEvent;
 import com.yamoyo.be.exception.ErrorCode;
 import com.yamoyo.be.exception.YamoyoException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +29,9 @@ public class TeamMemberService {
     private final TeamRoomRepository teamRoomRepository;
     private final TeamMemberRepository teamMemberRepository;
     private final BannedTeamMemberRepository bannedTeamMemberRepository;
+
+    // 실시간 상태 업데이트를 위한 EventPublisher
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 팀룸 나가기
@@ -70,6 +75,15 @@ public class TeamMemberService {
         teamMemberRepository.delete(member);
         log.info("관리자 나가기 완료 - 권한 위임됨 - memberId: {}, role: {}",
                 member.getId(), member.getTeamRole());
+
+        // 팀룸 나가기 이벤트 발행
+        if(teamRoom.getWorkflow() == Workflow.PENDING) {
+            eventPublisher.publishEvent(new MemberRemovedEvent(
+                    teamRoomId,
+                    userId,
+                    "LEAVE"));
+        }
+
     }
 
     /**
@@ -125,6 +139,14 @@ public class TeamMemberService {
         // 7. 팀원 삭제
         teamMemberRepository.delete(target);
         log.info("팀원 강퇴 완료 - targetMemberId: {}", targetMemberId);
+
+        // 이벤트 발행
+        if(teamRoom.getWorkflow() == Workflow.PENDING) {
+            eventPublisher.publishEvent(new MemberRemovedEvent(
+                    teamRoomId,
+                    target.getUser().getId(),
+                    "KICK"));
+        }
     }
 
     /**

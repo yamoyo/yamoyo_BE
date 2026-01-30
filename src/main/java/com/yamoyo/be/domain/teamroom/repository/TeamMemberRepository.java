@@ -64,4 +64,9 @@ public interface TeamMemberRepository extends JpaRepository<TeamMember,Long> {
      */
     Optional<TeamMember> findByTeamRoomIdAndTeamRole(Long teamRoomId, TeamRole teamRole);
 
+    /**
+     * 팀룸에 유저 존재하는지 조회
+     */
+    boolean existsByTeamRoomIdAndUserId(Long teamRoomId, Long userId);
+
 }

@@ -75,6 +75,13 @@ public class SecurityConfig {
         // 시스템 관리 (Health Check)
         "/api/actuator/health",
 
+        // WebSocket 엔드포인트
+        "/ws/**",
+
+        // 테스트 페이지
+        "/test/**",
+        "/api/actuator/health",
+
         // Swagger UI
         "/swagger-ui.html",
         "/swagger-ui/**",
