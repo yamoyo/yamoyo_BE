@@ -79,7 +79,7 @@ public class SecurityConfig {
         "/ws/**",
 
         // 테스트 페이지
-        "/test/**"
+        "/test/**",
         "/api/actuator/health",
 
         // Swagger UI
