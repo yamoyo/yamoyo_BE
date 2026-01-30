@@ -129,11 +129,21 @@ public class TeamRoom {
     }
 
     /**
+     * 팀장 선출 완료 → SETUP 단계로 이동
+     */
+    public void completeLeaderSelection() {
+        if (this.workflow != Workflow.LEADER_SELECTION) {
+            throw new IllegalStateException("팀장 정하기 진행 중이 아닙니다");
+        }
+        this.workflow = Workflow.SETUP;
+    }
+
+    /**
      * 셋업 완료 (규칙/정기회의 확정 후)
      */
     public void completeSetup() {
-        if (this.workflow != Workflow.LEADER_SELECTION) {
-            throw new IllegalStateException("팀장 정하기가 완료되지 않았습니다");
+        if (this.workflow != Workflow.SETUP) {
+            throw new IllegalStateException("셋업 단계에서만 완료할 수 있습니다");
         }
         this.workflow = Workflow.COMPLETED;
     }

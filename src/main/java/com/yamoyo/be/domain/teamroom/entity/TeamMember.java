@@ -94,4 +94,28 @@ public class TeamMember {
     public boolean hasManagementAuthority(){
         return this.teamRole == TeamRole.HOST || this.teamRole == TeamRole.LEADER;
     }
+
+    /**
+     * HOST → MEMBER 강등 (팀장 선출 완료 후)
+     */
+    public void demoteToMember() {
+        if (this.teamRole != TeamRole.HOST) {
+            throw new IllegalStateException("HOST만 MEMBER로 강등할 수 있습니다");
+        }
+        this.teamRole = TeamRole.MEMBER;
+    }
+
+    /**
+     * MEMBER → LEADER 승격 (팀장 당첨)
+     */
+    public void promoteToLeader() {
+        this.teamRole = TeamRole.LEADER;
+    }
+
+    /**
+     * 방장 여부 확인
+     */
+    public boolean isHost() {
+        return this.teamRole == TeamRole.HOST;
+    }
 }
