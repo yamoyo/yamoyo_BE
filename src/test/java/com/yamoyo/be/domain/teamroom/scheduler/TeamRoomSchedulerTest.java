@@ -11,7 +11,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
 
@@ -46,7 +46,7 @@ class TeamRoomSchedulerTest {
             // then
             then(teamRoomRepository).should().findByLifecycleAndDeadlineBefore(
                     eq(Lifecycle.ACTIVE),
-                    any(LocalDateTime.class)
+                    any(LocalDate.class)
             );
         }
 
@@ -66,7 +66,7 @@ class TeamRoomSchedulerTest {
             // then
             then(teamRoomRepository).should().findByLifecycleAndDeadlineBefore(
                     eq(Lifecycle.ACTIVE),
-                    any(LocalDateTime.class)
+                    any(LocalDate.class)
             );
             then(teamRoom).should().archive();
         }
