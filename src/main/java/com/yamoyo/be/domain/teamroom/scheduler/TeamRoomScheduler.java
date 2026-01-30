@@ -22,6 +22,8 @@ public class TeamRoomScheduler {
 
     private final TeamRoomRepository teamRoomRepository;
 
+    private static final int ARCHIVE_DELAY_DAYS = 7;
+
     /**
      * 매일 자정 실행 - 아카이빙 처리
      * deadline + 7일이 지난 ACTIVE 팀룸을 ARCHIVED로 변경
@@ -32,7 +34,7 @@ public class TeamRoomScheduler {
         log.info("=== 팀룸 아카이빙 스케줄러 시작 ===");
 
         // deadline + 7일이 지난 시점 계산
-        LocalDateTime archiveThreshold = LocalDateTime.now().minusDays(7);
+        LocalDateTime archiveThreshold = LocalDateTime.now().minusDays(ARCHIVE_DELAY_DAYS);
 
         // 아카이빙 대상 조회
         List<TeamRoom> teamRoomsToArchive = teamRoomRepository.findByLifecycleAndDeadlineBefore(
