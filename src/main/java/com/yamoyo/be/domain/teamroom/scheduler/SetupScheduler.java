@@ -1,9 +1,14 @@
 package com.yamoyo.be.domain.teamroom.scheduler;
 
 import com.yamoyo.be.domain.collabtool.service.ToolService;
+import com.yamoyo.be.domain.meeting.entity.Timepick;
+import com.yamoyo.be.domain.meeting.repository.TimepickRepository;
+import com.yamoyo.be.domain.meeting.service.TimepickService;
 import com.yamoyo.be.domain.rule.service.RuleService;
 import com.yamoyo.be.domain.teamroom.entity.TeamRoomSetup;
 import com.yamoyo.be.domain.teamroom.repository.TeamRoomSetupRepository;
+import com.yamoyo.be.exception.ErrorCode;
+import com.yamoyo.be.exception.YamoyoException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -21,6 +26,8 @@ public class SetupScheduler {
     private final TeamRoomSetupRepository setupRepository;
     private final ToolService toolService;
     private final RuleService ruleService;
+    private final TimepickService timepickService;
+    private final TimepickRepository timepickRepository;
 
     /**
      * 1분마다 만료된 Setup 확인 및 자동 확정 처리
@@ -65,17 +72,20 @@ public class SetupScheduler {
                         teamRoomId, e);
             }
 
-            // ===== 정기회의는 추후 추가 =====
-            // TODO : 정기 회의 자동 확정 처리 로직
-            // try {
-            //     if (!setup.isMeetingCompleted()) {
-            //         meetingService.confirmMeeting(teamRoomId);
-            //         setup.completeMeetingSetup();
-            //     }
-            // } catch (Exception e) {
-            //     log.error("정기회의 확정 실패 - teamRoomId: {}",
-            //         teamRoomId, e);
-            // }
+            // 정기회의 미확정 시 처리
+            try {
+                if (!setup.isMeetingCompleted()) {
+                    Timepick timepick = timepickRepository.findByTeamRoomId(teamRoomId)
+                            .orElseThrow(() -> new YamoyoException(ErrorCode.TIMEPICK_NOT_FOUND));
+
+                    if (!timepick.isFinalized()) {
+                        timepickService.finalizeTimepick(timepick.getId());
+                    }
+                    setup.completeMeetingSetup();
+                }
+            } catch (Exception e) {
+                log.error("정기회의 확정 실패 - teamRoomId: {}", teamRoomId, e);
+            }
 
             // 모든 설정이 완료되면 TeamRoom의 workflow를 COMPLETED로 변경
             if (setup.isAllCompleted()) {
