@@ -69,18 +69,18 @@ public class RuleService {
                 .ifPresentOrElse(
                         // 이미 투표한 경우 → 수정
                         existingVote -> {
-                            existingVote.updateAgreement(request.toBoolean());
+                            existingVote.updateAgreement(request.agreement());
                             log.info("기존 투표 수정 - voteId: {}, isAgree: {}",
-                                    existingVote.getId(), request.toBoolean());
+                                    existingVote.getId(), request.agreement());
                         },
                         // 첫 투표인 경우 → 생성
                         () -> {
                             MemberRuleVote newVote = MemberRuleVote.create(
-                                    member, teamRoom, ruleTemplate, request.toBoolean()
+                                    member, teamRoom, ruleTemplate, request.agreement()
                             );
                             memberRuleVoteRepository.save(newVote);
                             log.info("새 투표 생성 - memberId: {}, ruleId: {}, isAgree: {}",
-                                    member.getId(), request.ruleId(), request.toBoolean());
+                                    member.getId(), request.ruleId(), request.agreement());
                         }
                 );
 

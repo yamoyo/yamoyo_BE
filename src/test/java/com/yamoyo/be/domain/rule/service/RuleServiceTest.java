@@ -12,7 +12,6 @@ import com.yamoyo.be.domain.rule.repository.RuleTemplateRepository;
 import com.yamoyo.be.domain.rule.repository.TeamRuleRepository;
 import com.yamoyo.be.domain.teamroom.entity.TeamMember;
 import com.yamoyo.be.domain.teamroom.entity.TeamRoom;
-import com.yamoyo.be.domain.teamroom.entity.enums.TeamRole;
 import com.yamoyo.be.domain.teamroom.repository.TeamMemberRepository;
 import com.yamoyo.be.domain.teamroom.repository.TeamRoomRepository;
 import com.yamoyo.be.domain.user.entity.User;
@@ -66,7 +65,7 @@ class RuleServiceTest {
             Long teamRoomId = 1L;
             Long userId = 1L;
             Long ruleId = 1L;
-            RuleVoteRequest request = new RuleVoteRequest(ruleId, 1);
+            RuleVoteRequest request = new RuleVoteRequest(ruleId, true);
 
             TeamRoom teamRoom = mock(TeamRoom.class);
             User user = mock(User.class);
@@ -81,7 +80,7 @@ class RuleServiceTest {
             given(memberRuleVoteRepository.findByMemberIdAndRuleTemplateId(1L, ruleId))
                     .willReturn(Optional.empty());
             given(teamMemberRepository.countByTeamRoomId(teamRoomId)).willReturn(5L);
-            given(memberRuleVoteRepository.countDistinctMembersByTeamRoom(teamRoomId)).willReturn(1L);
+            given(ruleTemplateRepository.count()).willReturn(1L);
 
             // when
             ruleService.submitRuleVote(teamRoomId, request, userId);
@@ -97,7 +96,7 @@ class RuleServiceTest {
             Long teamRoomId = 1L;
             Long userId = 1L;
             Long ruleId = 1L;
-            RuleVoteRequest request = new RuleVoteRequest(ruleId, 0);
+            RuleVoteRequest request = new RuleVoteRequest(ruleId, false);
 
             TeamRoom teamRoom = mock(TeamRoom.class);
             TeamMember member = mock(TeamMember.class);
@@ -113,7 +112,7 @@ class RuleServiceTest {
                     .willReturn(Optional.of(existingVote));
             given(existingVote.getId()).willReturn(1L);
             given(teamMemberRepository.countByTeamRoomId(teamRoomId)).willReturn(5L);
-            given(memberRuleVoteRepository.countDistinctMembersByTeamRoom(teamRoomId)).willReturn(2L);
+            given(ruleTemplateRepository.count()).willReturn(1L);
 
             // when
             ruleService.submitRuleVote(teamRoomId, request, userId);
@@ -129,7 +128,7 @@ class RuleServiceTest {
             // given
             Long teamRoomId = 1L;
             Long userId = 1L;
-            RuleVoteRequest request = new RuleVoteRequest(1L, 1);
+            RuleVoteRequest request = new RuleVoteRequest(1L, true);
 
             given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.empty());
 
@@ -145,7 +144,7 @@ class RuleServiceTest {
             // given
             Long teamRoomId = 1L;
             Long userId = 1L;
-            RuleVoteRequest request = new RuleVoteRequest(1L, 1);
+            RuleVoteRequest request = new RuleVoteRequest(1L, true);
 
             TeamRoom teamRoom = mock(TeamRoom.class);
 
@@ -166,7 +165,7 @@ class RuleServiceTest {
             Long teamRoomId = 1L;
             Long userId = 1L;
             Long ruleId = 999L;
-            RuleVoteRequest request = new RuleVoteRequest(ruleId, 1);
+            RuleVoteRequest request = new RuleVoteRequest(ruleId, true);
 
             TeamRoom teamRoom = mock(TeamRoom.class);
             TeamMember member = mock(TeamMember.class);
@@ -282,7 +281,7 @@ class RuleServiceTest {
 
             // then
             assertThat(response.teamRules()).hasSize(2);
-            assertThat(response.teamRules().get(0).content()).isEqualTo("규칙1");
+            assertThat(response.teamRules().getFirst().content()).isEqualTo("규칙1");
         }
     }
 
