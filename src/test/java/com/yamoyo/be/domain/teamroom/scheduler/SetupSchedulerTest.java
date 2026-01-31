@@ -68,6 +68,7 @@ class SetupSchedulerTest {
             given(teamRoom.getId()).willReturn(1L);
             given(setup.isToolCompleted()).willReturn(false);
             given(setup.isRuleCompleted()).willReturn(false);
+            given(setup.isMeetingCompleted()).willReturn(true);
 
             // when
             setupScheduler.processExpiredSetups();
@@ -91,6 +92,7 @@ class SetupSchedulerTest {
             given(teamRoom.getId()).willReturn(1L);
             given(setup.isToolCompleted()).willReturn(false);
             given(setup.isRuleCompleted()).willReturn(true);
+            given(setup.isMeetingCompleted()).willReturn(true);
 
             // when
             setupScheduler.processExpiredSetups();
@@ -114,6 +116,7 @@ class SetupSchedulerTest {
             given(teamRoom.getId()).willReturn(1L);
             given(setup.isToolCompleted()).willReturn(true);
             given(setup.isRuleCompleted()).willReturn(false);
+            given(setup.isMeetingCompleted()).willReturn(true);
 
             // when
             setupScheduler.processExpiredSetups();
@@ -137,6 +140,7 @@ class SetupSchedulerTest {
             given(teamRoom.getId()).willReturn(1L);
             given(setup.isToolCompleted()).willReturn(true);
             given(setup.isRuleCompleted()).willReturn(true);
+            given(setup.isMeetingCompleted()).willReturn(true);
 
             // when
             setupScheduler.processExpiredSetups();
@@ -160,6 +164,7 @@ class SetupSchedulerTest {
             given(teamRoom.getId()).willReturn(1L);
             given(setup.isToolCompleted()).willReturn(false);
             given(setup.isRuleCompleted()).willReturn(false);
+            given(setup.isMeetingCompleted()).willReturn(true);
             willThrow(new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND))
                     .given(toolService).confirmTools(1L);
 
@@ -185,6 +190,7 @@ class SetupSchedulerTest {
             given(teamRoom.getId()).willReturn(1L);
             given(setup.isToolCompleted()).willReturn(false);
             given(setup.isRuleCompleted()).willReturn(false);
+            given(setup.isMeetingCompleted()).willReturn(true);
             willThrow(new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND))
                     .given(ruleService).confirmRules(1L);
 
@@ -210,6 +216,7 @@ class SetupSchedulerTest {
             given(teamRoom.getId()).willReturn(1L);
             given(setup.isToolCompleted()).willReturn(false);
             given(setup.isRuleCompleted()).willReturn(false);
+            given(setup.isMeetingCompleted()).willReturn(true);
             willThrow(new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND))
                     .given(toolService).confirmTools(1L);
             willThrow(new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND))
@@ -242,12 +249,14 @@ class SetupSchedulerTest {
             given(teamRoom1.getId()).willReturn(1L);
             given(setup1.isToolCompleted()).willReturn(false);
             given(setup1.isRuleCompleted()).willReturn(false);
+            given(setup1.isMeetingCompleted()).willReturn(true);
 
             // Setup 2
             given(setup2.getTeamRoom()).willReturn(teamRoom2);
             given(teamRoom2.getId()).willReturn(2L);
             given(setup2.isToolCompleted()).willReturn(false);
             given(setup2.isRuleCompleted()).willReturn(true);
+            given(setup2.isMeetingCompleted()).willReturn(true);
 
             // when
             setupScheduler.processExpiredSetups();

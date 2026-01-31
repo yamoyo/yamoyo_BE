@@ -1,5 +1,6 @@
 package com.yamoyo.be.domain.leadergame.service;
 
+import com.yamoyo.be.domain.meeting.service.TimepickService;
 import com.yamoyo.be.domain.teamroom.entity.TeamMember;
 import com.yamoyo.be.domain.teamroom.entity.TeamRoom;
 import com.yamoyo.be.domain.teamroom.entity.enums.TeamRole;
@@ -17,6 +18,7 @@ public class LeaderGameDbService {
 
     private final TeamRoomRepository teamRoomRepository;
     private final TeamMemberRepository teamMemberRepository;
+    private final TimepickService timepickService;
 
     /**
      * 팀장 선출 결과를 DB에 반영
@@ -39,6 +41,9 @@ public class LeaderGameDbService {
         TeamRoom teamRoom = teamRoomRepository.findById(roomId)
                 .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
         teamRoom.completeLeaderSelection();
+
+        // 타임픽 자동 생성
+        timepickService.createTimepick(roomId);
     }
 
     /**

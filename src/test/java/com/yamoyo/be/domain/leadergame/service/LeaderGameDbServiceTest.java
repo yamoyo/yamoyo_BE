@@ -1,5 +1,6 @@
 package com.yamoyo.be.domain.leadergame.service;
 
+import com.yamoyo.be.domain.meeting.service.TimepickService;
 import com.yamoyo.be.domain.teamroom.entity.TeamMember;
 import com.yamoyo.be.domain.teamroom.entity.TeamRoom;
 import com.yamoyo.be.domain.teamroom.entity.enums.TeamRole;
@@ -34,6 +35,9 @@ class LeaderGameDbServiceTest {
 
     @Mock
     private TeamMemberRepository teamMemberRepository;
+
+    @Mock
+    private TimepickService timepickService;
 
     @InjectMocks
     private LeaderGameDbService leaderGameDbService;
@@ -79,6 +83,7 @@ class LeaderGameDbServiceTest {
             verify(winner).promoteToLeader();
             verify(host).demoteToMember();
             verify(teamRoom).completeLeaderSelection();
+            verify(timepickService).createTimepick(roomId);
         }
 
         @Test
@@ -103,6 +108,7 @@ class LeaderGameDbServiceTest {
             // then
             verify(winner).promoteToLeader();
             verify(teamRoom).completeLeaderSelection();
+            verify(timepickService).createTimepick(roomId);
         }
 
         @Test
@@ -167,6 +173,7 @@ class LeaderGameDbServiceTest {
             verify(hostWinner).promoteToLeader();
             verify(hostWinner).demoteToMember();
             verify(teamRoom).completeLeaderSelection();
+            verify(timepickService).createTimepick(roomId);
         }
     }
 
