@@ -74,19 +74,17 @@ public class SetupScheduler {
 
             // 정기회의 미확정 시 처리
             try {
-                if (setup.isMeetingCompleted()) {
-                    continue;
-                }
-                Timepick timepick = timepickRepository.findByTeamRoomId(teamRoomId)
-                        .orElseThrow(() -> new YamoyoException(ErrorCode.TIMEPICK_NOT_FOUND));
+                if (!setup.isMeetingCompleted()) {
+                    Timepick timepick = timepickRepository.findByTeamRoomId(teamRoomId)
+                            .orElseThrow(() -> new YamoyoException(ErrorCode.TIMEPICK_NOT_FOUND));
 
-                if (!timepick.isFinalized()) {
-                    timepickService.finalizeTimepick(timepick.getId());
+                    if (!timepick.isFinalized()) {
+                        timepickService.finalizeTimepick(timepick.getId());
+                    }
+                    setup.completeMeetingSetup();
                 }
-                setup.completeMeetingSetup();
             } catch (Exception e) {
-                log.error("규칙 확정 실패 - teamRoomId: {}",
-                        teamRoomId, e);
+                log.error("정기회의 확정 실패 - teamRoomId: {}", teamRoomId, e);
             }
 
             // 모든 설정이 완료되면 TeamRoom의 workflow를 COMPLETED로 변경
