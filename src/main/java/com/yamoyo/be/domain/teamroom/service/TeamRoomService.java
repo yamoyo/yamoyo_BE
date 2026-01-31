@@ -39,6 +39,7 @@ public class TeamRoomService {
     private final InviteTokenService inviteTokenService;
 
     private static final long TOKEN_EXPIRATION_SECONDS = 86400L; // 24시간
+    private static final int MAX_MEMBER_COUNT = 12; // 정원 12명
 
     /**
      * 팀룸 생성 로직
@@ -64,7 +65,7 @@ public class TeamRoomService {
         TeamRoom teamRoom = TeamRoom.builder()
                 .title(request.title())
                 .description(request.description())
-                .deadline(request.deadline())
+                .deadline(deadline)
                 .bannerImageId(request.bannerImageId())
                 .build();
         teamRoomRepository.save(teamRoom);
@@ -155,7 +156,7 @@ public class TeamRoomService {
 
         // 5. 정원 체크
         long count = teamMemberRepository.countByTeamRoomId(teamRoomId);
-        if (count >= 12) throw new YamoyoException(ErrorCode.TEAMROOM_FULL);
+        if (count >= MAX_MEMBER_COUNT) throw new YamoyoException(ErrorCode.TEAMROOM_FULL);
 
         //  6. 밴 여부 확인
         if (bannedTeamMemberRepository.existsByTeamRoomIdAndUserId(teamRoomId, userId)) {
@@ -181,6 +182,8 @@ public class TeamRoomService {
 
     /**
      * 팀룸 목록 조회 (진행중/완료 구분)
+     *
+     * @param userId 사용자 ID
      * @param lifecycle 라이프사이클 (ACTIVE: 진행중, ARCHIVED: 완료)
      * @return 팀룸 목록
      */
@@ -222,7 +225,7 @@ public class TeamRoomService {
      * 팀룸 상세 조회
      *
      * @param teamRoomId 조회할 팀룸 ID
-     * @param userId     요청자 ID (권한 체크용)
+     * @param userId 요청자 ID (권한 체크용)
      * @return 팀룸 상세 정보
      */
     public TeamRoomDetailResponse getTeamRoomDetail(Long teamRoomId, Long userId) {
@@ -289,7 +292,7 @@ public class TeamRoomService {
         validateDeadline(deadline);
 
         // 4. 전체 수정
-        teamRoom.update(request.title(), request.description(), request.deadline(), request.bannerImageId());
+        teamRoom.update(request.title(), request.description(), deadline, request.bannerImageId());
 
         log.info("팀룸 수정 완료 - teamRoomId: {}", teamRoomId);
     }
