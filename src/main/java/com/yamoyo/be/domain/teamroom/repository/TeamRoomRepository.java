@@ -11,8 +11,7 @@ public interface TeamRoomRepository extends JpaRepository<TeamRoom,Long> {
 
     /**
      * 아카이빙 대상 팀룸 조회
-     * - lifecycle = ACTIVE
-     * - deadline + 7일이 지난 팀룸
+     * - deadline이 기준일보다 이전인 팀룸
      */
-    List<TeamRoom> findByLifecycleAndDeadlineBefore(Lifecycle lifecycle, LocalDateTime deadline);
+    List<TeamRoom> findByLifecycleAndDeadlineBefore(Lifecycle lifecycle, LocalDateTime threshold);
 }

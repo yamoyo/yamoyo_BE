@@ -9,6 +9,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -33,8 +34,10 @@ public class TeamRoomScheduler {
     public void archiveExpiredTeamRooms() {
         log.info("=== 팀룸 아카이빙 스케줄러 시작 ===");
 
-        // deadline + 7일이 지난 시점 계산
-        LocalDateTime archiveThreshold = LocalDateTime.now().minusDays(ARCHIVE_DELAY_DAYS);
+        // 오늘 - 7일 계산 (00:00:00 기준)
+        LocalDateTime archiveThreshold = LocalDate.now()
+                .minusDays(7)
+                .atStartOfDay();
 
         // 아카이빙 대상 조회
         List<TeamRoom> teamRoomsToArchive = teamRoomRepository.findByLifecycleAndDeadlineBefore(

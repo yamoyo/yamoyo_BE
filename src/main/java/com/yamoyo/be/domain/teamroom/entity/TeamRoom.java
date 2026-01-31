@@ -116,8 +116,8 @@ public class TeamRoom {
 
         // 마감일 수정
         if (deadline != null) {
-            if (deadline.isBefore(LocalDateTime.now())) {
-                throw new IllegalArgumentException("과거 날짜로 설정할 수 없습니다");
+            if (deadline.toLocalDate().isBefore(LocalDateTime.now().plusDays(1).toLocalDate())) {
+                throw new IllegalArgumentException("마감일은 내일 이후로 설정해야 합니다.");
             }
             this.deadline = deadline;
         }

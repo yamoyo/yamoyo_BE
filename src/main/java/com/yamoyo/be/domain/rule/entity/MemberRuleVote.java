@@ -42,15 +42,15 @@ public class MemberRuleVote {
     @JoinColumn(name = "rule_id", nullable = false)
     private RuleTemplate ruleTemplate;
 
-    @Column(name = "is_agree")
-    private Boolean isAgree;  // true: 동의, false: 비동의
+    @Column(name = "is_agree", nullable = false)
+    private boolean isAgree;  // true: 동의, false: 비동의
 
     // 정적 팩토리 메서드
     public static MemberRuleVote create(
             TeamMember member,
             TeamRoom teamRoom,
             RuleTemplate ruleTemplate,
-            Boolean isAgree
+            boolean isAgree
     ) {
         MemberRuleVote vote = new MemberRuleVote();
         vote.member = member;
@@ -61,7 +61,7 @@ public class MemberRuleVote {
     }
 
     /** 투표 수정 */
-    public void updateAgreement(Boolean isAgree) {
+    public void updateAgreement(boolean isAgree) {
         this.isAgree = isAgree;
     }
 }
