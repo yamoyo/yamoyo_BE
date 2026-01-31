@@ -19,6 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
@@ -41,7 +42,6 @@ public class TeamRoomService {
 
     /**
      * 팀룸 생성 로직
-     *
      * 마감일 검증 후 팀룸 생성 처리 시작
      * - 유저 정보와 팀룸 입력값으로 팀룸 객체 생성
      * - 생성자를 방장으로 등록 (HOST)
@@ -53,9 +53,8 @@ public class TeamRoomService {
         log.info("팀룸 생성 시작 사용자 userId: {}", userId);
 
         // 마감일 검증 (현재 시간 +1일 이후)
-        if (request.deadline().toLocalDate().isBefore(LocalDateTime.now().plusDays(1).toLocalDate())) {
-            throw new YamoyoException(ErrorCode.INVALID_DEADLINE);
-        }
+        LocalDateTime deadline = normalizeDeadline(request.deadline());
+        validateDeadline(deadline);
 
         // 1. user 정보
         User user = userRepository.findById(userId)
@@ -132,15 +131,15 @@ public class TeamRoomService {
         // 2. 팀룸 조회 (ACTIVE 상태만)
         TeamRoom teamRoom = teamRoomRepository.findById(teamRoomId)
                 .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
-        if(teamRoom.getLifecycle() != Lifecycle.ACTIVE){
+        if (teamRoom.getLifecycle() != Lifecycle.ACTIVE) {
             throw new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND);
         }
 
         log.info("팀룸 정보 확인. teamRoomId: {}, title : {}", teamRoomId, teamRoom.getTitle());
 
         // 3. 팀룸 작업 상황에 따른 입장 처리
-        if(teamRoom.getWorkflow() == Workflow.LEADER_SELECTION
-                || teamRoom.getWorkflow() == Workflow.SETUP){
+        if (teamRoom.getWorkflow() == Workflow.LEADER_SELECTION
+                || teamRoom.getWorkflow() == Workflow.SETUP) {
             throw new YamoyoException(ErrorCode.TEAMROOM_JOIN_FORBIDDEN);
         }
 
@@ -156,7 +155,7 @@ public class TeamRoomService {
 
         // 5. 정원 체크
         long count = teamMemberRepository.countByTeamRoomId(teamRoomId);
-        if(count >= 12) throw new YamoyoException(ErrorCode.TEAMROOM_FULL);
+        if (count >= 12) throw new YamoyoException(ErrorCode.TEAMROOM_FULL);
 
         //  6. 밴 여부 확인
         if (bannedTeamMemberRepository.existsByTeamRoomIdAndUserId(teamRoomId, userId)) {
@@ -182,8 +181,6 @@ public class TeamRoomService {
 
     /**
      * 팀룸 목록 조회 (진행중/완료 구분)
-     * 
-     * @param userId 사용자 ID
      * @param lifecycle 라이프사이클 (ACTIVE: 진행중, ARCHIVED: 완료)
      * @return 팀룸 목록
      */
@@ -225,7 +222,7 @@ public class TeamRoomService {
      * 팀룸 상세 조회
      *
      * @param teamRoomId 조회할 팀룸 ID
-     * @param userId 요청자 ID (권한 체크용)
+     * @param userId     요청자 ID (권한 체크용)
      * @return 팀룸 상세 정보
      */
     public TeamRoomDetailResponse getTeamRoomDetail(Long teamRoomId, Long userId) {
@@ -288,9 +285,8 @@ public class TeamRoomService {
         }
 
         // 3. 마감일 검증
-        if (request.deadline().toLocalDate().isBefore(LocalDateTime.now().plusDays(1).toLocalDate())) {
-            throw new YamoyoException(ErrorCode.INVALID_DEADLINE);
-        }
+        LocalDateTime deadline = normalizeDeadline(request.deadline());
+        validateDeadline(deadline);
 
         // 4. 전체 수정
         teamRoom.update(request.title(), request.description(), request.deadline(), request.bannerImageId());
@@ -321,4 +317,23 @@ public class TeamRoomService {
 
         log.info("팀룸 삭제 완료 - teamRoomId: {}", teamRoomId);
     }
+
+    /**
+     * 마감일을 해당 날짜의 23:59:59로 보정
+     */
+    private LocalDateTime normalizeDeadline(LocalDateTime datetime) {
+        return datetime.toLocalDate().atTime(23, 59, 59);
+    }
+
+    /**
+     * 마감일 유효성 검증 메서드
+     * - 마감일은 내일부터 설정 가능 (날짜 기준)
+     */
+    private void validateDeadline(LocalDateTime deadline) {
+        LocalDate minDate = LocalDate.now().plusDays(1);
+        if (deadline.toLocalDate().isBefore(minDate)) {
+            throw new YamoyoException(ErrorCode.INVALID_DEADLINE);
+        }
+    }
+
 }
