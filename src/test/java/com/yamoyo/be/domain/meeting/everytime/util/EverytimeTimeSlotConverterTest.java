@@ -47,42 +47,48 @@ class EverytimeTimeSlotConverterTest {
     }
 
     @Nested
-    @DisplayName("toSlotIndex() - 경계값만 테스트")
+    @DisplayName("toSlotIndex() - 08:00 기준 경계값 테스트")
     class ToSlotIndexTest {
 
         @Test
-        @DisplayName("29분은 슬롯 0 (30분 경계 직전)")
-        void minute29_slot0() {
-            assertThat(EverytimeTimeSlotConverter.toSlotIndex(29)).isEqualTo(0);
+        @DisplayName("479분(07:59)은 -1 (범위 미만)")
+        void minute479_outOfRange() {
+            assertThat(EverytimeTimeSlotConverter.toSlotIndex(479)).isEqualTo(-1);
         }
 
         @Test
-        @DisplayName("30분은 슬롯 1 (30분 경계)")
-        void minute30_slot1() {
-            assertThat(EverytimeTimeSlotConverter.toSlotIndex(30)).isEqualTo(1);
+        @DisplayName("480분(08:00)은 슬롯 0")
+        void minute480_slot0() {
+            assertThat(EverytimeTimeSlotConverter.toSlotIndex(480)).isEqualTo(0);
         }
 
         @Test
-        @DisplayName("959분은 슬롯 31 (최대 유효 슬롯)")
-        void minute959_slot31() {
-            assertThat(EverytimeTimeSlotConverter.toSlotIndex(959)).isEqualTo(31);
+        @DisplayName("509분(08:29)은 슬롯 0")
+        void minute509_slot0() {
+            assertThat(EverytimeTimeSlotConverter.toSlotIndex(509)).isEqualTo(0);
         }
 
         @Test
-        @DisplayName("960분은 -1 (범위 초과)")
-        void minute960_outOfRange() {
-            assertThat(EverytimeTimeSlotConverter.toSlotIndex(960)).isEqualTo(-1);
+        @DisplayName("510분(08:30)은 슬롯 1")
+        void minute510_slot1() {
+            assertThat(EverytimeTimeSlotConverter.toSlotIndex(510)).isEqualTo(1);
         }
 
         @Test
-        @DisplayName("-1분은 -1 (음수)")
-        void negativeMinute_outOfRange() {
-            assertThat(EverytimeTimeSlotConverter.toSlotIndex(-1)).isEqualTo(-1);
+        @DisplayName("1439분(23:59)은 슬롯 31")
+        void minute1439_slot31() {
+            assertThat(EverytimeTimeSlotConverter.toSlotIndex(1439)).isEqualTo(31);
+        }
+
+        @Test
+        @DisplayName("1440분(24:00)은 -1 (범위 초과)")
+        void minute1440_outOfRange() {
+            assertThat(EverytimeTimeSlotConverter.toSlotIndex(1440)).isEqualTo(-1);
         }
     }
 
     @Nested
-    @DisplayName("markBusy() - 슬롯 경계 처리 핵심 케이스")
+    @DisplayName("markBusy() - 08:00 기준 슬롯 경계 처리 핵심 케이스")
     class MarkBusyTest {
 
         private boolean[] createAllTrueSlots() {
@@ -98,13 +104,13 @@ class EverytimeTimeSlotConverterTest {
         void endInMiddleOfSlot_marksSlotBusy() {
             boolean[] slots = createAllTrueSlots();
 
-            // 09:30~10:10 수업
+            // 09:30~10:10 수업 (570분~610분)
             EverytimeTimeSlotConverter.markBusy(slots, 570, 610);
 
-            assertThat(slots[18]).isTrue();   // 09:00~09:30 가능
-            assertThat(slots[19]).isFalse();  // 09:30~10:00 불가 (수업 시작)
-            assertThat(slots[20]).isFalse();  // 10:00~10:30 불가 (10:10에 끝나므로 슬롯 차지)
-            assertThat(slots[21]).isTrue();   // 10:30~11:00 가능
+            assertThat(slots[2]).isTrue();   // 09:00~09:30 가능
+            assertThat(slots[3]).isFalse();  // 09:30~10:00 불가 (수업 시작)
+            assertThat(slots[4]).isFalse();  // 10:00~10:30 불가 (10:10에 끝나므로 슬롯 차지)
+            assertThat(slots[5]).isTrue();   // 10:30~11:00 가능
         }
 
         @Test
@@ -112,12 +118,12 @@ class EverytimeTimeSlotConverterTest {
         void endExactlyAtBoundary_nextSlotAvailable() {
             boolean[] slots = createAllTrueSlots();
 
-            // 09:30~10:00 수업
+            // 09:30~10:00 수업 (570분~600분)
             EverytimeTimeSlotConverter.markBusy(slots, 570, 600);
 
-            assertThat(slots[18]).isTrue();   // 09:00~09:30 가능
-            assertThat(slots[19]).isFalse();  // 09:30~10:00 불가
-            assertThat(slots[20]).isTrue();   // 10:00~10:30 가능 (경계에서 끝남)
+            assertThat(slots[2]).isTrue();   // 09:00~09:30 가능
+            assertThat(slots[3]).isFalse();  // 09:30~10:00 불가
+            assertThat(slots[4]).isTrue();   // 10:00~10:30 가능 (경계에서 끝남)
         }
 
         @Test
@@ -125,13 +131,13 @@ class EverytimeTimeSlotConverterTest {
         void startInMiddleOfSlot_marksSlotBusy() {
             boolean[] slots = createAllTrueSlots();
 
-            // 10:10~10:40 수업
+            // 10:10~10:40 수업 (610분~640분)
             EverytimeTimeSlotConverter.markBusy(slots, 610, 640);
 
-            assertThat(slots[19]).isTrue();   // 09:30~10:00 가능
-            assertThat(slots[20]).isFalse();  // 10:00~10:30 불가 (10:10에 시작)
-            assertThat(slots[21]).isFalse();  // 10:30~11:00 불가 (10:40에 끝남)
-            assertThat(slots[22]).isTrue();   // 11:00~11:30 가능
+            assertThat(slots[3]).isTrue();   // 09:30~10:00 가능
+            assertThat(slots[4]).isFalse();  // 10:00~10:30 불가 (10:10에 시작)
+            assertThat(slots[5]).isFalse();  // 10:30~11:00 불가 (10:40에 끝남)
+            assertThat(slots[6]).isTrue();   // 11:00~11:30 가능
         }
 
         @Test
@@ -139,12 +145,12 @@ class EverytimeTimeSlotConverterTest {
         void startExactlyAtBoundary_previousSlotAvailable() {
             boolean[] slots = createAllTrueSlots();
 
-            // 10:00~10:30 수업
+            // 10:00~10:30 수업 (600분~630분)
             EverytimeTimeSlotConverter.markBusy(slots, 600, 630);
 
-            assertThat(slots[19]).isTrue();   // 09:30~10:00 가능 (경계에서 시작)
-            assertThat(slots[20]).isFalse();  // 10:00~10:30 불가
-            assertThat(slots[21]).isTrue();   // 10:30~11:00 가능
+            assertThat(slots[3]).isTrue();   // 09:30~10:00 가능 (경계에서 시작)
+            assertThat(slots[4]).isFalse();  // 10:00~10:30 불가
+            assertThat(slots[5]).isTrue();   // 10:30~11:00 가능
         }
 
         @Test
@@ -152,12 +158,12 @@ class EverytimeTimeSlotConverterTest {
         void oneMinuteClass_marksOnlyOneSlot() {
             boolean[] slots = createAllTrueSlots();
 
-            // 10:00~10:01 수업
+            // 10:00~10:01 수업 (600분~601분)
             EverytimeTimeSlotConverter.markBusy(slots, 600, 601);
 
-            assertThat(slots[19]).isTrue();   // 09:30~10:00 가능
-            assertThat(slots[20]).isFalse();  // 10:00~10:30 불가
-            assertThat(slots[21]).isTrue();   // 10:30~11:00 가능
+            assertThat(slots[3]).isTrue();   // 09:30~10:00 가능
+            assertThat(slots[4]).isFalse();  // 10:00~10:30 불가
+            assertThat(slots[5]).isTrue();   // 10:30~11:00 가능
         }
 
         @Test
@@ -165,29 +171,30 @@ class EverytimeTimeSlotConverterTest {
         void consecutiveClasses_boundaryHandledCorrectly() {
             boolean[] slots = createAllTrueSlots();
 
-            // 첫 번째 수업: 09:00~10:00
+            // 첫 번째 수업: 09:00~10:00 (540분~600분)
             EverytimeTimeSlotConverter.markBusy(slots, 540, 600);
-            // 두 번째 수업: 10:00~11:00
+            // 두 번째 수업: 10:00~11:00 (600분~660분)
             EverytimeTimeSlotConverter.markBusy(slots, 600, 660);
 
-            assertThat(slots[17]).isTrue();   // 08:30~09:00 가능
-            assertThat(slots[18]).isFalse();  // 09:00~09:30 불가 (첫 수업)
-            assertThat(slots[19]).isFalse();  // 09:30~10:00 불가 (첫 수업)
-            assertThat(slots[20]).isFalse();  // 10:00~10:30 불가 (두번째 수업)
-            assertThat(slots[21]).isFalse();  // 10:30~11:00 불가 (두번째 수업)
-            assertThat(slots[22]).isTrue();   // 11:00~11:30 가능
+            assertThat(slots[1]).isTrue();   // 08:30~09:00 가능
+            assertThat(slots[2]).isFalse();  // 09:00~09:30 불가 (첫 수업)
+            assertThat(slots[3]).isFalse();  // 09:30~10:00 불가 (첫 수업)
+            assertThat(slots[4]).isFalse();  // 10:00~10:30 불가 (두번째 수업)
+            assertThat(slots[5]).isFalse();  // 10:30~11:00 불가 (두번째 수업)
+            assertThat(slots[6]).isTrue();   // 11:00~11:30 가능
         }
 
         @Test
-        @DisplayName("음수 시작 시간은 슬롯 0부터 마킹")
-        void negativeStart_startsFromSlot0() {
+        @DisplayName("08:00 이전 시작 시간은 슬롯 0부터 마킹")
+        void earlyStart_startsFromSlot0() {
             boolean[] slots = createAllTrueSlots();
 
-            EverytimeTimeSlotConverter.markBusy(slots, -30, 60);
+            // 07:00~09:00 수업 (420분~540분)
+            EverytimeTimeSlotConverter.markBusy(slots, 420, 540);
 
-            assertThat(slots[0]).isFalse();
-            assertThat(slots[1]).isFalse();
-            assertThat(slots[2]).isTrue();
+            assertThat(slots[0]).isFalse();  // 08:00~08:30 불가
+            assertThat(slots[1]).isFalse();  // 08:30~09:00 불가
+            assertThat(slots[2]).isTrue();   // 09:00~09:30 가능
         }
     }
 
@@ -223,8 +230,8 @@ class EverytimeTimeSlotConverterTest {
         void convertEverytimeClassToSlots() {
             // given: Everytime 수업 - 월요일 09:00~10:30
             int day = 0;
-            int starttime = 108;  // 09:00
-            int endtime = 126;    // 10:30
+            int starttime = 108;  // 09:00 = 540분
+            int endtime = 126;    // 10:30 = 630분
 
             Map<DayOfWeek, boolean[]> availability = EverytimeTimeSlotConverter.createFullAvailabilityMap();
 
@@ -236,13 +243,13 @@ class EverytimeTimeSlotConverterTest {
             boolean[] slots = availability.get(dayOfWeek);
             EverytimeTimeSlotConverter.markBusy(slots, startMinutes, endMinutes);
 
-            // then
+            // then: 08:00 기준으로 슬롯[2]=09:00, 슬롯[3]=09:30, 슬롯[4]=10:00
             assertThat(dayOfWeek).isEqualTo(DayOfWeek.MON);
-            assertThat(slots[17]).isTrue();   // 08:30~09:00 가능
-            assertThat(slots[18]).isFalse();  // 09:00~09:30 불가
-            assertThat(slots[19]).isFalse();  // 09:30~10:00 불가
-            assertThat(slots[20]).isFalse();  // 10:00~10:30 불가
-            assertThat(slots[21]).isTrue();   // 10:30~11:00 가능
+            assertThat(slots[1]).isTrue();   // 08:30~09:00 가능
+            assertThat(slots[2]).isFalse();  // 09:00~09:30 불가
+            assertThat(slots[3]).isFalse();  // 09:30~10:00 불가
+            assertThat(slots[4]).isFalse();  // 10:00~10:30 불가
+            assertThat(slots[5]).isTrue();   // 10:30~11:00 가능
         }
     }
 }

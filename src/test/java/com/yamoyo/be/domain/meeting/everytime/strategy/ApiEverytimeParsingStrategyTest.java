@@ -90,13 +90,13 @@ class ApiEverytimeParsingStrategyTest {
             // when
             Map<DayOfWeek, boolean[]> result = strategy.parse("testuser");
 
-            // then: 월요일 슬롯 18~20이 false (09:00~10:30)
+            // then: 월요일 슬롯 2~4가 false (09:00~10:30, 08:00 기준)
             boolean[] monday = result.get(DayOfWeek.MON);
-            assertThat(monday[17]).isTrue();   // 08:30~09:00 가능
-            assertThat(monday[18]).isFalse();  // 09:00~09:30 불가
-            assertThat(monday[19]).isFalse();  // 09:30~10:00 불가
-            assertThat(monday[20]).isFalse();  // 10:00~10:30 불가
-            assertThat(monday[21]).isTrue();   // 10:30~11:00 가능
+            assertThat(monday[1]).isTrue();   // 08:30~09:00 가능
+            assertThat(monday[2]).isFalse();  // 09:00~09:30 불가
+            assertThat(monday[3]).isFalse();  // 09:30~10:00 불가
+            assertThat(monday[4]).isFalse();  // 10:00~10:30 불가
+            assertThat(monday[5]).isTrue();   // 10:30~11:00 가능
 
             // 다른 요일은 영향 없음
             assertThat(result.get(DayOfWeek.TUE)).containsOnly(true);
@@ -128,9 +128,9 @@ class ApiEverytimeParsingStrategyTest {
             // when
             Map<DayOfWeek, boolean[]> result = strategy.parse("testuser");
 
-            // then: 월요일, 화요일 모두 처리됨
-            assertThat(result.get(DayOfWeek.MON)[18]).isFalse();  // 월 09:00~09:30 불가
-            assertThat(result.get(DayOfWeek.TUE)[28]).isFalse();  // 화 14:00~14:30 불가
+            // then: 월요일, 화요일 모두 처리됨 (08:00 기준)
+            assertThat(result.get(DayOfWeek.MON)[2]).isFalse();   // 월 09:00~09:30 불가 (슬롯2)
+            assertThat(result.get(DayOfWeek.TUE)[12]).isFalse();  // 화 14:00~14:30 불가 (슬롯12)
         }
 
         @Test

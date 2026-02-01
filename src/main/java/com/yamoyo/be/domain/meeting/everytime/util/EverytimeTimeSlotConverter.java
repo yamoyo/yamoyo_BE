@@ -18,7 +18,7 @@ import java.util.Map;
  *
  * <h3>타임픽 슬롯 형식</h3>
  * <ul>
- *   <li>인덱스 0~31: 00:00~15:30 (30분 단위)</li>
+ *   <li>인덱스 0~31: 08:00~24:00 (30분 단위)</li>
  *   <li>true = 가능, false = 수업있음 (불가능)</li>
  * </ul>
  */
@@ -28,6 +28,7 @@ public final class EverytimeTimeSlotConverter {
     private static final int SLOT_COUNT = 32;
     private static final int MINUTES_PER_SLOT = 30;
     private static final int EVERYTIME_TIME_UNIT = 5;
+    private static final int START_HOUR_OFFSET_MINUTES = 480; // 08:00 = 480분
 
     /**
      * Everytime day 값을 DayOfWeek로 변환한다.
@@ -59,14 +60,15 @@ public final class EverytimeTimeSlotConverter {
     /**
      * 분을 슬롯 인덱스로 변환한다.
      *
-     * @param minutes 분 (0~1439)
+     * @param minutes 분 (480~1439, 08:00~23:59)
      * @return 슬롯 인덱스 (0~31, 범위 초과 시 -1)
      */
     public static int toSlotIndex(int minutes) {
-        if (minutes < 0) {
+        int adjustedMinutes = minutes - START_HOUR_OFFSET_MINUTES; // 08:00 기준으로 변환
+        if (adjustedMinutes < 0) {
             return -1;
         }
-        int index = minutes / MINUTES_PER_SLOT;
+        int index = adjustedMinutes / MINUTES_PER_SLOT;
         return (index < SLOT_COUNT) ? index : -1;
     }
 
