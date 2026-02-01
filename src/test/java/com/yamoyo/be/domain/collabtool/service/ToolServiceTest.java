@@ -12,8 +12,10 @@ import com.yamoyo.be.domain.collabtool.repository.TeamToolRepository;
 import com.yamoyo.be.domain.collabtool.repository.ToolProposalRepository;
 import com.yamoyo.be.domain.teamroom.entity.TeamMember;
 import com.yamoyo.be.domain.teamroom.entity.TeamRoom;
+import com.yamoyo.be.domain.teamroom.entity.TeamRoomSetup;
 import com.yamoyo.be.domain.teamroom.repository.TeamMemberRepository;
 import com.yamoyo.be.domain.teamroom.repository.TeamRoomRepository;
+import com.yamoyo.be.domain.teamroom.repository.TeamRoomSetupRepository;
 import com.yamoyo.be.domain.user.entity.User;
 import com.yamoyo.be.domain.user.repository.UserRepository;
 import com.yamoyo.be.exception.ErrorCode;
@@ -58,6 +60,9 @@ class ToolServiceTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private TeamRoomSetupRepository setupRepository;
+
     @Nested
     @DisplayName("협업툴 투표 일괄 제출")
     class SubmitAllToolVotes {
@@ -75,6 +80,8 @@ class ToolServiceTest {
 
             TeamRoom teamRoom = mock(TeamRoom.class);
             TeamMember member = mock(TeamMember.class);
+            TeamRoomSetup setup = mock(TeamRoomSetup.class);
+            given(setupRepository.findByTeamRoomId(teamRoomId)).willReturn(Optional.of(setup));
 
             given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
@@ -86,7 +93,7 @@ class ToolServiceTest {
             toolService.submitAllToolVotes(teamRoomId, userId, request);
 
             // then
-            then(toolVoteRepository).should().saveAll(any(List.class));
+            then(toolVoteRepository).should().saveAll(anyList());
         }
 
         @Test

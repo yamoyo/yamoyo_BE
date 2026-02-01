@@ -9,6 +9,8 @@ import com.yamoyo.be.domain.teamroom.entity.enums.Workflow;
 import com.yamoyo.be.domain.teamroom.repository.BannedTeamMemberRepository;
 import com.yamoyo.be.domain.teamroom.repository.TeamMemberRepository;
 import com.yamoyo.be.domain.teamroom.repository.TeamRoomRepository;
+import com.yamoyo.be.domain.user.entity.User;
+import com.yamoyo.be.event.event.MemberRemovedEvent;
 import com.yamoyo.be.exception.ErrorCode;
 import com.yamoyo.be.exception.YamoyoException;
 import org.junit.jupiter.api.DisplayName;
@@ -20,6 +22,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -47,6 +50,8 @@ class TeamMemberServiceTest {
 
     @InjectMocks
     private TeamMemberService teamMemberService;
+
+    @Mock private ApplicationEventPublisher eventPublisher;
 
     // ==================== 공통 헬퍼 메서드 ====================
 
@@ -128,6 +133,7 @@ class TeamMemberServiceTest {
             // then
             verify(teamMemberRepository).delete(leader);
             verify(member2).changeTeamRole(TeamRole.LEADER); // 권한 위임 확인
+            verify(eventPublisher, times(1)).publishEvent(any(MemberRemovedEvent.class));
         }
 
         @Test
@@ -193,6 +199,10 @@ class TeamMemberServiceTest {
             TeamRoom teamRoom = createMockTeamRoom(teamRoomId, Workflow.PENDING);
             TeamMember kicker = createMockTeamMember(1L, teamRoomId, TeamRole.LEADER);
             TeamMember target = createMockTeamMember(2L, teamRoomId, TeamRole.MEMBER);
+            User targetUser = mock(User.class);
+
+            given(targetUser.getId()).willReturn(200L);
+            given(target.getUser()).willReturn(targetUser);
 
             given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, kickerId))
@@ -208,6 +218,8 @@ class TeamMemberServiceTest {
             verify(teamMemberRepository).findById(targetMemberId);
             verify(bannedTeamMemberRepository).save(any(BannedTeamMember.class));
             verify(teamMemberRepository).delete(target);
+            verify(eventPublisher).publishEvent(any(MemberRemovedEvent.class));
+
         }
 
         @Test
