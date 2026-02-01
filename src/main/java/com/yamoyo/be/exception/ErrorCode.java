@@ -30,6 +30,12 @@ public enum ErrorCode {
     TIMEPICK_PREFERRED_BLOCK_ALREADY_SUBMITTED(HttpStatus.BAD_REQUEST, "이미 선호시간대를 제출했습니다."),
     TIMEPICK_ALREADY_FINALIZED(HttpStatus.BAD_REQUEST, "이미 마감된 타임픽입니다."),
 
+    // Everytime
+    EVERYTIME_INVALID_URL(HttpStatus.BAD_REQUEST, "올바른 에브리타임 URL 형식이 아닙니다."),
+    EVERYTIME_PARSE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "에브리타임 시간표 파싱에 실패했습니다."),
+    EVERYTIME_API_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "에브리타임 API 호출에 실패했습니다."),
+    EVERYTIME_TIMEOUT(HttpStatus.GATEWAY_TIMEOUT, "에브리타임 서버 응답 시간이 초과되었습니다."),
+
     // TeamRoom
     INVALID_DEADLINE(HttpStatus.BAD_REQUEST, "마감일은 현재 날짜 +1일 이후여야 합니다."),
     TEAMROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 팀룸을 찾을 수 없습니다."),
