@@ -2,7 +2,9 @@ package com.yamoyo.be.domain.meeting.service;
 
 import com.yamoyo.be.domain.meeting.dto.request.AvailabilitySubmitRequest;
 import com.yamoyo.be.domain.meeting.dto.request.PreferredBlockSubmitRequest;
+import com.yamoyo.be.domain.meeting.dto.response.AvailabilityResponse;
 import com.yamoyo.be.domain.meeting.dto.response.TimepickResponse;
+import com.yamoyo.be.domain.meeting.everytime.strategy.EverytimeParsingStrategy;
 import com.yamoyo.be.domain.meeting.entity.*;
 import com.yamoyo.be.domain.meeting.entity.enums.DayOfWeek;
 import com.yamoyo.be.domain.meeting.entity.enums.MeetingType;
@@ -27,6 +29,8 @@ import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Service
@@ -37,6 +41,7 @@ public class TimepickService {
     private static final int DEFAULT_DEADLINE_HOURS = 6;
     private static final int DEFAULT_MEETING_DURATION_MINUTES = 60;
     private static final String INITIAL_MEETING_TITLE = "정기회의";
+    private static final Pattern EVERYTIME_URL_PATTERN = Pattern.compile("^https://everytime\\.kr/@([a-zA-Z0-9_]+)$");
 
     private final TimepickRepository timepickRepository;
     private final TimepickParticipantRepository timepickParticipantRepository;
@@ -47,6 +52,7 @@ public class TimepickService {
     private final MeetingSeriesRepository meetingSeriesRepository;
     private final MeetingRepository meetingRepository;
     private final MeetingParticipantRepository meetingParticipantRepository;
+    private final EverytimeParsingStrategy everytimeParsingStrategy;
 
     public TimepickResponse getTimepick(Long teamRoomId, Long userId) {
         Timepick timepick = timepickRepository.findByTeamRoomId(teamRoomId)
@@ -298,5 +304,26 @@ public class TimepickService {
                 .orElseThrow(() -> new YamoyoException(ErrorCode.TIMEPICK_NOT_PARTICIPANT));
 
         return new TimepickSubmissionContext(timepick, participant);
+    }
+
+    /**
+     * 에브리타임 시간표를 파싱하여 가용시간을 반환한다.
+     * DB 저장 없이 파싱 결과만 반환한다.
+     *
+     * @param url 에브리타임 공개 URL (https://everytime.kr/@username)
+     * @return 요일별 가용시간 배열
+     */
+    public AvailabilityResponse parseEverytime(String url) {
+        String identifier = extractEverytimeIdentifier(url);
+        Map<DayOfWeek, boolean[]> availability = everytimeParsingStrategy.parse(identifier);
+        return AvailabilityResponse.from(availability);
+    }
+
+    private String extractEverytimeIdentifier(String url) {
+        Matcher matcher = EVERYTIME_URL_PATTERN.matcher(url);
+        if (!matcher.matches()) {
+            throw new YamoyoException(ErrorCode.EVERYTIME_INVALID_URL);
+        }
+        return matcher.group(1);
     }
 }
