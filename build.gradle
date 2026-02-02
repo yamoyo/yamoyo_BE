@@ -85,6 +85,9 @@ dependencies {
 
     // JUnit 플랫폼 런처
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // Firebase Admin SDK
+    implementation 'com.google.firebase:firebase-admin:9.2.0'
 }
 
 tasks.named('test') {
