@@ -4,6 +4,10 @@ import com.yamoyo.be.common.dto.ApiResponse;
 import com.yamoyo.be.domain.security.jwt.JwtTokenClaims;
 import com.yamoyo.be.domain.user.dto.response.UserResponse;
 import com.yamoyo.be.domain.user.service.UserService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -29,6 +33,7 @@ import org.springframework.web.bind.annotation.*;
  *    - 각 필드별 수정 버튼이 따로 있는 UI에 적합
  *    - null인 필드는 변경하지 않음
  */
+@Tag(name = "User", description = "사용자 프로필 API")
 @Slf4j
 @RestController
 @RequestMapping("/api/users")
@@ -37,6 +42,12 @@ public class UserController {
 
     private final UserService userService;
 
+    @Operation(summary = "내 프로필 조회", description = "현재 로그인한 사용자의 프로필 정보를 조회합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음")
+    })
     @GetMapping("/me")
     public ApiResponse<UserResponse> getMyProfile(
             @AuthenticationPrincipal JwtTokenClaims claims) {
@@ -47,13 +58,19 @@ public class UserController {
         return ApiResponse.success(response);
     }
 
+    @Operation(summary = "프로필 수정", description = "사용자 프로필을 수정합니다. 변경할 필드만 Query Parameter로 전달하면 해당 필드만 수정됩니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "수정 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음")
+    })
     @PutMapping("/me")
     public ApiResponse<UserResponse> updateProfile(
             @AuthenticationPrincipal JwtTokenClaims claims,
-            @RequestParam(required = false) String name,
-            @RequestParam(required = false) String major,
-            @RequestParam(required = false) String mbti,
-            @RequestParam(required = false) Long profileImageId) {
+            @Parameter(description = "변경할 이름") @RequestParam(required = false) String name,
+            @Parameter(description = "변경할 전공") @RequestParam(required = false) String major,
+            @Parameter(description = "변경할 MBTI") @RequestParam(required = false) String mbti,
+            @Parameter(description = "변경할 프로필 이미지 ID") @RequestParam(required = false) Long profileImageId) {
         log.info("PUT /api/users/me - 프로필 수정 요청, UserId: {}", claims.userId());
 
         UserResponse response = userService.updateProfile(

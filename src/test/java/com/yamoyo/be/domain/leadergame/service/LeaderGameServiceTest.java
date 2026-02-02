@@ -6,6 +6,8 @@ import com.yamoyo.be.domain.leadergame.dto.message.JoinPayload;
 import com.yamoyo.be.domain.leadergame.dto.response.VolunteerPhaseResponse;
 import com.yamoyo.be.domain.leadergame.enums.GamePhase;
 import com.yamoyo.be.domain.leadergame.enums.GameType;
+import com.yamoyo.be.domain.notification.entity.NotificationType;
+import com.yamoyo.be.event.event.NotificationEvent;
 import com.yamoyo.be.domain.teamroom.entity.TeamMember;
 import com.yamoyo.be.domain.teamroom.entity.TeamRoom;
 import com.yamoyo.be.domain.teamroom.entity.enums.TeamRole;
@@ -24,8 +26,10 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.TaskScheduler;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.*;
 
@@ -63,6 +67,9 @@ class LeaderGameServiceTest {
 
     @Mock
     private TaskScheduler taskScheduler;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private LeaderGameService leaderGameService;
@@ -508,6 +515,77 @@ class LeaderGameServiceTest {
         }
     }
 
+    // ==================== 지원 단계 종료 테스트 ====================
+
+    @Nested
+    @DisplayName("endVolunteerPhase - 지원 단계 종료")
+    class EndVolunteerPhaseTest {
+
+        @Test
+        @DisplayName("지원자 1명일 때 바로 팀장 확정 및 알림 발행")
+        void endVolunteerPhase_SingleVolunteer_FinishGame() {
+            // given
+            Long roomId = 1L;
+            Long winnerId = 1L;
+            List<GameParticipant> participants = createParticipants(3);
+
+            given(redisService.getVolunteers(roomId)).willReturn(Set.of(winnerId));
+            given(redisService.getParticipants(roomId)).willReturn(participants);
+
+            // when - private 메서드 호출
+            ReflectionTestUtils.invokeMethod(leaderGameService, "endVolunteerPhase", roomId);
+
+            // then
+            verify(redisService).setPhase(roomId, GamePhase.RESULT);
+            verify(redisService).setWinner(roomId, winnerId);
+            verify(dbService).applyLeaderResult(roomId, winnerId);
+            verify(messagingTemplate).convertAndSend(eq("/sub/room/" + roomId), any(Object.class));
+            verify(eventPublisher).publishEvent(argThat((NotificationEvent event) ->
+                    event.teamRoomId().equals(roomId) &&
+                    event.targetId().equals(winnerId) &&
+                    event.type() == NotificationType.TEAM_LEADER_CONFIRM
+            ));
+        }
+
+        @Test
+        @DisplayName("지원자 없을 때 전원을 지원자로 추가 후 GAME_SELECT 단계로")
+        void endVolunteerPhase_NoVolunteers_AddAllAsVolunteers() {
+            // given
+            Long roomId = 1L;
+            List<GameParticipant> participants = createParticipants(3);
+
+            given(redisService.getVolunteers(roomId)).willReturn(new HashSet<>());
+            given(redisService.getParticipants(roomId)).willReturn(participants);
+
+            // when
+            ReflectionTestUtils.invokeMethod(leaderGameService, "endVolunteerPhase", roomId);
+
+            // then
+            verify(redisService, times(3)).addVolunteer(eq(roomId), anyLong());
+            verify(redisService).setPhase(roomId, GamePhase.GAME_SELECT);
+            verify(eventPublisher, never()).publishEvent(any(NotificationEvent.class));
+        }
+
+        @Test
+        @DisplayName("지원자 2명 이상일 때 GAME_SELECT 단계로 전환")
+        void endVolunteerPhase_MultipleVolunteers_GoToGameSelect() {
+            // given
+            Long roomId = 1L;
+            List<GameParticipant> participants = createParticipants(3);
+
+            given(redisService.getVolunteers(roomId)).willReturn(Set.of(1L, 2L));
+            given(redisService.getParticipants(roomId)).willReturn(participants);
+
+            // when
+            ReflectionTestUtils.invokeMethod(leaderGameService, "endVolunteerPhase", roomId);
+
+            // then
+            verify(redisService).setPhase(roomId, GamePhase.GAME_SELECT);
+            verify(dbService, never()).applyLeaderResult(anyLong(), anyLong());
+            verify(eventPublisher, never()).publishEvent(any(NotificationEvent.class));
+        }
+    }
+
     // ==================== 게임 선택 테스트 ====================
 
     @Nested
@@ -520,9 +598,10 @@ class LeaderGameServiceTest {
             // given
             Long roomId = 1L;
             Long hostUserId = 1L;
+            Long winnerId = 1L;
             TeamMember host = createMockTeamMember(1L, roomId, hostUserId, TeamRole.HOST);
             List<GameParticipant> participants = createParticipants(3);
-            GameResultPayload mockResult = GameResultPayload.ladder(1L, "User1", participants, null);
+            GameResultPayload mockResult = GameResultPayload.ladder(winnerId, "User1", participants, null);
 
             given(redisService.getPhase(roomId)).willReturn(GamePhase.GAME_SELECT);
             given(teamMemberRepository.findByTeamRoomIdAndUserId(roomId, hostUserId))
@@ -537,8 +616,13 @@ class LeaderGameServiceTest {
             // then
             verify(redisService).setSelectedGame(roomId, GameType.LADDER);
             verify(ladderGameService).play(anyList());
-            verify(dbService).applyLeaderResult(roomId, 1L);
+            verify(dbService).applyLeaderResult(roomId, winnerId);
             verify(messagingTemplate).convertAndSend(eq("/sub/room/" + roomId), any(Object.class));
+            verify(eventPublisher).publishEvent(argThat((NotificationEvent event) ->
+                    event.teamRoomId().equals(roomId) &&
+                    event.targetId().equals(winnerId) &&
+                    event.type() == NotificationType.TEAM_LEADER_CONFIRM
+            ));
         }
 
         @Test
@@ -547,9 +631,10 @@ class LeaderGameServiceTest {
             // given
             Long roomId = 1L;
             Long hostUserId = 1L;
+            Long winnerId = 2L;
             TeamMember host = createMockTeamMember(1L, roomId, hostUserId, TeamRole.HOST);
             List<GameParticipant> participants = createParticipants(3);
-            GameResultPayload mockResult = GameResultPayload.roulette(2L, "User2", participants, 1);
+            GameResultPayload mockResult = GameResultPayload.roulette(winnerId, "User2", participants, 1);
 
             given(redisService.getPhase(roomId)).willReturn(GamePhase.GAME_SELECT);
             given(teamMemberRepository.findByTeamRoomIdAndUserId(roomId, hostUserId))
@@ -564,7 +649,12 @@ class LeaderGameServiceTest {
             // then
             verify(redisService).setSelectedGame(roomId, GameType.ROULETTE);
             verify(rouletteGameService).play(anyList());
-            verify(dbService).applyLeaderResult(roomId, 2L);
+            verify(dbService).applyLeaderResult(roomId, winnerId);
+            verify(eventPublisher).publishEvent(argThat((NotificationEvent event) ->
+                    event.teamRoomId().equals(roomId) &&
+                    event.targetId().equals(winnerId) &&
+                    event.type() == NotificationType.TEAM_LEADER_CONFIRM
+            ));
         }
 
         @Test
@@ -749,6 +839,7 @@ class LeaderGameServiceTest {
             // given
             Long roomId = 1L;
             Long userId = 2L;
+            Long winnerId = 1L;
             Double timeDifference = 0.5;
             List<GameParticipant> participants = createParticipants(2);
 
@@ -758,7 +849,7 @@ class LeaderGameServiceTest {
             given(redisService.getVolunteers(roomId)).willReturn(Set.of(1L, 2L));
             given(redisService.getParticipants(roomId)).willReturn(participants);
             given(redisService.getTimingRecordCount(roomId)).willReturn(2L);
-            given(redisService.getMaxDifferenceUserId(roomId)).willReturn(1L);
+            given(redisService.getMaxDifferenceUserId(roomId)).willReturn(winnerId);
 
             // when
             leaderGameService.submitTimingResult(roomId, userId, timeDifference);
@@ -766,7 +857,12 @@ class LeaderGameServiceTest {
             // then
             verify(redisService).recordTimingResult(roomId, userId, timeDifference);
             verify(redisService).setPhase(roomId, GamePhase.RESULT);
-            verify(dbService).applyLeaderResult(roomId, 1L);
+            verify(dbService).applyLeaderResult(roomId, winnerId);
+            verify(eventPublisher).publishEvent(argThat((NotificationEvent event) ->
+                    event.teamRoomId().equals(roomId) &&
+                    event.targetId().equals(winnerId) &&
+                    event.type() == NotificationType.TEAM_LEADER_CONFIRM
+            ));
         }
 
         @Test
