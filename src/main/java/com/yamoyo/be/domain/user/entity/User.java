@@ -119,4 +119,8 @@ public class User {
         this.socialAccounts.add(socialAccount);
         socialAccount.setUser(this);
     }
+
+    /**
+     *
+     */
 }

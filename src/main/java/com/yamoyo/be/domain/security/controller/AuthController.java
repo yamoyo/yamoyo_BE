@@ -6,14 +6,16 @@ import com.yamoyo.be.domain.security.jwt.JwtTokenDto;
 import com.yamoyo.be.domain.security.service.AuthService;
 import com.yamoyo.be.exception.ErrorCode;
 import com.yamoyo.be.exception.YamoyoException;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -37,6 +39,7 @@ import org.springframework.web.bind.annotation.*;
  *    - AuthService에서 발생하는 예외는 GlobalExceptionHandler에서 처리
  *    - RefreshTokenException → 401 Unauthorized
  */
+@Tag(name = "Auth", description = "인증 관련 API")
 @Slf4j
 @RestController
 @RequestMapping("/api/auth")
@@ -48,6 +51,12 @@ public class AuthController {
     @Value("${jwt.refresh-token-expiration}")
     private Long refreshTokenExpiration;
 
+    @Operation(summary = "Access Token 재발급", description = "Refresh Token을 사용하여 새로운 Access Token을 발급받습니다. Refresh Token Rotation이 적용되어 새로운 Refresh Token도 함께 발급됩니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "토큰 재발급 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Refresh Token 없음"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "유효하지 않은 Refresh Token")
+    })
     @PostMapping("/refresh")
     public ApiResponse<AccessTokenResponse> refresh(
             @CookieValue(value = "refresh_token", required = false) String refreshToken,
@@ -76,6 +85,12 @@ public class AuthController {
         ));
     }
 
+    @Operation(summary = "회원 탈퇴", description = "사용자 계정을 삭제합니다. 관련된 모든 데이터(RefreshToken, UserAgreement, UserDevice, SocialAccount 등)가 함께 삭제됩니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "회원 탈퇴 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음")
+    })
     @DeleteMapping("/me")
     public ApiResponse<Void> withdraw(
             @AuthenticationPrincipal JwtTokenClaims claims,
@@ -95,9 +110,15 @@ public class AuthController {
         return ApiResponse.success();
     }
 
+    @Schema(description = "Access Token 응답")
     public record AccessTokenResponse(
+            @Schema(description = "인증 타입", example = "Bearer")
             String grantType,
+
+            @Schema(description = "Access Token")
             String accessToken,
+
+            @Schema(description = "Access Token 만료 시간 (Unix timestamp)", example = "1704067200000")
             Long accessTokenExpiration
     ) {}
 }

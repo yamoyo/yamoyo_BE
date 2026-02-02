@@ -1,5 +1,6 @@
-package com.yamoyo.be.domain.user.entity;
+package com.yamoyo.be.domain.fcm.entity;
 
+import com.yamoyo.be.domain.user.entity.User;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -15,7 +16,7 @@ import java.time.LocalDateTime;
  * - 푸시 알림, 다중 기기 로그인 관리 등에 활용
  */
 @Table(name = "user_devices",
-        uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "fcm_token"}))
+        uniqueConstraints = @UniqueConstraint(name = "uk_fcm_token", columnNames = {"fcm_token"}))
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -65,7 +66,8 @@ public class UserDevice {
     /**
      * 정적 팩토리 메서드 - 기기 등록
      */
-    public static UserDevice create(User user, String fcmToken, String deviceType, String deviceName) {
+    public static UserDevice
+    create(User user, String fcmToken, String deviceType, String deviceName) {
         UserDevice userDevice = new UserDevice();
         userDevice.user = user;
         userDevice.fcmToken = fcmToken;
@@ -79,5 +81,14 @@ public class UserDevice {
      */
     public void updateLastLogin() {
         this.lastLoginAt = LocalDateTime.now();
+    }
+
+    public void changeUser(User user) {
+        this.user = user;
+    }
+
+    public void updateDeviceDetails(String deviceType, String deviceName) {
+        this.deviceType = deviceType;
+        this.deviceName = deviceName;
     }
 }

@@ -88,6 +88,9 @@ public enum ErrorCode {
     ALREADY_VOTED(HttpStatus.BAD_REQUEST, "이미 투표를 완료했습니다."),
     PROPOSAL_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 제안을 찾을 수 없습니다."),
 
+    // Notification
+    NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "알림을 찾을 수 없습니다."),
+    NOTIFICATION_ACCESS_DENIED(HttpStatus.FORBIDDEN, "해당 알림에 대한 접근 권한이 없습니다."),
 
     // Server
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 내부 오류입니다.");

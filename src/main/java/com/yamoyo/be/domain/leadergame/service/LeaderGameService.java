@@ -5,16 +5,19 @@ import com.yamoyo.be.domain.leadergame.dto.message.*;
 import com.yamoyo.be.domain.leadergame.dto.response.VolunteerPhaseResponse;
 import com.yamoyo.be.domain.leadergame.enums.GamePhase;
 import com.yamoyo.be.domain.leadergame.enums.GameType;
+import com.yamoyo.be.domain.notification.entity.NotificationType;
 import com.yamoyo.be.domain.teamroom.entity.TeamMember;
 import com.yamoyo.be.domain.teamroom.entity.TeamRoom;
 import com.yamoyo.be.domain.teamroom.entity.enums.Workflow;
 import com.yamoyo.be.domain.teamroom.repository.TeamMemberRepository;
 import com.yamoyo.be.domain.teamroom.repository.TeamRoomRepository;
 import com.yamoyo.be.domain.user.entity.User;
+import com.yamoyo.be.event.event.NotificationEvent;
 import com.yamoyo.be.exception.ErrorCode;
 import com.yamoyo.be.exception.YamoyoException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Service;
@@ -36,6 +39,7 @@ public class LeaderGameService {
     private final TeamMemberRepository teamMemberRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final TaskScheduler taskScheduler;
+    private final ApplicationEventPublisher eventPublisher;
 
     private static final long VOLUNTEER_DURATION_SECONDS = 10;
 
@@ -388,6 +392,12 @@ public class LeaderGameService {
         redisService.setPhase(roomId, GamePhase.RESULT);
         redisService.setWinner(roomId, winnerId);
         dbService.applyLeaderResult(roomId, winnerId);
+
+        eventPublisher.publishEvent(NotificationEvent.ofSingle(
+                roomId,
+                winnerId,
+                NotificationType.TEAM_LEADER_CONFIRM
+        ));
     }
 
     private List<GameParticipant> filterVolunteersOnly(Long roomId) {

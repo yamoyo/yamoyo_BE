@@ -40,3 +40,4 @@ out/
 .env
 
 .claude
+firebase-adminsdk.json
