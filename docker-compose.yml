@@ -122,7 +122,7 @@ services:
       # [호스트 경로] : [컨테이너 내부 경로] : [읽기 전용]
       # 왼쪽의 FIREBASE_KEY_PATH(.env값)에 있는 파일을
       # 오른쪽의 컨테이너 내부 /app/config/... 경로로 연결합니다.
-      - ${FIREBASE_KEY_PATH:-./firebase-adminsdk.json}:/app/config/firebase-adminsdk.json}
+      - ${FIREBASE_KEY_PATH:-./firebase-adminsdk.json}:/app/config/firebase-adminsdk.json
 
     networks:
       - yamoyo-network

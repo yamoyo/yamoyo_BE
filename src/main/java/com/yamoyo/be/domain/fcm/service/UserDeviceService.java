@@ -8,6 +8,7 @@ import com.yamoyo.be.exception.ErrorCode;
 import com.yamoyo.be.exception.YamoyoException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -16,12 +17,13 @@ public class UserDeviceService {
     private final UserDeviceRepository userDeviceRepository;
     private final UserRepository userRepository;
 
+    @Transactional
     public void updateDeviceStatus(Long userId, String fcmToken, String deviceType, String deviceName) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new YamoyoException(ErrorCode.USER_NOT_FOUND));
 
         // 이미 있다면 마지막 로그인 시간만 업데이트
-        userDeviceRepository.findByUserIdAndFcmToken(userId, fcmToken)
+        userDeviceRepository.findByFcmToken(fcmToken)
                         .ifPresentOrElse(
                                 device -> {
                                     device.changeUser(user);
