@@ -43,6 +43,10 @@ jwt:
 oauth2:
   redirect-uri: http://localhost:8080/oauth/callback
 
+# Firebase configuration for testing (file not required)
+firebase:
+  key-path: /tmp/firebase-test-key.json
+
 logging:
   level:
     org.springframework.security: DEBUG

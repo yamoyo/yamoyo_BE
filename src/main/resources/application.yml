@@ -169,3 +169,6 @@ springdoc:
     operations-sorter: method
   packages-to-scan: com.yamoyo.be.domain
   paths-to-match: /api/**
+
+firebase:
+  key-path: ${FIREBASE_KEY_PATH:/app/config/firebase-adminsdk.json}
