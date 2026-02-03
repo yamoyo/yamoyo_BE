@@ -1,0 +1,120 @@
+# ========================================
+# Yamoyo - 운영 환경 Docker Compose (Final)
+# ========================================
+# - Nginx: 프록시 + 프론트 정적 파일 (80/443)
+# - Backend: Spring Boot API (expose 8080)
+# - Redis: 캐시/세션 (expose 6379, AOF + volume)
+# - DB: NCP Cloud DB for MySQL
+# ========================================
+
+services:
+  # ========================================
+  # Nginx (프록시 + 프론트 정적 파일)
+  # ========================================
+  nginx:
+    image: ${DOCKER_USERNAME}/yamoyo-nginx:${IMAGE_TAG:-latest}
+    container_name: yamoyo-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - backend
+    networks:
+      - yamoyo-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ========================================
+  # Backend (Spring Boot API)
+  # ========================================
+  backend:
+    image: ${DOCKER_USERNAME}/yamoyo-api:${IMAGE_TAG:-latest}
+    container_name: yamoyo-api
+    restart: unless-stopped
+    expose:
+      - "8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      TZ: Asia/Seoul
+
+      # Database (Cloud DB)
+      DB_URL: jdbc:mysql://${DB_HOST}:${DB_PORT}/${DB_NAME}?useSSL=true&requireSSL=true&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=utf8mb4
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+
+      # Redis (컨테이너)
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
+      # JWT
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ACCESS_EXPIRATION: ${JWT_ACCESS_EXPIRATION:-3600000}
+      JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION:-604800000}
+
+      # OAuth2 - Kakao
+      KAKAO_CLIENT_ID: ${KAKAO_CLIENT_ID}
+      KAKAO_CLIENT_SECRET: ${KAKAO_CLIENT_SECRET}
+      KAKAO_REDIRECT_URI: ${KAKAO_REDIRECT_URI}
+
+      # OAuth2 - Google
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI}
+
+      # OAuth2 Frontend Redirect
+      OAUTH2_REDIRECT_URI: ${OAUTH2_REDIRECT_URI}
+
+      # Frontend
+      FRONT_BASE_URL: ${FRONT_BASE_URL}
+
+    depends_on:
+      redis:
+        condition: service_healthy
+
+    networks:
+      - yamoyo-network
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ========================================
+  # Redis (캐시 & 세션)
+  # ========================================
+  redis:
+    image: redis:7-alpine
+    container_name: yamoyo-redis
+    restart: unless-stopped
+    expose:
+      - "6379"
+    # AOF 활성화(재시작에도 데이터 유지)
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - yamoyo-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  redis-data:
+    name: yamoyo-redis-data
+
+networks:
+  yamoyo-network:
+    name: yamoyo-network
+    driver: bridge
