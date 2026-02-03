@@ -3,6 +3,7 @@ package com.yamoyo.be.domain.security.controller;
 import com.yamoyo.be.common.dto.ApiResponse;
 import com.yamoyo.be.domain.security.jwt.JwtTokenClaims;
 import com.yamoyo.be.domain.security.jwt.JwtTokenDto;
+import com.yamoyo.be.domain.security.oauth.CookieProperties;
 import com.yamoyo.be.domain.security.service.AuthService;
 import com.yamoyo.be.exception.ErrorCode;
 import com.yamoyo.be.exception.YamoyoException;
@@ -47,6 +48,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final CookieProperties cookieProperties;
 
     @Value("${jwt.refresh-token-expiration}")
     private Long refreshTokenExpiration;
@@ -72,8 +74,8 @@ public class AuthController {
         // Refresh Token Rotation: 새로운 Refresh Token을 HttpOnly Cookie로 설정
         Cookie cookie = new Cookie("refresh_token", tokens.refreshToken());
         cookie.setHttpOnly(true);
-        cookie.setSecure(false); // HTTPS 적용 시 true로 변경 필요
-        cookie.setPath("/");
+        cookie.setSecure(cookieProperties.secure()); // HTTPS 적용 시 true로 변경 필요
+        cookie.setPath("/api/auth/refresh");
         cookie.setMaxAge((int) (refreshTokenExpiration / 1000));
         response.addCookie(cookie);
 
@@ -103,7 +105,7 @@ public class AuthController {
         Cookie cookie = new Cookie("refresh_token", null);
         cookie.setHttpOnly(true);
         cookie.setSecure(false); // HTTPS 적용 시 true로 변경 필요
-        cookie.setPath("/");
+        cookie.setPath("/api/auth/refresh");
         cookie.setMaxAge(0); // 쿠키 즉시 만료
         response.addCookie(cookie);
 
