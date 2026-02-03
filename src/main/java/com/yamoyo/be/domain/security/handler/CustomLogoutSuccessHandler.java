@@ -76,9 +76,6 @@ public class CustomLogoutSuccessHandler implements LogoutSuccessHandler {
         sessionCookie.setMaxAge(0);
         response.addCookie(sessionCookie);
 
-        // 4. 메인 페이지로 리다이렉트
-        response.sendRedirect("/");
-
         log.info("로그아웃 성공 - 쿠키 삭제 및 리다이렉트 완료");
     }
 
