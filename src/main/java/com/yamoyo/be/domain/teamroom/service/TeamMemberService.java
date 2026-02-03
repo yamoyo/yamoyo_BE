@@ -1,5 +1,7 @@
 package com.yamoyo.be.domain.teamroom.service;
 
+import com.yamoyo.be.domain.teamroom.dto.response.TeamMemberDetailResponse;
+import com.yamoyo.be.domain.teamroom.dto.response.TeamMemberListResponse;
 import com.yamoyo.be.domain.teamroom.entity.BannedTeamMember;
 import com.yamoyo.be.domain.teamroom.entity.TeamMember;
 import com.yamoyo.be.domain.teamroom.entity.TeamRoom;
@@ -8,6 +10,7 @@ import com.yamoyo.be.domain.teamroom.entity.enums.Workflow;
 import com.yamoyo.be.domain.teamroom.repository.BannedTeamMemberRepository;
 import com.yamoyo.be.domain.teamroom.repository.TeamMemberRepository;
 import com.yamoyo.be.domain.teamroom.repository.TeamRoomRepository;
+import com.yamoyo.be.domain.user.entity.User;
 import com.yamoyo.be.event.event.MemberRemovedEvent;
 import com.yamoyo.be.exception.ErrorCode;
 import com.yamoyo.be.exception.YamoyoException;
@@ -17,6 +20,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -160,7 +164,7 @@ public class TeamMemberService {
                 teamRoomId, currentManagerId, newManagerMemberId);
 
         // 1. 팀룸 조회
-        TeamRoom teamRoom = teamRoomRepository.findById(teamRoomId)
+        teamRoomRepository.findById(teamRoomId)
                 .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
 
         // 2. 현재 관리자 확인 (HOST 또는 LEADER)
@@ -235,5 +239,72 @@ public class TeamMemberService {
 
         log.info("권한 자동 위임 완료 - delegatedRole: {}, newManagerMemberId: {}",
                 delegatedRole, newManager.getId());
+    }
+
+    /**
+     * 팀원 목록 조회
+     */
+    @Transactional(readOnly = true)
+    public TeamMemberListResponse getTeamMembers(Long teamRoomId, Long userId) {
+
+        // 1. 팀룸 조회
+        teamRoomRepository.findById(teamRoomId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
+
+        // 2. 요청자가 해당 팀룸의 멤버인지 확인
+        if (!teamMemberRepository.existsByTeamRoomIdAndUserId(teamRoomId, userId)) {
+            throw new YamoyoException(ErrorCode.NOT_TEAM_MEMBER);
+        }
+
+        // 3. 팀원 목록 조회 (User 정보 포함 - 기존 Fetch Join 활용)
+        List<TeamMember> teamMembers = teamMemberRepository.findByTeamRoomId(teamRoomId);
+
+        // 4. DTO 변환 (LEADER = HOST > MEMBER, 동일 순위 내 입장일 기준)
+        List<TeamMemberListResponse.MemberSummary> memberSummaries = teamMembers.stream()
+                .sorted(Comparator.comparingInt((TeamMember m) -> m.getTeamRole() == TeamRole.MEMBER ? 1 : 0)
+                        .thenComparing(TeamMember::getCreatedAt))
+                .map(member -> new TeamMemberListResponse.MemberSummary(
+                        member.getId(),
+                        member.getUser().getId(),
+                        member.getUser().getName(),
+                        member.getUser().getMajor(),
+                        member.getUser().getProfileImageId(),
+                        member.getTeamRole()
+                ))
+                .toList();
+
+        return new TeamMemberListResponse(memberSummaries);
+    }
+
+    /**
+     * 팀원 상세 조회
+     */
+    @Transactional(readOnly = true)
+    public TeamMemberDetailResponse getTeamMemberDetail(Long teamRoomId, Long userId, Long memberId) {
+
+        // 1. 팀룸 조회
+        teamRoomRepository.findById(teamRoomId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
+
+        // 2. 요청자가 해당 팀룸의 멤버인지 확인
+        if (!teamMemberRepository.existsByTeamRoomIdAndUserId(teamRoomId, userId)) {
+            throw new YamoyoException(ErrorCode.NOT_TEAM_MEMBER);
+        }
+
+        // 3. 팀룸 ID + 멤버 ID로 직접 조회
+        TeamMember targetMember = teamMemberRepository.findByIdAndTeamRoomId(memberId, teamRoomId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_MEMBER_NOT_FOUND));
+
+        // 4. DTO 변환
+        User user = targetMember.getUser();
+        return new TeamMemberDetailResponse(
+                targetMember.getId(),
+                user.getId(),
+                user.getName(),
+                user.getEmail(),
+                user.getMajor(),
+                user.getMbti(),
+                targetMember.getCreatedAt()
+        );
     }
 }

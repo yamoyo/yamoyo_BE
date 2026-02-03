@@ -69,4 +69,21 @@ public interface TeamMemberRepository extends JpaRepository<TeamMember,Long> {
      */
     boolean existsByTeamRoomIdAndUserId(Long teamRoomId, Long userId);
 
+    /**
+     * 팀룸 ID + 멤버 ID로 조회 (User 정보 포함)
+     * - 다른 팀룸의 멤버는 조회되지 않음
+     * - N+1 방지를 위해 User Fetch Join
+     */
+    @Query("""
+    SELECT tm
+    FROM TeamMember tm
+    JOIN FETCH tm.user
+    WHERE tm.id = :memberId
+      AND tm.teamRoom.id = :teamRoomId
+    """)
+    Optional<TeamMember> findByIdAndTeamRoomId(
+            @Param("memberId") Long memberId,
+            @Param("teamRoomId") Long teamRoomId
+    );
+
 }
