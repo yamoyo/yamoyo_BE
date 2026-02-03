@@ -154,8 +154,6 @@ public class LeaderGameService {
                 Instant.now().plusSeconds(VOLUNTEER_DURATION_SECONDS)
         );
 
-        // Todo: 전원이 투표 완료하면 endVolunteerPhase
-
         return VolunteerPhaseResponse.of(phaseStartTime, VOLUNTEER_DURATION_SECONDS, participants);
     }
 
@@ -182,6 +180,13 @@ public class LeaderGameService {
         // 지원하기인 경우 지원자 목록에 추가
         if (isVolunteer) {
             redisService.addVolunteer(roomId, userId);
+        }
+
+        List<GameParticipant> participants = redisService.getParticipants(roomId);
+
+        Set<Long> votedUsers = redisService.getVotedUsers(roomId);
+        if(votedUsers.size() == participants.size()) {
+            endVolunteerPhase(roomId);
         }
 
         // 투표 현황 브로드캐스트
@@ -339,6 +344,10 @@ public class LeaderGameService {
     // ========================================================================
 
     private void endVolunteerPhase(Long roomId) {
+        if (redisService.getPhase(roomId) != GamePhase.VOLUNTEER) {
+            return;
+        }
+
         Set<Long> volunteers = redisService.getVolunteers(roomId);
         List<GameParticipant> participants = redisService.getParticipants(roomId);
 
