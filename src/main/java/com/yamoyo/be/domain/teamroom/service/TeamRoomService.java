@@ -177,7 +177,7 @@ public class TeamRoomService {
 
         eventPublisher.publishEvent(NotificationEvent.ofSingle(
                 teamRoomId,
-                newTeamMember.getId(),
+                userId,
                 NotificationType.TEAM_JOIN
         ));
         log.info("팀룸에 참가하였습니다. memberId: {}", newTeamMember.getId());

@@ -60,7 +60,6 @@ public class TeamRoomScheduler {
         for (TeamRoom teamRoom : teamRoomsToArchive) {
             try {
                 teamRoom.archive();
-                archivedCount++;
 
                 eventPublisher.publishEvent(NotificationEvent.ofSingle(
                         teamRoom.getId(),
@@ -69,6 +68,9 @@ public class TeamRoomScheduler {
                 ));
 
                 log.info("팀룸 아카이빙 완료 - ID: {}, 제목: {}", teamRoom.getId(), teamRoom.getTitle());
+
+                archivedCount++;
+
             } catch (Exception e) {
                 log.error("팀룸 아카이빙 실패 - ID: {}, 에러: {}", teamRoom.getId(), e.getMessage());
             }
