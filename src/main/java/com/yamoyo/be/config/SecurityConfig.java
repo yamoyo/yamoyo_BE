@@ -76,7 +76,7 @@ public class SecurityConfig {
         "/api/actuator/health",
 
         // WebSocket 엔드포인트
-        "/ws/**",
+        "/ws/**", "/ws-stomp/**",
 
         // 테스트 페이지
         "/test/**",
