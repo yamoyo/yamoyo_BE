@@ -1,5 +1,6 @@
 package com.yamoyo.be.domain.rule.service;
 
+import com.yamoyo.be.domain.notification.entity.NotificationType;
 import com.yamoyo.be.domain.rule.dto.request.TeamRuleRequest;
 import com.yamoyo.be.domain.rule.dto.request.RuleVoteRequest;
 import com.yamoyo.be.domain.rule.dto.response.RuleVoteParticipationResponse;
@@ -18,10 +19,12 @@ import com.yamoyo.be.domain.teamroom.repository.TeamMemberRepository;
 import com.yamoyo.be.domain.teamroom.repository.TeamRoomRepository;
 import com.yamoyo.be.domain.teamroom.repository.TeamRoomSetupRepository;
 import com.yamoyo.be.domain.user.entity.User;
+import com.yamoyo.be.event.event.NotificationEvent;
 import com.yamoyo.be.exception.ErrorCode;
 import com.yamoyo.be.exception.YamoyoException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,6 +46,7 @@ public class RuleService {
     private final TeamRoomRepository teamRoomRepository;
     private final TeamMemberRepository teamMemberRepository;
     private final TeamRoomSetupRepository setupRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 규칙 투표 제출
@@ -114,7 +118,7 @@ public class RuleService {
         log.info("규칙 투표 참여 현황 조회 시작 - teamRoomId: {}, userId: {}", teamRoomId, userId);
 
         // 1. 팀룸 조회
-        TeamRoom teamRoom = teamRoomRepository.findById(teamRoomId)
+        teamRoomRepository.findById(teamRoomId)
                 .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
 
         // 2. 요청자가 팀원인지 확인
@@ -209,6 +213,12 @@ public class RuleService {
                 .orElseThrow(() -> new YamoyoException(ErrorCode.SETUP_NOT_FOUND));
         setup.completeRuleSetup();
 
+        eventPublisher.publishEvent(NotificationEvent.ofSingle(
+                teamRoomId,
+                teamRoomId,  // 규칙 확정은 팀룸 전체 알림이므로 teamRoomId
+                NotificationType.RULE_CONFIRM
+        ));
+
         log.info("규칙 확정 완료 - 총 {}개 규칙 확정", confirmedRuleIds.size());
     }
 
@@ -220,7 +230,7 @@ public class RuleService {
         log.info("확정된 규칙 조회 시작 - teamRoomId: {}, userId: {}", teamRoomId, userId);
 
         // 1. 팀룸 조회
-        TeamRoom teamRoom = teamRoomRepository.findById(teamRoomId)
+        teamRoomRepository.findById(teamRoomId)
                 .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
 
         // 2. 요청자가 팀원인지 확인
@@ -266,6 +276,12 @@ public class RuleService {
         TeamRule teamRule = TeamRule.create(teamRoom, request.content());
         teamRuleRepository.save(teamRule);
 
+        eventPublisher.publishEvent(NotificationEvent.ofSingle(
+                teamRoomId,
+                teamRule.getId(),
+                NotificationType.RULE_CHANGE
+        ));
+
         log.info("규칙 추가 완료 - teamRuleId: {}", teamRule.getId());
     }
 
@@ -302,6 +318,12 @@ public class RuleService {
         // 4. 규칙 수정
         teamRule.updateContent(request.content());
 
+        eventPublisher.publishEvent(NotificationEvent.ofSingle(
+                teamRoomId,
+                teamRuleId,
+                NotificationType.RULE_CHANGE
+        ));
+
         log.info("규칙 수정 완료 - teamRuleId: {}", teamRuleId);
     }
 
@@ -336,6 +358,12 @@ public class RuleService {
 
         // 4. 규칙 삭제
         teamRuleRepository.delete(teamRule);
+
+        eventPublisher.publishEvent(NotificationEvent.ofSingle(
+                teamRoomId,
+                teamRuleId,
+                NotificationType.RULE_CHANGE
+        ));
 
         log.info("규칙 삭제 완료 - teamRuleId: {}", teamRuleId);
     }
