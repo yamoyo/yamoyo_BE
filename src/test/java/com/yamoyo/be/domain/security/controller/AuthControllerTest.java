@@ -182,7 +182,7 @@ class AuthControllerTest {
             assertThat(newCookie).isNotNull();
             assertThat(newCookie.getValue()).isEqualTo(NEW_REFRESH_TOKEN);
             assertThat(newCookie.isHttpOnly()).isTrue();
-            assertThat(newCookie.getPath()).isEqualTo("/");
+            assertThat(newCookie.getPath()).isEqualTo("/api/auth");
         }
     }
 

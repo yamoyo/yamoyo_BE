@@ -36,32 +36,32 @@ import org.springframework.web.bind.annotation.GetMapping;
 @Controller
 public class HomeController {
 
-    @GetMapping("/")
-    public String home(OAuth2AuthenticationToken authentication, Model model) {
-        if (authentication != null) {
-            OAuth2User principal = authentication.getPrincipal();
-
-            // 1. 어떤 Provider로 로그인했는지 확인 (google, kakao)
-            String registrationId = authentication.getAuthorizedClientRegistrationId();
-            String provider = registrationId.equalsIgnoreCase("kakao") ? "Kakao" : "Google";
-            model.addAttribute("provider", provider);
-
-            // Google OAuth2 사용자 정보 추출
-            String name = principal.getAttribute("name");
-            String email = principal.getAttribute("email");
-            String picture = principal.getAttribute("picture");
-
-            // 모델에 사용자 정보 추가 (Thymeleaf 템플릿에서 사용)
-            model.addAttribute("name", name);
-            model.addAttribute("email", email);
-            model.addAttribute("picture", picture);
-        }
-
-        return "home";
-    }
-
-    @GetMapping("/login")
-    public String login() {
-        return "login";
-    }
+//    @GetMapping("/")
+//    public String home(OAuth2AuthenticationToken authentication, Model model) {
+//        if (authentication != null) {
+//            OAuth2User principal = authentication.getPrincipal();
+//
+//            // 1. 어떤 Provider로 로그인했는지 확인 (google, kakao)
+//            String registrationId = authentication.getAuthorizedClientRegistrationId();
+//            String provider = registrationId.equalsIgnoreCase("kakao") ? "Kakao" : "Google";
+//            model.addAttribute("provider", provider);
+//
+//            // Google OAuth2 사용자 정보 추출
+//            String name = principal.getAttribute("name");
+//            String email = principal.getAttribute("email");
+//            String picture = principal.getAttribute("picture");
+//
+//            // 모델에 사용자 정보 추가 (Thymeleaf 템플릿에서 사용)
+//            model.addAttribute("name", name);
+//            model.addAttribute("email", email);
+//            model.addAttribute("picture", picture);
+//        }
+//
+//        return "home";
+//    }
+//
+//    @GetMapping("/login")
+//    public String login() {
+//        return "login";
+//    }
 }

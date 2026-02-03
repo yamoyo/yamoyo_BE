@@ -297,7 +297,7 @@ class LeaderGameServiceTest {
 
             // then
             assertThat(result).isNotNull();
-            assertThat(result.durationSeconds()).isEqualTo(10);
+            assertThat(result.durationSeconds()).isEqualTo(60000);
             verify(dbService).startLeaderSelection(roomId);
             verify(redisService).initializeGame(eq(roomId), anyList());
             verify(messagingTemplate).convertAndSend(eq("/sub/room/" + roomId), any(Object.class));
