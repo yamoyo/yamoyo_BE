@@ -252,8 +252,9 @@ public class TeamMemberService {
                 .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
 
         // 2. 요청자가 해당 팀룸의 멤버인지 확인
-        teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId)
-                .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
+        if (!teamMemberRepository.existsByTeamRoomIdAndUserId(teamRoomId, userId)) {
+            throw new YamoyoException(ErrorCode.NOT_TEAM_MEMBER);
+        }
 
         // 3. 팀원 목록 조회 (User 정보 포함 - 기존 Fetch Join 활용)
         List<TeamMember> teamMembers = teamMemberRepository.findByTeamRoomId(teamRoomId);
@@ -286,12 +287,13 @@ public class TeamMemberService {
                 .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
 
         // 2. 요청자가 해당 팀룸의 멤버인지 확인
-        teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId)
-                .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
+        if (!teamMemberRepository.existsByTeamRoomIdAndUserId(teamRoomId, userId)) {
+            throw new YamoyoException(ErrorCode.NOT_TEAM_MEMBER);
+        }
 
         // 3. 팀룸 ID + 멤버 ID로 직접 조회
         TeamMember targetMember = teamMemberRepository.findByIdAndTeamRoomId(memberId, teamRoomId)
-                .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
+                .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_MEMBER_NOT_FOUND));
 
         // 4. DTO 변환
         User user = targetMember.getUser();
