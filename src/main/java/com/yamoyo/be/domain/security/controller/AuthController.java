@@ -104,7 +104,7 @@ public class AuthController {
         // Refresh Token 쿠키 삭제
         Cookie cookie = new Cookie("refresh_token", null);
         cookie.setHttpOnly(true);
-        cookie.setSecure(false); // HTTPS 적용 시 true로 변경 필요
+        cookie.setSecure(cookieProperties.secure()); // HTTPS 적용 시 true로 변경 필요
         cookie.setPath("/api/auth/refresh");
         cookie.setMaxAge(0); // 쿠키 즉시 만료
         response.addCookie(cookie);
