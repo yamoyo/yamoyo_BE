@@ -2,6 +2,7 @@ package com.yamoyo.be.domain.security.handler;
 
 import com.yamoyo.be.domain.security.jwt.JwtTokenClaims;
 import com.yamoyo.be.domain.security.jwt.authentication.JwtAuthenticationToken;
+import com.yamoyo.be.domain.security.oauth.CookieProperties;
 import com.yamoyo.be.domain.security.oauth.CustomOAuth2User;
 import com.yamoyo.be.domain.security.refreshtoken.RefreshTokenRepository;
 import jakarta.servlet.ServletException;
@@ -46,6 +47,7 @@ import java.io.IOException;
 public class CustomLogoutSuccessHandler implements LogoutSuccessHandler {
 
     private final RefreshTokenRepository refreshTokenRepository;
+    private final CookieProperties cookieProperties;
 
     @Override
     @Transactional
@@ -63,8 +65,8 @@ public class CustomLogoutSuccessHandler implements LogoutSuccessHandler {
         // 2. Refresh Token 쿠키 삭제
         Cookie refreshTokenCookie = new Cookie("refresh_token", null);
         refreshTokenCookie.setHttpOnly(true);
-        refreshTokenCookie.setSecure(false); // HTTPS 적용 시 true로 변경 필요
-        refreshTokenCookie.setPath("/");
+        refreshTokenCookie.setSecure(cookieProperties.secure()); // HTTPS 적용 시 true로 변경 필요
+        refreshTokenCookie.setPath("/api/auth");
         refreshTokenCookie.setMaxAge(0); // 쿠키 즉시 만료
         response.addCookie(refreshTokenCookie);
 

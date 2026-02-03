@@ -121,7 +121,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         Cookie cookie = new Cookie("refresh_token", refreshToken);
         cookie.setHttpOnly(true);
         cookie.setSecure(cookieProperties.secure());
-        cookie.setPath("/api/auth/refresh");
+        cookie.setPath("/api/auth");
         cookie.setMaxAge((int) (refreshTokenExpiration / 1000));
         response.addCookie(cookie);
     }

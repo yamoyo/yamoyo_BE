@@ -75,7 +75,7 @@ public class AuthController {
         Cookie cookie = new Cookie("refresh_token", tokens.refreshToken());
         cookie.setHttpOnly(true);
         cookie.setSecure(cookieProperties.secure()); // HTTPS 적용 시 true로 변경 필요
-        cookie.setPath("/api/auth/refresh");
+        cookie.setPath("/api/auth");
         cookie.setMaxAge((int) (refreshTokenExpiration / 1000));
         response.addCookie(cookie);
 
@@ -105,7 +105,7 @@ public class AuthController {
         Cookie cookie = new Cookie("refresh_token", null);
         cookie.setHttpOnly(true);
         cookie.setSecure(cookieProperties.secure()); // HTTPS 적용 시 true로 변경 필요
-        cookie.setPath("/api/auth/refresh");
+        cookie.setPath("/api/auth");
         cookie.setMaxAge(0); // 쿠키 즉시 만료
         response.addCookie(cookie);
 
