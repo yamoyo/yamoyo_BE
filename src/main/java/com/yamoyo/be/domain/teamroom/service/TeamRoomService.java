@@ -1,5 +1,6 @@
 package com.yamoyo.be.domain.teamroom.service;
 
+import com.yamoyo.be.domain.notification.entity.NotificationType;
 import com.yamoyo.be.domain.teamroom.dto.request.CreateTeamRoomRequest;
 import com.yamoyo.be.domain.teamroom.dto.request.JoinTeamRoomRequest;
 import com.yamoyo.be.domain.teamroom.dto.response.*;
@@ -12,10 +13,12 @@ import com.yamoyo.be.domain.teamroom.repository.TeamMemberRepository;
 import com.yamoyo.be.domain.teamroom.repository.TeamRoomRepository;
 import com.yamoyo.be.domain.user.entity.User;
 import com.yamoyo.be.domain.user.repository.UserRepository;
+import com.yamoyo.be.event.event.NotificationEvent;
 import com.yamoyo.be.exception.ErrorCode;
 import com.yamoyo.be.exception.YamoyoException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,6 +40,7 @@ public class TeamRoomService {
     private final TeamMemberRepository teamMemberRepository;
     private final BannedTeamMemberRepository bannedTeamMemberRepository;
     private final InviteTokenService inviteTokenService;
+    private final ApplicationEventPublisher eventPublisher;
 
     private static final long TOKEN_EXPIRATION_SECONDS = 86400L; // 24시간
     private static final int MAX_MEMBER_COUNT = 12; // 정원 12명
@@ -171,6 +175,11 @@ public class TeamRoomService {
         TeamMember newTeamMember = TeamMember.createMember(teamRoom, user);
         teamMemberRepository.save(newTeamMember);
 
+        eventPublisher.publishEvent(NotificationEvent.ofSingle(
+                teamRoomId,
+                userId,
+                NotificationType.TEAM_JOIN
+        ));
         log.info("팀룸에 참가하였습니다. memberId: {}", newTeamMember.getId());
 
         return new JoinTeamRoomResponse(

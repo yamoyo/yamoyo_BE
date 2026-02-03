@@ -13,8 +13,10 @@ import com.yamoyo.be.domain.teamroom.repository.TeamMemberRepository;
 import com.yamoyo.be.domain.teamroom.repository.TeamRoomRepository;
 import com.yamoyo.be.domain.user.entity.User;
 import com.yamoyo.be.domain.user.repository.UserRepository;
+import com.yamoyo.be.event.event.NotificationEvent;
 import com.yamoyo.be.exception.ErrorCode;
 import com.yamoyo.be.exception.YamoyoException;
+import org.springframework.context.ApplicationEventPublisher;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -58,6 +60,9 @@ class TeamRoomServiceTest {
 
     @Mock
     private InviteTokenService inviteTokenService;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private TeamRoomService teamRoomService;
@@ -211,6 +216,7 @@ class TeamRoomServiceTest {
             verify(teamMemberRepository).countByTeamRoomId(teamRoomId);
             verify(userRepository).findById(userId);
             verify(teamMemberRepository).save(any(TeamMember.class));
+            verify(eventPublisher).publishEvent(any(NotificationEvent.class));
         }
 
         @Test
@@ -501,12 +507,14 @@ class TeamRoomServiceTest {
             teamRoomService.updateTeamRoom(teamRoomId, request, userId);
 
             // then
+            LocalDateTime expectedDeadline = request.deadline().toLocalDate().atTime(23, 59, 59);
+
             verify(teamRoomRepository).findById(teamRoomId);
             verify(teamMemberRepository).findByTeamRoomIdAndUserId(teamRoomId, userId);
             verify(teamRoom).update(
                     request.title(),
                     request.description(),
-                    request.deadline(),
+                    expectedDeadline,
                     request.bannerImageId()
             );
         }
