@@ -154,6 +154,8 @@ public class LeaderGameService {
                 Instant.now().plusSeconds(VOLUNTEER_DURATION_SECONDS)
         );
 
+        // Todo: 전원이 투표 완료하면 endVolunteerPhase
+
         return VolunteerPhaseResponse.of(phaseStartTime, VOLUNTEER_DURATION_SECONDS, participants);
     }
 
