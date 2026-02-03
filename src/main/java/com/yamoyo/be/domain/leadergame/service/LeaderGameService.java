@@ -41,7 +41,7 @@ public class LeaderGameService {
     private final TaskScheduler taskScheduler;
     private final ApplicationEventPublisher eventPublisher;
 
-    private static final long VOLUNTEER_DURATION_SECONDS = 10;
+    private static final long VOLUNTEER_DURATION_SECONDS = 60000;
 
     private String getTopic(Long roomId) {
         return "/sub/room/" + roomId;

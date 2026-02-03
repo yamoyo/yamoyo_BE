@@ -67,7 +67,7 @@ public class SecurityConfig {
     // 인증 없이 접근을 허용할 경로 목록
     private static final String[] PERMIT_ALL_PATTERNS = {
         // 로그인 페이지 및 정적 리소스
-        "/login", "/css/**", "/images/**", "/js/**", "/favicon.ico", "/error",
+        "/login", "/css/**", "/images/**", "/js/**", "/favicon.ico", "/error", "/",
 
         // 인증 관련 (Refresh Token 재발급 등)
         "/api/auth/refresh",
