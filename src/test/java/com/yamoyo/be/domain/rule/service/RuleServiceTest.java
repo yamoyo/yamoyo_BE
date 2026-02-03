@@ -14,9 +14,12 @@ import com.yamoyo.be.domain.teamroom.entity.TeamMember;
 import com.yamoyo.be.domain.teamroom.entity.TeamRoom;
 import com.yamoyo.be.domain.teamroom.repository.TeamMemberRepository;
 import com.yamoyo.be.domain.teamroom.repository.TeamRoomRepository;
+import com.yamoyo.be.domain.teamroom.repository.TeamRoomSetupRepository;
 import com.yamoyo.be.domain.user.entity.User;
+import com.yamoyo.be.event.event.NotificationEvent;
 import com.yamoyo.be.exception.ErrorCode;
 import com.yamoyo.be.exception.YamoyoException;
+import org.springframework.context.ApplicationEventPublisher;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -53,6 +56,12 @@ class RuleServiceTest {
 
     @Mock
     private TeamMemberRepository teamMemberRepository;
+
+    @Mock
+    private TeamRoomSetupRepository setupRepository;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @Nested
     @DisplayName("규칙 투표 제출")
@@ -310,6 +319,7 @@ class RuleServiceTest {
 
             // then
             then(teamRuleRepository).should().save(any(TeamRule.class));
+            then(eventPublisher).should().publishEvent(any(NotificationEvent.class));
         }
 
         @Test
@@ -364,6 +374,7 @@ class RuleServiceTest {
 
             // then
             then(teamRule).should().updateContent("수정된 규칙");
+            then(eventPublisher).should().publishEvent(any(NotificationEvent.class));
         }
 
         @Test
@@ -417,6 +428,7 @@ class RuleServiceTest {
 
             // then
             then(teamRuleRepository).should().delete(teamRule);
+            then(eventPublisher).should().publishEvent(any(NotificationEvent.class));
         }
 
         @Test

@@ -3,6 +3,7 @@ package com.yamoyo.be.domain.teamroom.scheduler;
 import com.yamoyo.be.domain.teamroom.entity.TeamRoom;
 import com.yamoyo.be.domain.teamroom.entity.enums.Lifecycle;
 import com.yamoyo.be.domain.teamroom.repository.TeamRoomRepository;
+import com.yamoyo.be.event.event.NotificationEvent;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -10,6 +11,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
@@ -18,6 +20,7 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.*;
+import static org.mockito.Mockito.times;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("TeamRoomScheduler 단위 테스트")
@@ -28,6 +31,9 @@ class TeamRoomSchedulerTest {
 
     @Mock
     private TeamRoomRepository teamRoomRepository;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @Nested
     @DisplayName("아카이빙 처리")
@@ -69,6 +75,7 @@ class TeamRoomSchedulerTest {
                     any(LocalDateTime.class)
             );
             then(teamRoom).should().archive();
+            then(eventPublisher).should().publishEvent(any(NotificationEvent.class));
         }
 
         @Test
@@ -97,6 +104,7 @@ class TeamRoomSchedulerTest {
             then(teamRoom1).should().archive();
             then(teamRoom2).should().archive();
             then(teamRoom3).should().archive();
+            then(eventPublisher).should(times(3)).publishEvent(any(NotificationEvent.class));
         }
 
         @Test
@@ -124,6 +132,7 @@ class TeamRoomSchedulerTest {
             then(teamRoom1).should().archive();
             then(teamRoom2).should().archive();
             then(teamRoom3).should().archive();
+            then(eventPublisher).should(times(2)).publishEvent(any(NotificationEvent.class));
         }
 
         @Test
@@ -149,6 +158,75 @@ class TeamRoomSchedulerTest {
             // then
             then(teamRoom1).should().archive();
             then(teamRoom2).should().archive();
+            then(eventPublisher).should(never()).publishEvent(any(NotificationEvent.class));
+        }
+    }
+
+    @Nested
+    @DisplayName("마감 D-1 알림")
+    class SendDeadlineReminder {
+
+        @Test
+        @DisplayName("성공: D-1 팀룸이 없는 경우")
+        void sendDeadlineReminder_Success_NoRooms() {
+            // given
+            given(teamRoomRepository.findByLifecycleAndDeadline(any(), any()))
+                    .willReturn(Collections.emptyList());
+
+            // when
+            teamRoomScheduler.sendDeadlineReminder();
+
+            // then
+            then(teamRoomRepository).should().findByLifecycleAndDeadline(
+                    eq(Lifecycle.ACTIVE),
+                    any(LocalDateTime.class)
+            );
+            then(eventPublisher).should(never()).publishEvent(any(NotificationEvent.class));
+        }
+
+        @Test
+        @DisplayName("성공: D-1 팀룸이 있는 경우 알림 발송")
+        void sendDeadlineReminder_Success_WithRooms() {
+            // given
+            TeamRoom teamRoom1 = mock(TeamRoom.class);
+            given(teamRoom1.getId()).willReturn(1L);
+
+            TeamRoom teamRoom2 = mock(TeamRoom.class);
+            given(teamRoom2.getId()).willReturn(2L);
+
+            given(teamRoomRepository.findByLifecycleAndDeadline(any(), any()))
+                    .willReturn(List.of(teamRoom1, teamRoom2));
+
+            // when
+            teamRoomScheduler.sendDeadlineReminder();
+
+            // then
+            then(eventPublisher).should(times(2)).publishEvent(any(NotificationEvent.class));
+        }
+
+        @Test
+        @DisplayName("성공: 일부 팀룸 알림 발송 실패 시 다른 팀룸은 계속 진행")
+        void sendDeadlineReminder_Success_PartialFailure() {
+            // given
+            TeamRoom teamRoom1 = mock(TeamRoom.class);
+            given(teamRoom1.getId()).willReturn(1L);
+
+            TeamRoom teamRoom2 = mock(TeamRoom.class);
+            given(teamRoom2.getId()).willReturn(2L);
+
+            given(teamRoomRepository.findByLifecycleAndDeadline(any(), any()))
+                    .willReturn(List.of(teamRoom1, teamRoom2));
+
+            // 첫 호출 실패, 두 번째 호출 성공
+            willThrow(new RuntimeException("알림 발송 실패"))
+                    .willDoNothing()
+                    .given(eventPublisher).publishEvent(any(NotificationEvent.class));
+
+            // when
+            teamRoomScheduler.sendDeadlineReminder();
+
+            // then: 첫 번째 호출에서 예외 발생하지만 루프는 계속 실행
+            then(eventPublisher).should(times(2)).publishEvent(any(NotificationEvent.class));
         }
     }
 }
