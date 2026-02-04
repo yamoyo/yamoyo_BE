@@ -1,7 +1,7 @@
 package com.yamoyo.be.event.listener;
 
+import com.yamoyo.be.domain.leadergame.service.GameStateRedisService;
 import com.yamoyo.be.domain.leadergame.service.LeaderGameService;
-import com.yamoyo.be.domain.leadergame.service.UserStatusService;
 import com.yamoyo.be.domain.user.dto.response.UserStatusResponse;
 import com.yamoyo.be.domain.user.entity.User;
 import com.yamoyo.be.domain.user.repository.UserRepository;
@@ -25,7 +25,7 @@ public class WebSocketEventListener {
 
     private final SimpMessagingTemplate messagingTemplate;
     private final UserRepository userRepository;
-    private final UserStatusService userStatusService;
+    private final GameStateRedisService gameStateRedisService;
     private final LeaderGameService leaderGameService;
 
     private static final String USER_STATUS_CHANGE = "USER_STATUS_CHANGE";
@@ -62,7 +62,7 @@ public class WebSocketEventListener {
         log.info("User {} subscribed to room {}", userId, roomId);
 
         // Redis에 온라인 상태 저장
-        userStatusService.saveUserOnline(roomId, userId);
+        gameStateRedisService.addConnection(roomId, userId);
 
         // 같은 방 사람들에게 이 사람 온라인인지 브로드캐스트
         User user = userRepository.findById(userId).orElseThrow(() -> new YamoyoException(ErrorCode.USER_NOT_FOUND));
@@ -83,7 +83,7 @@ public class WebSocketEventListener {
             log.info("User {} disconnected from room {}", userId, roomId);
 
             // Redis에서 온라인 상태 제거
-            userStatusService.removeUserOffline(roomId, userId);
+            gameStateRedisService.removeConnection(roomId, userId);
 
             // 게임 상태에서 접속자 제거 (비정상 종료 시에도 게임 상태 정리)
             try {

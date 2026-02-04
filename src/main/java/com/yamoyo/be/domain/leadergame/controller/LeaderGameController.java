@@ -4,8 +4,8 @@ import com.yamoyo.be.common.annotation.HostOnly;
 import com.yamoyo.be.common.dto.ApiResponse;
 import com.yamoyo.be.domain.leadergame.dto.response.UserOnlineResponse;
 import com.yamoyo.be.domain.leadergame.dto.response.VolunteerPhaseResponse;
+import com.yamoyo.be.domain.leadergame.service.GameStateRedisService;
 import com.yamoyo.be.domain.leadergame.service.LeaderGameService;
-import com.yamoyo.be.domain.leadergame.service.UserStatusService;
 import com.yamoyo.be.domain.security.jwt.JwtTokenClaims;
 import com.yamoyo.be.domain.teamroom.entity.TeamMember;
 import com.yamoyo.be.domain.teamroom.repository.TeamMemberRepository;
@@ -29,7 +29,7 @@ import java.util.Set;
 public class LeaderGameController {
 
     private final TeamMemberRepository teamMemberRepository;
-    private final UserStatusService userStatusService;
+    private final GameStateRedisService gameStateRedisService;
     private final LeaderGameService leaderGameService;
 
     @Operation(summary = "팀룸 멤버 온라인 상태 조회", description = "팀룸 멤버들의 온라인/오프라인 상태를 조회합니다.")
@@ -42,7 +42,7 @@ public class LeaderGameController {
     public ApiResponse<List<UserOnlineResponse>> getMembers(
             @Parameter(description = "팀룸 ID") @PathVariable Long roomId) {
         List<TeamMember> members = teamMemberRepository.findByTeamRoomId(roomId);
-        Set<Long> onlineUserIds = userStatusService.getOnlineUserIds(roomId);
+        Set<Long> onlineUserIds = gameStateRedisService.getConnectedUsers(roomId);
 
         List<UserOnlineResponse> responses = members.stream()
                 .map(member -> UserOnlineResponse.from(

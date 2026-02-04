@@ -3,7 +3,7 @@ package com.yamoyo.be.domain.leadergame.controller;
 import com.yamoyo.be.domain.leadergame.dto.GameParticipant;
 import com.yamoyo.be.domain.leadergame.dto.response.VolunteerPhaseResponse;
 import com.yamoyo.be.domain.leadergame.service.LeaderGameService;
-import com.yamoyo.be.domain.leadergame.service.UserStatusService;
+import com.yamoyo.be.domain.leadergame.service.GameStateRedisService;
 import com.yamoyo.be.domain.security.jwt.JwtTokenClaims;
 import com.yamoyo.be.domain.teamroom.entity.TeamMember;
 import com.yamoyo.be.domain.teamroom.entity.TeamRoom;
@@ -39,7 +39,7 @@ class LeaderGameControllerTest {
     private TeamMemberRepository teamMemberRepository;
 
     @Mock
-    private UserStatusService userStatusService;
+    private GameStateRedisService gameStateRedisService;
 
     @Mock
     private LeaderGameService leaderGameService;
@@ -79,7 +79,7 @@ class LeaderGameControllerTest {
 
             given(teamMemberRepository.findByTeamRoomId(roomId))
                     .willReturn(List.of(member1, member2, member3));
-            given(userStatusService.getOnlineUserIds(roomId))
+            given(gameStateRedisService.getConnectedUsers(roomId))
                     .willReturn(Set.of(100L, 200L)); // User1, User2 온라인
 
             // when
@@ -90,7 +90,7 @@ class LeaderGameControllerTest {
             assertThat(response.getData()).hasSize(3);
 
             verify(teamMemberRepository).findByTeamRoomId(roomId);
-            verify(userStatusService).getOnlineUserIds(roomId);
+            verify(gameStateRedisService).getConnectedUsers(roomId);
         }
 
         @Test
@@ -100,7 +100,7 @@ class LeaderGameControllerTest {
             Long roomId = 1L;
 
             given(teamMemberRepository.findByTeamRoomId(roomId)).willReturn(List.of());
-            given(userStatusService.getOnlineUserIds(roomId)).willReturn(Set.of());
+            given(gameStateRedisService.getConnectedUsers(roomId)).willReturn(Set.of());
 
             // when
             ApiResponse<List<UserOnlineResponse>> response = controller.getMembers(roomId);
@@ -120,7 +120,7 @@ class LeaderGameControllerTest {
 
             given(teamMemberRepository.findByTeamRoomId(roomId))
                     .willReturn(List.of(member1, member2));
-            given(userStatusService.getOnlineUserIds(roomId)).willReturn(Set.of());
+            given(gameStateRedisService.getConnectedUsers(roomId)).willReturn(Set.of());
 
             // when
             ApiResponse<List<UserOnlineResponse>> response = controller.getMembers(roomId);
@@ -140,7 +140,7 @@ class LeaderGameControllerTest {
 
             given(teamMemberRepository.findByTeamRoomId(roomId))
                     .willReturn(List.of(member1, member2));
-            given(userStatusService.getOnlineUserIds(roomId)).willReturn(Set.of(100L, 200L));
+            given(gameStateRedisService.getConnectedUsers(roomId)).willReturn(Set.of(100L, 200L));
 
             // when
             ApiResponse<List<UserOnlineResponse>> response = controller.getMembers(roomId);

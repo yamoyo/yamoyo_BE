@@ -1,6 +1,6 @@
 package com.yamoyo.be.event.listener;
 
-import com.yamoyo.be.domain.leadergame.service.UserStatusService;
+import com.yamoyo.be.domain.leadergame.service.GameStateRedisService;
 import com.yamoyo.be.domain.user.dto.response.UserStatusResponse;
 import com.yamoyo.be.event.event.MemberRemovedEvent;
 import lombok.RequiredArgsConstructor;
@@ -12,13 +12,13 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class UserStatusEventListener {
 
-    private final UserStatusService userStatusService;
+    private final GameStateRedisService gameStateRedisService;
     private final SimpMessagingTemplate messagingTemplate;
 
     @EventListener
     public void handleMemberRemoved(MemberRemovedEvent event) {
         // Redis 에서 상태처리
-        userStatusService.removeUserOffline(event.roomId(), event.userId());
+        gameStateRedisService.removeConnection(event.roomId(), event.userId());
 
         // event.type = LEAVE 또는 KICK
         UserStatusResponse response = new UserStatusResponse(
