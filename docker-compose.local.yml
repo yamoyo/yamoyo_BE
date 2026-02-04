@@ -5,6 +5,8 @@
 # 1. infra/local/README.md 참고하여 초기 설정 (최초 1회)
 # 2. docker-compose -f docker-compose.local.yml up -d
 # 3. https://local.yamoyo.test 접속
+# 4. 모든 컨테이너 종료 및 삭제
+# 5. docker compose -f docker-compose.local.yml down
 # ========================================
 
 services:
@@ -71,13 +73,13 @@ services:
     image: mysql:8.0
     container_name: yamoyo-db-local
     restart: unless-stopped
-    expose:
-      - "3306"
+    ports:
+      - "3306:3306"
     environment:
       MYSQL_ROOT_PASSWORD: local_root_password
       MYSQL_DATABASE: yamoyo_local
       MYSQL_USER: yamoyo_local
-      MYSQL_PASSWORD: local_password
+      MYSQL_PASSWORD: yamoyo123
       TZ: Asia/Seoul
     volumes:
       - mysql-local-data:/var/lib/mysql
