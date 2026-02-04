@@ -2,7 +2,6 @@ package com.yamoyo.be.event.listener;
 
 import com.yamoyo.be.domain.leadergame.service.LeaderGameService;
 import com.yamoyo.be.domain.leadergame.service.UserStatusService;
-import com.yamoyo.be.domain.security.jwt.JwtTokenClaims;
 import com.yamoyo.be.domain.user.dto.response.UserStatusResponse;
 import com.yamoyo.be.domain.user.entity.User;
 import com.yamoyo.be.domain.user.repository.UserRepository;
@@ -13,10 +12,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
-import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 import org.springframework.web.socket.messaging.SessionSubscribeEvent;
+
+import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
@@ -37,33 +37,33 @@ public class WebSocketEventListener {
         StompHeaderAccessor headerAccessor = StompHeaderAccessor.wrap(event.getMessage());
 
         String destination = headerAccessor.getDestination();
-        Authentication authentication = (Authentication) headerAccessor.getUser();
 
         // 팀룸 구독인 경우에만 처리
-        if(destination != null && destination.startsWith("/sub/room")) {
-
-            // 정보 파싱
-            Long roomId = parseRoomId(destination);
-            Long userId = getUserId(authentication);
-
-            log.info("User {} subscribed to room {}", userId, roomId);
-
-            // Disconnect 때 사용하기 위해 세션에 roomId 저장하기
-            // 소켓 연결이 끊어질 땐 destination 정보가 없음
-            headerAccessor.getSessionAttributes().put("roomId", roomId);
-            headerAccessor.getSessionAttributes().put("userId", userId);
-
-            // Redis에 온라인 상태 저장
-            userStatusService.saveUserOnline(roomId, userId);
-
-            // 같은 방 사람들에게 이 사람 온라인인지 브로드캐스트
-            User user = userRepository.findById(userId).orElseThrow(() -> new YamoyoException(ErrorCode.USER_NOT_FOUND));
-            Long profileImageId = user.getProfileImageId();
-
-            UserStatusResponse userStatusResponse =
-                    new UserStatusResponse(USER_STATUS_CHANGE, userId, profileImageId, ONLINE);
-            messagingTemplate.convertAndSend("/sub/room/" + roomId, userStatusResponse);
+        if(destination == null || !destination.startsWith("/sub/room")) {
+            return;
         }
+
+        Map<String, Object> sessionAttributes = headerAccessor.getSessionAttributes();
+        Long roomId = sessionAttributes != null ? (Long) sessionAttributes.get("roomId") : null;
+        Long userId = sessionAttributes != null ? (Long) sessionAttributes.get("userId") : null;
+
+        if(roomId == null || userId == null) {
+            log.warn("sessionAttributes에 roomId 또는 userId가 없습니다. destination: {}", destination);
+            return;
+        }
+
+        log.info("User {} subscribed to room {}", userId, roomId);
+
+        // Redis에 온라인 상태 저장
+        userStatusService.saveUserOnline(roomId, userId);
+
+        // 같은 방 사람들에게 이 사람 온라인인지 브로드캐스트
+        User user = userRepository.findById(userId).orElseThrow(() -> new YamoyoException(ErrorCode.USER_NOT_FOUND));
+        Long profileImageId = user.getProfileImageId();
+
+        UserStatusResponse userStatusResponse =
+                new UserStatusResponse(USER_STATUS_CHANGE, userId, profileImageId, ONLINE);
+        messagingTemplate.convertAndSend("/sub/room/" + roomId, userStatusResponse);
     }
 
     @EventListener
@@ -99,8 +99,4 @@ public class WebSocketEventListener {
         }
     }
 
-    private Long getUserId(Authentication authentication) {
-        JwtTokenClaims jwtTokenClaims = (JwtTokenClaims) authentication.getPrincipal();
-        return jwtTokenClaims.userId();
-    }
 }

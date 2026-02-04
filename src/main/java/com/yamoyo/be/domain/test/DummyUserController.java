@@ -77,10 +77,10 @@ public class DummyUserController {
 
         // 필수 약관 동의 처리
         List<Term> mandatoryTerms = termRepository.findByIsActiveAndIsMandatory(true, true);
-        for (Term term : mandatoryTerms) {
-            UserAgreement agreement = UserAgreement.create(user, term, true);
-            userAgreementRepository.save(agreement);
-        }
+        List<UserAgreement> agreements = mandatoryTerms.stream()
+                .map(term -> UserAgreement.create(user, term, true))
+                .toList();
+        userAgreementRepository.saveAll(agreements);
 
         // JWT 토큰 생성
         JwtTokenDto tokenDto = jwtTokenProvider.generateToken(user.getId(), email, "test");
