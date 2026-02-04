@@ -1,6 +1,7 @@
 package com.yamoyo.be.event.listener;
 
-import com.yamoyo.be.domain.leadergame.service.UserStatusService;
+import com.yamoyo.be.domain.leadergame.service.GameStateRedisService;
+import com.yamoyo.be.domain.leadergame.service.LeaderGameService;
 import com.yamoyo.be.domain.user.entity.User;
 import com.yamoyo.be.domain.user.repository.UserRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -30,7 +31,10 @@ class WebSocketEventListenerTest {
     private UserRepository userRepository;
 
     @Mock
-    private UserStatusService userStatusService;
+    private GameStateRedisService gameStateRedisService;
+
+    @Mock
+    private LeaderGameService leaderGameService;
 
     @InjectMocks
     private WebSocketEventListener webSocketEventListener;
