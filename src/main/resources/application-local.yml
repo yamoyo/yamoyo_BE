@@ -1,0 +1,167 @@
+# ========================================
+# Yamoyo - Local HTTPS Test Profile
+# 목적:
+#  - nginx 기반 HTTPS 환경에서 OAuth2 동작 검증
+#  - 운영과 동일한 redirect / cookie / forwarded header 흐름 테스트
+# ========================================
+
+spring:
+  config:
+    activate:
+      on-profile: local
+
+  application:
+    name: oauth2-template
+
+  # ----------------------------------------
+  # JPA 설정 (로컬 테스트용)
+  # ----------------------------------------
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  # ----------------------------------------
+  # Flyway 설정
+  # ----------------------------------------
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+
+  # ----------------------------------------
+  # Database (docker-compose.local.yml 기준)
+  # ----------------------------------------
+  datasource:
+    url: ${DB_URL:jdbc:mysql://db:3306/yamoyo_local?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=utf8}
+    username: ${DB_USERNAME:yamoyo_local}
+    password: ${DB_PASSWORD:yamoyo123}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  # ----------------------------------------
+  # Redis (로컬 컨테이너)
+  # ----------------------------------------
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+
+  # ----------------------------------------
+  # OAuth2 Client 설정 (nginx + HTTPS 기준)
+  # ----------------------------------------
+  security:
+    oauth2:
+      client:
+        registration:
+
+          # ===== Google OAuth2 =====
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope:
+              - profile
+              - email
+
+            # nginx + forwarded header 기준 baseUrl 사용
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+
+          # ===== Kakao OAuth2 =====
+          kakao:
+            client-id: ${KAKAO_CLIENT_ID}
+            client-secret: ${KAKAO_CLIENT_SECRET}
+
+            authorization-grant-type: authorization_code
+            client-authentication-method: client_secret_post
+
+            scope:
+              - profile_nickname
+              - profile_image
+              - account_email
+
+            client-name: Kakao
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+
+        provider:
+          kakao:
+            authorization-uri: https://kauth.kakao.com/oauth/authorize
+            token-uri: https://kauth.kakao.com/oauth/token
+            user-info-uri: https://kapi.kakao.com/v2/user/me
+            user-name-attribute: id
+
+# ----------------------------------------
+# Server 설정 (nginx 프록시 환경 대응)
+# ----------------------------------------
+server:
+  port: 8080
+
+  # nginx에서 전달한 X-Forwarded-* 헤더 신뢰
+  forward-headers-strategy: framework
+
+# ----------------------------------------
+# OAuth2 로그인 성공 후 프론트 리다이렉트
+# (nginx 정적 서빙 기준 단일 도메인)
+# ----------------------------------------
+oauth2:
+  redirect-uri: https://local.yamoyo.test/oauth/callback
+
+# ----------------------------------------
+# 쿠키 설정 (HTTPS 필수)
+# ----------------------------------------
+cookie:
+  secure: true
+
+# ----------------------------------------
+# 프론트엔드 기준 URL
+# ----------------------------------------
+app:
+  front:
+    base-url: https://local.yamoyo.test
+    paths:
+      home: /home
+      onboarding:
+        terms: /onboarding/terms
+        profile: /onboarding/profile
+
+# ----------------------------------------
+# 로깅 (OAuth2 디버깅용)
+# ----------------------------------------
+logging:
+  level:
+    org.springframework.security: DEBUG
+    org.springframework.security.oauth2: DEBUG
+
+# ----------------------------------------
+# JWT 설정
+# ----------------------------------------
+jwt:
+  secret-key: ${JWT_SECRET}
+  access-token-expiration: 600000        # 10분
+  refresh-token-expiration: 604800000    # 7일
+  issuer: yamoyo-application
+
+# ----------------------------------------
+# Actuator (내부 확인용)
+# ----------------------------------------
+management:
+  endpoints:
+    web:
+      base-path: /api/actuator
+
+# ----------------------------------------
+# Swagger / OpenAPI
+# ----------------------------------------
+springdoc:
+  swagger-ui:
+    tags-sorter: alpha
+    operations-sorter: method
+  packages-to-scan: com.yamoyo.be.domain
+  paths-to-match: /api/**
+
+# ----------------------------------------
+# Firebase (로컬 테스트)
+# ----------------------------------------
+firebase:
+  key-path: ${FIREBASE_KEY_PATH:/app/config/firebase-adminsdk.json}
