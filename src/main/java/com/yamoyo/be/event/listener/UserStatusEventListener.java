@@ -25,6 +25,7 @@ public class UserStatusEventListener {
                 event.type(),
                 event.userId(),
                 null,
+                null,
                 null
         );
         messagingTemplate.convertAndSend("/sub/room/" + event.roomId(), response);
