@@ -69,7 +69,7 @@ public class WebSocketEventListener {
         Long profileImageId = user.getProfileImageId();
 
         UserStatusResponse userStatusResponse =
-                new UserStatusResponse(USER_STATUS_CHANGE, userId, profileImageId, ONLINE);
+                new UserStatusResponse(USER_STATUS_CHANGE, userId, user.getName(), profileImageId, ONLINE);
         messagingTemplate.convertAndSend("/sub/room/" + roomId, userStatusResponse);
     }
 
@@ -93,7 +93,7 @@ public class WebSocketEventListener {
             }
 
             // 같은 방 사람들에게 이 사람 오프라인인지 브로드캐스트
-            UserStatusResponse userStatusResponse = new UserStatusResponse(USER_STATUS_CHANGE, userId, null, OFFLINE);
+            UserStatusResponse userStatusResponse = new UserStatusResponse(USER_STATUS_CHANGE, userId, null, null, OFFLINE);
             messagingTemplate.convertAndSend("/sub/room/" + roomId, userStatusResponse);
         }
     }
