@@ -33,24 +33,28 @@ public class StompHandler implements ChannelInterceptor {
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
         StompHeaderAccessor accessor = StompHeaderAccessor.wrap(message);
 
-        // 연결 요청 시점에만 토큰 검증
         if(StompCommand.CONNECT.equals(accessor.getCommand())) {
             String jwt = accessor.getFirstNativeHeader("Authorization");
 
-            // 토큰 검증 로직
             if (jwt != null && jwt.startsWith("Bearer ")) {
                 jwt = jwt.substring(7);
             }
 
-            if (jwtTokenProvider.validateToken(jwt)) {
-                // 토큰이 유효하면 Authentication 객체 생성
-                JwtTokenClaims claims = jwtTokenProvider.parseClaims(jwt);
-                Authentication authentication = JwtAuthenticationToken.authenticated(claims);
-
-                accessor.setUser(authentication);
-            } else {
+            if (!jwtTokenProvider.validateToken(jwt)) {
                 throw new YamoyoException(ErrorCode.INVALID_ACCESSTOKEN);
             }
+
+            JwtTokenClaims claims = jwtTokenProvider.parseClaims(jwt);
+            Authentication authentication = JwtAuthenticationToken.authenticated(claims);
+            accessor.setUser(authentication);
+
+            // sessionAttributes에 인증 정보 저장 (SUBSCRIBE에서 사용)
+            Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
+            if (sessionAttributes != null) {
+                sessionAttributes.put("userId", claims.userId());
+                sessionAttributes.put("claims", claims);
+            }
+
         } else if(StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
             validateSubscription(accessor);
         }
@@ -63,18 +67,16 @@ public class StompHandler implements ChannelInterceptor {
      * Session은 accessor를 말하고 서버에서 알아서 관리해줌
      */
     private void validateSubscription(StompHeaderAccessor accessor) {
-        // 예 /sub/room/1
         String destination = accessor.getDestination();
 
-        // 유저 정보 가져오기 (CONNECT 때 저쟁해둔 것)
-        Authentication authentication = (Authentication) accessor.getUser();
-        if(authentication == null) {
+        // sessionAttributes에서 userId 가져오기 (CONNECT 때 저장해둔 것)
+        Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
+        Long userId = sessionAttributes != null ? (Long) sessionAttributes.get("userId") : null;
+
+        if(userId == null) {
+            log.error("SUBSCRIBE 시 userId가 없습니다. destination: {}", destination);
             throw new YamoyoException(ErrorCode.UNAUTHORIZED);
         }
-
-        // Principal에서 userId 꺼내기 (구조에 맞게 캐스팅)
-        JwtTokenClaims claims = (JwtTokenClaims) authentication.getPrincipal();
-        Long userId = claims.userId();
 
         // /user/queue/* 구독은 인증된 사용자면 허용 (convertAndSendToUser용)
         if (destination != null && destination.startsWith("/user/queue/")) {
@@ -100,10 +102,8 @@ public class StompHandler implements ChannelInterceptor {
                     throw new YamoyoException(ErrorCode.TEAMROOM_JOIN_FORBIDDEN);
                 }
 
-                Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
                 if(sessionAttributes != null) {
                     sessionAttributes.put("roomId", roomId);
-                    sessionAttributes.put("userId", userId);
                 }
                 log.info("채팅방 구독 승인. userId: {}, roomId: {}", userId, roomId);
 
