@@ -39,17 +39,24 @@ public class WebSocketEventListener {
         String destination = headerAccessor.getDestination();
 
         // 팀룸 구독인 경우에만 처리
-        if(destination == null || !destination.startsWith("/sub/room")) {
+        if(destination == null || !destination.startsWith("/sub/room/")) {
             return;
         }
 
+        // roomId: destination에서 직접 파싱 (같은 SUBSCRIBE 메시지 처리 중이라 sessionAttributes 전파가 안 될 수 있음)
+        Long roomId = parseRoomId(destination);
+        // userId: CONNECT 시점에 이미 저장되어 있으므로 안전
         Map<String, Object> sessionAttributes = headerAccessor.getSessionAttributes();
-        Long roomId = sessionAttributes != null ? (Long) sessionAttributes.get("roomId") : null;
         Long userId = sessionAttributes != null ? (Long) sessionAttributes.get("userId") : null;
 
         if(roomId == null || userId == null) {
-            log.warn("sessionAttributes에 roomId 또는 userId가 없습니다. destination: {}", destination);
+            log.warn("roomId 또는 userId를 가져올 수 없습니다. destination: {}", destination);
             return;
+        }
+
+        // Disconnect 때 사용하기 위해 세션에 roomId 저장
+        if(sessionAttributes != null) {
+            sessionAttributes.put("roomId", roomId);
         }
 
         log.info("User {} subscribed to room {}", userId, roomId);
