@@ -465,6 +465,7 @@ class MeetingServiceTest {
             given(meeting.getDurationMinutes()).willReturn(60);
             given(meeting.getColor()).willReturn(MeetingColor.YELLOW);
             given(meeting.isIndividuallyModified()).willReturn(false);
+            given(meeting.getLocation()).willReturn("테스트 장소");
             return meeting;
         }
 
