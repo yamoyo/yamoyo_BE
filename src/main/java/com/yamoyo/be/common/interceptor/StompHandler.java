@@ -66,7 +66,20 @@ public class StompHandler implements ChannelInterceptor {
                 sessionAttributes.put("claims", claims);
             }
 
-        } else if(StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
+        } else {
+            // CONNECT 이후 user가 아직 전파되지 않은 메시지 대비 (레이스 컨디션 완화)
+            if (accessor.getUser() == null) {
+                Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
+                Object claimsObj = sessionAttributes != null ? sessionAttributes.get("claims") : null;
+                if (claimsObj instanceof JwtTokenClaims claims) {
+                    Authentication authentication = JwtAuthenticationToken.authenticated(claims);
+                    accessor.setUser(authentication);
+                    log.info("STOMP: user re-injected for command={}, sessionId={}", accessor.getCommand(), accessor.getSessionId());
+                }
+            }
+        }
+
+        if(StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
             log.info("STOMP SUBSCRIBE: sessionId={}, user={}, destination={}", accessor.getSessionId(), accessor.getUser(), accessor.getDestination());
             validateSubscription(accessor);
         }
