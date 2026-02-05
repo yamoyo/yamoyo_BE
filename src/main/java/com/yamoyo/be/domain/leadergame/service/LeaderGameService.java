@@ -48,47 +48,66 @@ public class LeaderGameService {
     }
 
     // ========================================================================
-    // 1. 입장 / 퇴장
+    // 1. 재접속 / 퇴장
     // ========================================================================
 
-    public JoinPayload handleJoin(Long roomId, User user) {
-        TeamRoom teamRoom = teamRoomRepository.findById(roomId)
-                .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
-
-        Workflow workflow = teamRoom.getWorkflow();
-        if (workflow != Workflow.PENDING) {
-            throw new YamoyoException(ErrorCode.ROOM_NOT_JOINABLE);
-        }
-
+    /**
+     * 새로고침/재접속 시 현재 방 상태 전달
+     * - 팀 멤버 검증만 수행 (workflow 체크 없음)
+     * - 현재 게임 상태 전체를 반환
+     */
+    public ReloadPayload handleReload(Long roomId, User user) {
+        // 팀 멤버 검증만 수행
         teamMemberRepository.findByTeamRoomIdAndUserId(roomId, user.getId())
                 .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
 
+        // 재접속 처리
         redisService.addConnection(roomId, user.getId());
 
-        GameParticipant participant = GameParticipant.of(
+        // 현재 유저 정보
+        GameParticipant currentUser = GameParticipant.of(
                 user.getId(), user.getName(),
                 user.getProfileImageId() != null ? user.getProfileImageId().toString() : null
         );
 
-        List<GameParticipant> participants = redisService.getParticipants(roomId);
-        if (participants.isEmpty()) {
-            participants = getParticipantsFromDb(roomId);
-        }
-
+        // 전체 멤버 (항상 DB에서 조회 - 온라인 상태 표시용)
+        List<GameParticipant> members = getParticipantsFromDb(roomId);
         Set<Long> connectedUserIds = redisService.getConnectedUsers(roomId);
+
+        // 게임 상태 조회
         GamePhase currentPhase = redisService.getPhase(roomId);
         Long phaseStartTime = redisService.getPhaseStartTime(roomId);
+        Set<Long> volunteers = redisService.getVolunteers(roomId);
+        Set<Long> votedUsers = redisService.getVotedUsers(roomId);
+        GameType selectedGame = redisService.getSelectedGame(roomId);
+        Long winnerId = redisService.getWinner(roomId);
 
+        // VOLUNTEER 단계 남은 시간 계산
         Long remainingTime = null;
         if (currentPhase == GamePhase.VOLUNTEER && phaseStartTime != null) {
             long elapsed = (System.currentTimeMillis() - phaseStartTime) / 1000;
             remainingTime = Math.max(0, VOLUNTEER_DURATION_SECONDS - elapsed);
         }
 
-        broadcast(roomId, "USER_JOINED", participant);
+        // 당첨자 이름 조회
+        String winnerName = null;
+        if (winnerId != null) {
+            winnerName = members.stream()
+                    .filter(p -> p.userId().equals(winnerId))
+                    .findFirst()
+                    .map(GameParticipant::name)
+                    .orElse(null);
+        }
 
-        return JoinPayload.of(participant, participants, connectedUserIds,
-                currentPhase, phaseStartTime, remainingTime);
+        // 다른 유저에게 재접속 알림
+        broadcast(roomId, "USER_RECONNECTED", currentUser);
+
+        return ReloadPayload.of(
+                currentUser, members, connectedUserIds,
+                volunteers, votedUsers,
+                currentPhase, phaseStartTime, remainingTime,
+                selectedGame, winnerId, winnerName
+        );
     }
 
     public void handleLeave(Long roomId, Long userId) {
@@ -195,8 +214,8 @@ public class LeaderGameService {
 
     /**
      * 투표 현황을 투표 완료자에게만 전송
-     * - 프론트엔드 구독 경로: /user/queue/vote-status
-     * - convertAndSendToUser 사용으로 사용자별 전송
+     * - 프론트엔드 구독 경로: /sub/room/{roomId}/user/{userId}
+     * - SimpUserRegistry 문제 우회를 위해 user-specific topic 사용
      */
     private void broadcastVoteStatus(Long roomId) {
         // 게임 참가자 목록 ID
@@ -220,11 +239,10 @@ public class LeaderGameService {
                 votedUserIds, unvotedUserIds, volunteerIds, participants.size());
         GameMessage<VoteStatusPayload> message = GameMessage.of("VOTE_UPDATED", payload);
 
-        // 투표 완료자에게만 전송
+        // 투표 완료자에게만 전송 (user-specific topic 사용)
         for (Long votedUserId : votedUserIds) {
-            messagingTemplate.convertAndSendToUser(
-                    votedUserId.toString(),
-                    "/queue/vote-status",
+            messagingTemplate.convertAndSend(
+                    "/sub/room/" + roomId + "/user/" + votedUserId,
                     message
             );
         }
@@ -233,7 +251,7 @@ public class LeaderGameService {
     // ========================================================================
     // 4. 게임 선택
     //    - LADDER / ROULETTE → 즉시 결과 계산 + GAME_RESULT 전송
-    //    - TIMING → GAME_READY (방장의 시작 버튼 대기)
+    //    - TIMING → GAME_PLAYING (각 유저가 개별적으로 시작/정지)
     // ========================================================================
 
     public void selectGame(Long roomId, Long userId, GameType gameType) {
@@ -263,40 +281,16 @@ public class LeaderGameService {
                 broadcast(roomId, "GAME_RESULT", result);
             }
             case TIMING -> {
-                redisService.setPhase(roomId, GamePhase.GAME_READY);
+                // 타이밍 게임: 바로 GAME_PLAYING으로 전환, 각 유저가 개별적으로 시작/정지
+                redisService.setPhase(roomId, GamePhase.GAME_PLAYING);
                 broadcast(roomId, "PHASE_CHANGE",
-                        PhaseChangePayload.of(GamePhase.GAME_READY, System.currentTimeMillis(), null, GameType.TIMING));
+                        PhaseChangePayload.of(GamePhase.GAME_PLAYING, System.currentTimeMillis(), null, GameType.TIMING));
             }
         }
     }
 
     // ========================================================================
-    // 5. 타이밍 게임 시작 (방장 클릭) → GAME_PLAYING 전환
-    //    - 각 유저는 개별적으로 시작/정지
-    //    - 시간 제어는 프론트엔드에서 담당
-    // ========================================================================
-
-    public void startTimingGame(Long roomId, Long userId) {
-        GamePhase phase = redisService.getPhase(roomId);
-        if (phase != GamePhase.GAME_READY) {
-            throw new YamoyoException(ErrorCode.INVALID_GAME_PHASE);
-        }
-
-        TeamMember host = teamMemberRepository.findByTeamRoomIdAndUserId(roomId, userId)
-                .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
-        if (!host.hasManagementAuthority()) {
-            throw new YamoyoException(ErrorCode.NOT_ROOM_HOST);
-        }
-
-        redisService.setPhase(roomId, GamePhase.GAME_PLAYING);
-
-        // 각 유저가 개별적으로 시작/정지하므로 서버에서 타이머 스케줄링 없음
-        broadcast(roomId, "PHASE_CHANGE",
-                PhaseChangePayload.of(GamePhase.GAME_PLAYING, System.currentTimeMillis(), null, GameType.TIMING));
-    }
-
-    // ========================================================================
-    // 6. 타이밍 게임 결과 제출 (각 유저)
+    // 5. 타이밍 게임 결과 제출 (각 유저)
     //    - 프론트에서 |7.777 - 실제시간| 계산하여 전송
     //    - Redis SortedSet에 저장 (score = timeDifference)
     //    - 전원 제출 시 결과 계산
@@ -328,7 +322,7 @@ public class LeaderGameService {
     }
 
     // ========================================================================
-    // 7. 결과 확인 → 게임 데이터 정리
+    // 6. 결과 확인 → 게임 데이터 정리
     // ========================================================================
 
     public void confirmResult(Long roomId, Long userId) {

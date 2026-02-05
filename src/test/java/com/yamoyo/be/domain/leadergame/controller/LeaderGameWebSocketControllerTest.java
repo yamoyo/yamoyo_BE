@@ -1,11 +1,9 @@
 package com.yamoyo.be.domain.leadergame.controller;
 
 import com.yamoyo.be.domain.leadergame.dto.GameParticipant;
-import com.yamoyo.be.domain.leadergame.dto.message.JoinPayload;
+import com.yamoyo.be.domain.leadergame.dto.message.ReloadPayload;
 import com.yamoyo.be.domain.leadergame.enums.GameType;
 import com.yamoyo.be.domain.leadergame.service.LeaderGameService;
-import com.yamoyo.be.domain.security.jwt.JwtTokenClaims;
-import com.yamoyo.be.domain.security.jwt.authentication.JwtAuthenticationToken;
 import com.yamoyo.be.domain.user.entity.User;
 import com.yamoyo.be.domain.user.repository.UserRepository;
 import com.yamoyo.be.exception.ErrorCode;
@@ -19,9 +17,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
-import java.security.Principal;
 import java.util.*;
 
 import static org.mockito.ArgumentMatchers.*;
@@ -45,9 +43,12 @@ class LeaderGameWebSocketControllerTest {
     @InjectMocks
     private LeaderGameWebSocketController controller;
 
-    private Principal createPrincipal(Long userId) {
-        JwtTokenClaims claims = new JwtTokenClaims(userId, "test@test.com", "USER");
-        return JwtAuthenticationToken.authenticated(claims);
+    private SimpMessageHeaderAccessor createHeaderAccessor(Long userId) {
+        SimpMessageHeaderAccessor headerAccessor = mock(SimpMessageHeaderAccessor.class);
+        Map<String, Object> sessionAttributes = new HashMap<>();
+        sessionAttributes.put("userId", userId);
+        given(headerAccessor.getSessionAttributes()).willReturn(sessionAttributes);
+        return headerAccessor;
     }
 
     private User createMockUser(Long userId, String name) {
@@ -59,52 +60,53 @@ class LeaderGameWebSocketControllerTest {
     }
 
     @Nested
-    @DisplayName("join - 게임 방 입장")
-    class JoinTest {
+    @DisplayName("reload - 새로고침/재접속")
+    class ReloadTest {
 
         @Test
-        @DisplayName("입장 성공")
-        void join_Success() {
+        @DisplayName("재접속 성공")
+        void reload_Success() {
             // given
             Long roomId = 1L;
             Long userId = 100L;
-            Principal principal = createPrincipal(userId);
+            SimpMessageHeaderAccessor headerAccessor = createHeaderAccessor(userId);
             User user = createMockUser(userId, "TestUser");
 
-            JoinPayload mockPayload = JoinPayload.of(
+            ReloadPayload mockPayload = ReloadPayload.of(
                     GameParticipant.of(userId, "TestUser", "1"),
                     List.of(GameParticipant.of(userId, "TestUser", "1")),
                     Set.of(userId),
+                    Set.of(), Set.of(),
+                    null, null, null,
                     null, null, null
             );
 
             given(userRepository.findById(userId)).willReturn(Optional.of(user));
-            given(leaderGameService.handleJoin(roomId, user)).willReturn(mockPayload);
+            given(leaderGameService.handleReload(roomId, user)).willReturn(mockPayload);
 
             // when
-            controller.join(roomId, principal);
+            controller.reload(roomId, headerAccessor);
 
             // then
-            verify(leaderGameService).handleJoin(roomId, user);
-            verify(messagingTemplate).convertAndSendToUser(
-                    eq(userId.toString()),
-                    eq("/queue/join-response"),
-                    any()
+            verify(leaderGameService).handleReload(roomId, user);
+            verify(messagingTemplate).convertAndSend(
+                    eq("/sub/room/" + roomId + "/user/" + userId),
+                    any(Object.class)
             );
         }
 
         @Test
-        @DisplayName("입장 실패 - 사용자 없음")
-        void join_UserNotFound_SendsError() {
+        @DisplayName("재접속 실패 - 사용자 없음")
+        void reload_UserNotFound_SendsError() {
             // given
             Long roomId = 1L;
             Long userId = 999L;
-            Principal principal = createPrincipal(userId);
+            SimpMessageHeaderAccessor headerAccessor = createHeaderAccessor(userId);
 
             given(userRepository.findById(userId)).willReturn(Optional.empty());
 
             // when
-            controller.join(roomId, principal);
+            controller.reload(roomId, headerAccessor);
 
             // then
             verify(messagingTemplate).convertAndSend(
@@ -114,20 +116,20 @@ class LeaderGameWebSocketControllerTest {
         }
 
         @Test
-        @DisplayName("입장 실패 - 서비스 예외 발생 시 에러 전송")
-        void join_ServiceException_SendsError() {
+        @DisplayName("재접속 실패 - 서비스 예외 발생 시 에러 전송")
+        void reload_ServiceException_SendsError() {
             // given
             Long roomId = 1L;
             Long userId = 100L;
-            Principal principal = createPrincipal(userId);
+            SimpMessageHeaderAccessor headerAccessor = createHeaderAccessor(userId);
             User user = createMockUser(userId, "TestUser");
 
             given(userRepository.findById(userId)).willReturn(Optional.of(user));
-            given(leaderGameService.handleJoin(roomId, user))
-                    .willThrow(new YamoyoException(ErrorCode.ROOM_NOT_JOINABLE));
+            given(leaderGameService.handleReload(roomId, user))
+                    .willThrow(new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
 
             // when
-            controller.join(roomId, principal);
+            controller.reload(roomId, headerAccessor);
 
             // then
             verify(messagingTemplate).convertAndSend(
@@ -147,10 +149,10 @@ class LeaderGameWebSocketControllerTest {
             // given
             Long roomId = 1L;
             Long userId = 100L;
-            Principal principal = createPrincipal(userId);
+            SimpMessageHeaderAccessor headerAccessor = createHeaderAccessor(userId);
 
             // when
-            controller.volunteer(roomId, principal);
+            controller.volunteer(roomId, headerAccessor);
 
             // then
             verify(leaderGameService).vote(roomId, userId, true);
@@ -162,13 +164,13 @@ class LeaderGameWebSocketControllerTest {
             // given
             Long roomId = 1L;
             Long userId = 100L;
-            Principal principal = createPrincipal(userId);
+            SimpMessageHeaderAccessor headerAccessor = createHeaderAccessor(userId);
 
             doThrow(new YamoyoException(ErrorCode.ALREADY_VOLUNTEER))
                     .when(leaderGameService).vote(roomId, userId, true);
 
             // when
-            controller.volunteer(roomId, principal);
+            controller.volunteer(roomId, headerAccessor);
 
             // then
             verify(messagingTemplate).convertAndSend(
@@ -188,10 +190,10 @@ class LeaderGameWebSocketControllerTest {
             // given
             Long roomId = 1L;
             Long userId = 100L;
-            Principal principal = createPrincipal(userId);
+            SimpMessageHeaderAccessor headerAccessor = createHeaderAccessor(userId);
 
             // when
-            controller.pass(roomId, principal);
+            controller.pass(roomId, headerAccessor);
 
             // then
             verify(leaderGameService).vote(roomId, userId, false);
@@ -203,13 +205,13 @@ class LeaderGameWebSocketControllerTest {
             // given
             Long roomId = 1L;
             Long userId = 100L;
-            Principal principal = createPrincipal(userId);
+            SimpMessageHeaderAccessor headerAccessor = createHeaderAccessor(userId);
 
             doThrow(new YamoyoException(ErrorCode.INVALID_GAME_PHASE))
                     .when(leaderGameService).vote(roomId, userId, false);
 
             // when
-            controller.pass(roomId, principal);
+            controller.pass(roomId, headerAccessor);
 
             // then
             verify(messagingTemplate).convertAndSend(
@@ -229,11 +231,11 @@ class LeaderGameWebSocketControllerTest {
             // given
             Long roomId = 1L;
             Long userId = 100L;
-            Principal principal = createPrincipal(userId);
+            SimpMessageHeaderAccessor headerAccessor = createHeaderAccessor(userId);
             Map<String, Object> payload = Map.of("timeDifference", 1.234);
 
             // when
-            controller.submitTimingResult(roomId, principal, payload);
+            controller.submitTimingResult(roomId, headerAccessor, payload);
 
             // then
             verify(leaderGameService).submitTimingResult(roomId, userId, 1.234);
@@ -245,11 +247,11 @@ class LeaderGameWebSocketControllerTest {
             // given
             Long roomId = 1L;
             Long userId = 100L;
-            Principal principal = createPrincipal(userId);
+            SimpMessageHeaderAccessor headerAccessor = createHeaderAccessor(userId);
             Map<String, Object> payload = Map.of("timeDifference", 2);
 
             // when
-            controller.submitTimingResult(roomId, principal, payload);
+            controller.submitTimingResult(roomId, headerAccessor, payload);
 
             // then
             verify(leaderGameService).submitTimingResult(roomId, userId, 2.0);
@@ -261,14 +263,14 @@ class LeaderGameWebSocketControllerTest {
             // given
             Long roomId = 1L;
             Long userId = 100L;
-            Principal principal = createPrincipal(userId);
+            SimpMessageHeaderAccessor headerAccessor = createHeaderAccessor(userId);
             Map<String, Object> payload = Map.of("timeDifference", 1.0);
 
             doThrow(new YamoyoException(ErrorCode.TIMING_ALREADY_STOPPED))
                     .when(leaderGameService).submitTimingResult(roomId, userId, 1.0);
 
             // when
-            controller.submitTimingResult(roomId, principal, payload);
+            controller.submitTimingResult(roomId, headerAccessor, payload);
 
             // then
             verify(messagingTemplate).convertAndSend(
@@ -288,11 +290,11 @@ class LeaderGameWebSocketControllerTest {
             // given
             Long roomId = 1L;
             Long userId = 100L;
-            Principal principal = createPrincipal(userId);
+            SimpMessageHeaderAccessor headerAccessor = createHeaderAccessor(userId);
             Map<String, Object> payload = Map.of("gameType", "LADDER");
 
             // when
-            controller.selectGame(roomId, principal, payload);
+            controller.selectGame(roomId, headerAccessor, payload);
 
             // then
             verify(leaderGameService).selectGame(roomId, userId, GameType.LADDER);
@@ -304,11 +306,11 @@ class LeaderGameWebSocketControllerTest {
             // given
             Long roomId = 1L;
             Long userId = 100L;
-            Principal principal = createPrincipal(userId);
+            SimpMessageHeaderAccessor headerAccessor = createHeaderAccessor(userId);
             Map<String, Object> payload = Map.of("gameType", "ROULETTE");
 
             // when
-            controller.selectGame(roomId, principal, payload);
+            controller.selectGame(roomId, headerAccessor, payload);
 
             // then
             verify(leaderGameService).selectGame(roomId, userId, GameType.ROULETTE);
@@ -320,11 +322,11 @@ class LeaderGameWebSocketControllerTest {
             // given
             Long roomId = 1L;
             Long userId = 100L;
-            Principal principal = createPrincipal(userId);
+            SimpMessageHeaderAccessor headerAccessor = createHeaderAccessor(userId);
             Map<String, Object> payload = Map.of("gameType", "TIMING");
 
             // when
-            controller.selectGame(roomId, principal, payload);
+            controller.selectGame(roomId, headerAccessor, payload);
 
             // then
             verify(leaderGameService).selectGame(roomId, userId, GameType.TIMING);
@@ -336,55 +338,14 @@ class LeaderGameWebSocketControllerTest {
             // given
             Long roomId = 1L;
             Long userId = 100L;
-            Principal principal = createPrincipal(userId);
+            SimpMessageHeaderAccessor headerAccessor = createHeaderAccessor(userId);
             Map<String, Object> payload = Map.of("gameType", "LADDER");
 
             doThrow(new YamoyoException(ErrorCode.NOT_ROOM_HOST))
                     .when(leaderGameService).selectGame(roomId, userId, GameType.LADDER);
 
             // when
-            controller.selectGame(roomId, principal, payload);
-
-            // then
-            verify(messagingTemplate).convertAndSend(
-                    eq("/sub/room/" + roomId + "/user/" + userId),
-                    any(Object.class)
-            );
-        }
-    }
-
-    @Nested
-    @DisplayName("startTimingGame - 타이밍 게임 시작")
-    class StartTimingGameTest {
-
-        @Test
-        @DisplayName("타이밍 게임 시작 성공")
-        void startTimingGame_Success() {
-            // given
-            Long roomId = 1L;
-            Long userId = 100L;
-            Principal principal = createPrincipal(userId);
-
-            // when
-            controller.startTimingGame(roomId, principal);
-
-            // then
-            verify(leaderGameService).startTimingGame(roomId, userId);
-        }
-
-        @Test
-        @DisplayName("타이밍 게임 시작 실패 - 에러 전송")
-        void startTimingGame_ServiceException_SendsError() {
-            // given
-            Long roomId = 1L;
-            Long userId = 100L;
-            Principal principal = createPrincipal(userId);
-
-            doThrow(new YamoyoException(ErrorCode.NOT_ROOM_HOST))
-                    .when(leaderGameService).startTimingGame(roomId, userId);
-
-            // when
-            controller.startTimingGame(roomId, principal);
+            controller.selectGame(roomId, headerAccessor, payload);
 
             // then
             verify(messagingTemplate).convertAndSend(
@@ -404,10 +365,10 @@ class LeaderGameWebSocketControllerTest {
             // given
             Long roomId = 1L;
             Long userId = 100L;
-            Principal principal = createPrincipal(userId);
+            SimpMessageHeaderAccessor headerAccessor = createHeaderAccessor(userId);
 
             // when
-            controller.leave(roomId, principal);
+            controller.leave(roomId, headerAccessor);
 
             // then
             verify(leaderGameService).handleLeave(roomId, userId);
@@ -419,13 +380,13 @@ class LeaderGameWebSocketControllerTest {
             // given
             Long roomId = 1L;
             Long userId = 100L;
-            Principal principal = createPrincipal(userId);
+            SimpMessageHeaderAccessor headerAccessor = createHeaderAccessor(userId);
 
             doThrow(new RuntimeException("Unexpected error"))
                     .when(leaderGameService).handleLeave(roomId, userId);
 
             // when - 예외가 발생해도 catch됨
-            controller.leave(roomId, principal);
+            controller.leave(roomId, headerAccessor);
 
             // then - 에러 메시지 전송 없음 (조용히 실패)
             verify(messagingTemplate, never()).convertAndSend(anyString(), any(Object.class));
@@ -442,10 +403,10 @@ class LeaderGameWebSocketControllerTest {
             // given
             Long roomId = 1L;
             Long userId = 100L;
-            Principal principal = createPrincipal(userId);
+            SimpMessageHeaderAccessor headerAccessor = createHeaderAccessor(userId);
 
             // when
-            controller.confirmResult(roomId, principal);
+            controller.confirmResult(roomId, headerAccessor);
 
             // then
             verify(leaderGameService).confirmResult(roomId, userId);
@@ -457,13 +418,13 @@ class LeaderGameWebSocketControllerTest {
             // given
             Long roomId = 1L;
             Long userId = 100L;
-            Principal principal = createPrincipal(userId);
+            SimpMessageHeaderAccessor headerAccessor = createHeaderAccessor(userId);
 
             doThrow(new RuntimeException("Unexpected error"))
                     .when(leaderGameService).confirmResult(roomId, userId);
 
             // when - 예외가 발생해도 catch됨
-            controller.confirmResult(roomId, principal);
+            controller.confirmResult(roomId, headerAccessor);
 
             // then - 에러 메시지 전송 없음 (조용히 실패)
             verify(messagingTemplate, never()).convertAndSend(anyString(), any(Object.class));

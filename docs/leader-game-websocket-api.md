@@ -56,31 +56,28 @@ client.deactivate();
 
 ## 2. SUBSCRIBE (구독)
 
-연결 성공 후 아래 3개 주소를 **모두** 구독해야 합니다.
+연결 성공 후 아래 2개 주소를 **모두** 구독해야 합니다.
 
 ### 2.1 구독 주소 목록
 
 | 구독 주소 | 대상 | 수신 메시지 |
 |----------|------|-----------|
-| `/sub/room/{roomId}` | 방 전체 | USER_JOINED, USER_LEFT, USER_STATUS_CHANGE, PHASE_CHANGE, GAME_RESULT |
-| `/user/queue/join-response` | 본인만 | JOIN_SUCCESS |
-| `/user/queue/vote-status` | 투표 완료자만 | VOTE_UPDATED |
+| `/sub/room/{roomId}` | 방 전체 | USER_RECONNECTED, USER_LEFT, USER_STATUS_CHANGE, PHASE_CHANGE, GAME_RESULT |
+| `/sub/room/{roomId}/user/{userId}` | 본인만 | RELOAD_SUCCESS, VOTE_UPDATED, ERROR |
 
 > `/sub/room/{roomId}` 구독 시 서버가 **팀 멤버 여부를 DB에서 검증**합니다.
 > 팀 멤버가 아니면 구독이 거부됩니다.
 
-> 에러 메시지는 `/sub/room/{roomId}/user/{userId}` 로 전달됩니다. 필요 시 추가 구독하세요.
-
 ### 2.2 구독 코드 예시
 
 ```javascript
-function subscribeAll(roomId) {
+function subscribeAll(roomId, myUserId) {
   // 1. 방 전체 브로드캐스트
   client.subscribe(`/sub/room/${roomId}`, (message) => {
     const { type, payload } = JSON.parse(message.body);
 
     switch (type) {
-      case 'USER_JOINED':       handleUserJoined(payload);       break;
+      case 'USER_RECONNECTED':  handleUserReconnected(payload);  break;
       case 'USER_LEFT':         handleUserLeft(payload);         break;
       case 'USER_STATUS_CHANGE': handleStatusChange(payload);    break;
       case 'PHASE_CHANGE':      handlePhaseChange(payload);      break;
@@ -88,25 +85,15 @@ function subscribeAll(roomId) {
     }
   });
 
-  // 2. 입장 응답 (본인에게만 전달)
-  client.subscribe('/user/queue/join-response', (message) => {
-    const { type, payload } = JSON.parse(message.body);
-    // type === 'JOIN_SUCCESS'
-    handleJoinSuccess(payload);
-  });
-
-  // 3. 투표 현황 (투표 완료 후부터 수신)
-  client.subscribe('/user/queue/vote-status', (message) => {
-    const { type, payload } = JSON.parse(message.body);
-    // type === 'VOTE_UPDATED'
-    handleVoteUpdated(payload);
-  });
-
-  // 4. (선택) 에러 메시지 수신
+  // 2. 개인 메시지 (reload 응답, 투표 현황, 에러)
   client.subscribe(`/sub/room/${roomId}/user/${myUserId}`, (message) => {
     const { type, payload } = JSON.parse(message.body);
-    // type === 'ERROR'
-    handleError(payload);
+
+    switch (type) {
+      case 'RELOAD_SUCCESS':  handleReloadSuccess(payload);  break;
+      case 'VOTE_UPDATED':    handleVoteUpdated(payload);    break;
+      case 'ERROR':           handleError(payload);          break;
+    }
   });
 }
 ```
@@ -119,22 +106,22 @@ function subscribeAll(roomId) {
 
 ### 3.1 엔드포인트 목록
 
-join 은 게임 중간에 들어오는 유저를 위한 Endpoint 라서 사용할 일 없으실 것 같습니다.
-그럼 팀룸 입장 처리는 어떻게 되는거냐?
-TeamRoom API 에서 입장 API 호출 후 팀룸 DB에 저장
--> WebSocket Connect
--> 팀룸 Subscribe <- 이때 기존 팀원들에게 입장 알림
--> 기존 팀원들 목록은 GET /room/{roomId}/members 로 불러옴 (온오프라인 표시 되어있음.)
--> 이 members는 팀룸 입장 최초에만 호출하면 될 것 같습니다.
--> 이후에는 Disconnect 될 때마다 이벤트로 Disconnect 된 유저 정보를 publish 합니다. (오프라인 상태 필드 포함)
+reload 는 새로고침이나 게임 중간에 나갔다 들어온 유저를 위한 Endpoint입니다.
+현재 방의 전체 상태(멤버, 지원자, 투표 현황, 게임 상태 등)를 반환합니다.
+
+팀룸 입장 처리 흐름:
+1. TeamRoom API에서 입장 API 호출 후 팀룸 DB에 저장
+2. WebSocket Connect
+3. 팀룸 Subscribe ← 이때 기존 팀원들에게 입장 알림
+4. `/pub/room/{roomId}/reload` 호출 → 현재 방 상태 수신
+5. 이후 Disconnect 될 때마다 이벤트로 Disconnect 된 유저 정보를 publish 합니다.
 
 | 발행 주소 | 설명 | Body | 권한 |
 |----------|------|------|------|
-| `/pub/room/{roomId}/join` | 방 입장 | `{}` | 팀원 |
+| `/pub/room/{roomId}/reload` | 방 상태 조회 (새로고침/재접속) | `{}` | 팀원 |
 | `/pub/room/{roomId}/volunteer` | 팀장 지원 | `{}` | 팀원 |
 | `/pub/room/{roomId}/pass` | 지원 안함 | `{}` | 팀원 |
 | `/pub/room/{roomId}/select-game` | 게임 선택 | `{"gameType": "LADDER" \| "ROULETTE" \| "TIMING"}` | **방장** |
-| `/pub/room/{roomId}/start-timing` | 타이밍 게임 시작 | `{}` | **방장** |
 | `/pub/room/{roomId}/timing-result` | 타이밍 결과 제출 | `{"timeDifference": 1.234}` | 팀원 |
 | `/pub/room/{roomId}/leave` | 방 퇴장 | `{}` | 팀원 |
 | `/pub/room/{roomId}/confirm-result` | 결과 확인 완료 | `{}` | 팀원 |
@@ -142,8 +129,8 @@ TeamRoom API 에서 입장 API 호출 후 팀룸 DB에 저장
 ### 3.2 발행 코드 예시
 
 ```javascript
-// 방 입장
-client.publish({ destination: `/pub/room/${roomId}/join`, body: '{}' });
+// 방 상태 조회 (새로고침/재접속 시)
+client.publish({ destination: `/pub/room/${roomId}/reload`, body: '{}' });
 
 // 팀장 지원
 client.publish({ destination: `/pub/room/${roomId}/volunteer`, body: '{}' });
@@ -157,10 +144,7 @@ client.publish({
   body: JSON.stringify({ gameType: 'LADDER' }),  // 'LADDER' | 'ROULETTE' | 'TIMING'
 });
 
-// 타이밍 게임 시작 (방장만)
-client.publish({ destination: `/pub/room/${roomId}/start-timing`, body: '{}' });
-
-// 타이밍 결과 제출
+// 타이밍 결과 제출 (각 유저가 개별적으로 게임 후 제출)
 client.publish({
   destination: `/pub/room/${roomId}/timing-result`,
   body: JSON.stringify({ timeDifference: Math.abs(7.777 - elapsedSeconds) }),
@@ -214,7 +198,95 @@ Authorization: Bearer {accessToken}
 | 403 | NOT_ROOM_HOST | 방장 아님 |
 | 400 | NOT_ALL_MEMBERS_CONNECTED | 전원 미접속 |
 
-### 4.2 `GET /api/leader-games/rooms/{roomId}/members`
+### 4.2 `POST /test/dummy-user` (테스트 전용)
+
+**인증 없이** 더미 유저를 생성하고 JWT 토큰을 발급받습니다.
+프론트엔드에서 WebSocket 테스트 시 OAuth2 로그인 없이 빠르게 테스트할 수 있습니다.
+
+> ⚠️ **개발/테스트 환경 전용 API입니다. 프로덕션에서는 비활성화해야 합니다.**
+
+**Request**
+```
+POST /test/dummy-user
+Content-Type: application/json
+
+(Body 없음)
+```
+
+**Response `200 OK`**
+```json
+{
+  "success": true,
+  "code": 200,
+  "message": "Success",
+  "data": {
+    "userId": 123,
+    "email": "test-a1b2c3d4@yamoyo.test",
+    "name": "테스트유저3",
+    "major": "컴퓨터공학",
+    "mbti": "INTJ",
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }
+}
+```
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| userId | Long | 생성된 유저 ID |
+| email | String | 랜덤 생성된 이메일 (test-{UUID}@yamoyo.test) |
+| name | String | 랜덤 선택된 이름 (테스트유저1~10) |
+| major | String | 랜덤 선택된 전공 |
+| mbti | String | 랜덤 선택된 MBTI |
+| accessToken | String | JWT Access Token (WebSocket 연결 시 사용) |
+| refreshToken | String | JWT Refresh Token |
+
+**사용 예시 (프론트엔드)**
+```javascript
+// 1. 더미 유저 생성
+const res = await fetch('http://localhost:8080/test/dummy-user', {
+  method: 'POST',
+});
+const { data } = await res.json();
+
+console.log('생성된 유저:', data.userId, data.name);
+console.log('Access Token:', data.accessToken);
+
+// 2. WebSocket 연결 시 사용
+const client = new Client({
+  webSocketFactory: () => new SockJS('http://localhost:8080/ws-stomp'),
+  connectHeaders: {
+    Authorization: `Bearer ${data.accessToken}`,
+  },
+  onConnect: () => {
+    console.log('WebSocket 연결 성공!');
+    // 구독 및 테스트 진행...
+  },
+});
+
+client.activate();
+```
+
+**테스트 시나리오 예시**
+```javascript
+// 여러 유저로 팀장 게임 테스트
+async function setupTestUsers(count) {
+  const users = [];
+  for (let i = 0; i < count; i++) {
+    const res = await fetch('http://localhost:8080/test/dummy-user', { method: 'POST' });
+    const { data } = await res.json();
+    users.push(data);
+  }
+  return users;
+}
+
+// 3명의 더미 유저 생성
+const [user1, user2, user3] = await setupTestUsers(3);
+
+// 각 유저로 WebSocket 연결하여 테스트
+```
+
+### 4.3 `GET /api/leader-games/rooms/{roomId}/members`
 
 팀 멤버 목록과 온라인 상태를 조회합니다.
 
@@ -264,55 +336,65 @@ Authorization: Bearer {accessToken}
 }
 ```
 
-### 5.1 `JOIN_SUCCESS`
+### 5.1 `RELOAD_SUCCESS`
 
-**수신 경로**: `/user/queue/join-response` (본인만)
-**발생 시점**: `/pub/room/{roomId}/join` 발행 후
+**수신 경로**: `/sub/room/{roomId}/user/{userId}` (본인만)
+**발생 시점**: `/pub/room/{roomId}/reload` 발행 후
 
-현재 방의 상태를 스냅샷으로 전달합니다. 중간 입장 시 현재 상태를 복원하는 용도입니다.
-(위에서 말한 게임 도중 입장에 관한 join 이라서 신경쓰지 않으셔도 될 것 같습니다.
-여기서는 유저들의 온오프라인 정보가 포함되어있지 않습니다. - 왜냐하면 게임 도중에 입장할 때를 가정하고 만들었기 때문입니다.
-또한, participants는 게임 참여자이지 팀룸 멤버 전원이 아닙니다.)
+현재 방의 전체 상태를 스냅샷으로 전달합니다. 새로고침/재접속 시 현재 상태를 복원하는 용도입니다.
 
 ```json
 {
-  "type": "JOIN_SUCCESS",
+  "type": "RELOAD_SUCCESS",
   "payload": {
-    "user": {
+    "currentUser": {
       "userId": 1,
       "name": "홍길동",
       "profileImageId": "1"
     },
-    "participants": [
+    "members": [
       { "userId": 1, "name": "홍길동", "profileImageId": "1" },
       { "userId": 2, "name": "김철수", "profileImageId": "2" },
       { "userId": 3, "name": "이영희", "profileImageId": "3" }
     ],
     "connectedUserIds": [1, 2],
-    "currentPhase": null,
-    "phaseStartTime": null,
-    "remainingTime": null
+    "volunteers": [1],
+    "votedUsers": [1, 2],
+    "currentPhase": "VOLUNTEER",
+    "phaseStartTime": 1706123456789,
+    "remainingTime": 45,
+    "selectedGame": null,
+    "winnerId": null,
+    "winnerName": null
   }
 }
 ```
 
 | 필드 | 타입 | 설명 |
 |------|------|------|
-| user | GameParticipant | 입장한 본인 정보 |
-| participants | GameParticipant[] | 전체 참가자 목록 |
+| currentUser | GameParticipant | 현재 유저 정보 |
+| members | GameParticipant[] | 전체 팀 멤버 목록 |
 | connectedUserIds | Long[] | 현재 접속 중인 사용자 ID |
+| volunteers | Long[] | 팀장 지원자 ID 목록 |
+| votedUsers | Long[] | 투표 완료한 사용자 ID 목록 |
 | currentPhase | String \| null | 현재 게임 단계 (게임 시작 전이면 null) |
 | phaseStartTime | Long \| null | 현재 단계 시작 시간 (ms timestamp) |
 | remainingTime | Long \| null | VOLUNTEER 단계 잔여 시간 (초) |
+| selectedGame | String \| null | 선택된 게임 타입 (LADDER, ROULETTE, TIMING) |
+| winnerId | Long \| null | 당첨자(팀장) ID (RESULT 단계에서만) |
+| winnerName | String \| null | 당첨자(팀장) 이름 (RESULT 단계에서만) |
 
-### 5.2 `USER_JOINED`
+> **참고**: `members`는 팀룸의 전체 멤버이고, `volunteers`는 팀장 지원자입니다.
+> VOLUNTEER 단계에서는 전체 멤버가 투표하고, 이후 게임 단계에서는 지원자(volunteers)만 게임에 참여합니다.
+
+### 5.2 `USER_RECONNECTED`
 
 **수신 경로**: `/sub/room/{roomId}`
-**발생 시점**: 다른 유저가 `/pub/room/{roomId}/join` 발행 시
+**발생 시점**: 다른 유저가 `/pub/room/{roomId}/reload` 발행 시
 
 ```json
 {
-  "type": "USER_JOINED",
+  "type": "USER_RECONNECTED",
   "payload": {
     "userId": 2,
     "name": "김철수",
@@ -380,12 +462,12 @@ Authorization: Bearer {accessToken}
 |----------|------|-------------|-----------------|
 | `VOLUNTEER` | 지원 단계 (자동 종료) | null | 60000 |
 | `GAME_SELECT` | 방장이 게임 선택 | null | null |
-| `GAME_READY` | 타이밍 게임 대기 | `TIMING` | null |
-| `GAME_PLAYING` | 타이밍 게임 진행 | `TIMING` | null |
+| `GAME_PLAYING` | 타이밍 게임 진행 (각자 개별 플레이) | `TIMING` | null |
+| `RESULT` | 결과 발표 | 선택된 게임 | null |
 
 ### 5.6 `VOTE_UPDATED`
 
-**수신 경로**: `/user/queue/vote-status` (투표 완료자만 수신)
+**수신 경로**: `/sub/room/{roomId}/user/{userId}` (투표 완료자만 수신)
 **발생 시점**: 누군가 volunteer 또는 pass 할 때
 
 ```json
@@ -506,9 +588,8 @@ Authorization: Bearer {accessToken}
     │
     ├─ 1. WebSocket 연결: new SockJS('/ws-stomp') + STOMP CONNECT (JWT 필수)
     ├─ 2. 구독: /sub/room/{roomId}
-    │        /user/queue/join-response
-    │        /user/queue/vote-status
-    ├─ 3. HTTP: GET /api/leader-games/rooms/{roomId}/members (멤버 목록 조회)
+    │        /sub/room/{roomId}/user/{myUserId}
+    ├─ 3. 발행: /pub/room/{roomId}/reload (현재 방 상태 조회)
     │
     ▼ 방장이 HTTP: POST /start-volunteer 호출
 ┌──────────────────────────────────────────────────┐
@@ -519,7 +600,7 @@ Authorization: Bearer {accessToken}
 │  수신: VOTE_UPDATED (투표 완료 후부터)               │
 │                                                    │
 │  ※ 자동 종료: durationSeconds 후 서버가 자동 처리    │
-│  TODO: 전원 투표 완료 시 종료 추가 예정                │
+│  ※ 전원 투표 완료 시 즉시 종료                       │
 └──────────────────────────────────────────────────┘
     │
     ├─ 지원자 0명 → 전원 자동 지원 → GAME_SELECT로
@@ -536,20 +617,14 @@ Authorization: Bearer {accessToken}
     ├─ ROULETTE → 즉시 GAME_RESULT 수신 → RESULT로
     ▼ TIMING 선택 시
 ┌──────────────────────────────────────────────────┐
-│ GAME_READY 단계                                    │
-│                                                    │
-│  수신: PHASE_CHANGE {phase: "GAME_READY"}          │
-│  발행: /start-timing (방장만)                       │
-└──────────────────────────────────────────────────┘
-    │
-    ▼
-┌──────────────────────────────────────────────────┐
-│ GAME_PLAYING 단계                                  │
+│ GAME_PLAYING 단계 (타이밍 게임)                     │
 │                                                    │
 │  수신: PHASE_CHANGE {phase: "GAME_PLAYING"}        │
-│  [프론트] 각 유저 개별 타이머 START → STOP           │
+│  [프론트] 각 유저가 개별적으로 START → STOP 버튼    │
 │  발행: /timing-result {timeDifference: ...}        │
 │                                                    │
+│  ※ 서버가 타이밍을 관리하지 않음                    │
+│  ※ 각 유저가 자신의 타이머를 관리하고 결과만 제출    │
 │  ※ 전원 제출 시 서버가 자동으로 결과 계산            │
 └──────────────────────────────────────────────────┘
     │
@@ -585,14 +660,12 @@ function connect(accessToken, roomId, myUserId) {
       Authorization: `Bearer ${accessToken}`,
     },
     onConnect: () => {
-      // Step 1: 구독 (3개 필수 + 1개 선택)
+      // Step 1: 구독 (2개 필수)
       subscribeRoom(roomId);
-      subscribeJoinResponse();
-      subscribeVoteStatus();
-      subscribeError(roomId, myUserId);  // 선택
+      subscribeUserMessages(roomId, myUserId);
 
-      // Step 2: 입장
-      client.publish({ destination: `/pub/room/${roomId}/join`, body: '{}' });
+      // Step 2: 방 상태 조회
+      client.publish({ destination: `/pub/room/${roomId}/reload`, body: '{}' });
     },
     onStompError: (frame) => {
       console.error('연결 실패:', frame.headers['message']);
@@ -609,7 +682,7 @@ function subscribeRoom(roomId) {
     const { type, payload } = JSON.parse(message.body);
 
     switch (type) {
-      case 'USER_JOINED':
+      case 'USER_RECONNECTED':
         // payload: { userId, name, profileImageId }
         break;
       case 'USER_LEFT':
@@ -630,26 +703,24 @@ function subscribeRoom(roomId) {
   });
 }
 
-function subscribeJoinResponse() {
-  client.subscribe('/user/queue/join-response', (message) => {
-    const { payload } = JSON.parse(message.body);
-    // payload: { user, participants, connectedUserIds, currentPhase, ... }
-    initializeRoomState(payload);
-  });
-}
-
-function subscribeVoteStatus() {
-  client.subscribe('/user/queue/vote-status', (message) => {
-    const { payload } = JSON.parse(message.body);
-    // payload: { votedUserIds, unvotedUserIds, volunteerIds, totalCount, votedCount }
-    updateVoteUI(payload);
-  });
-}
-
-function subscribeError(roomId, myUserId) {
+function subscribeUserMessages(roomId, myUserId) {
+  // 개인 메시지 (reload 응답, 투표 현황, 에러) - 단일 구독으로 통합
   client.subscribe(`/sub/room/${roomId}/user/${myUserId}`, (message) => {
-    const { payload } = JSON.parse(message.body);
-    alert(payload.message);
+    const { type, payload } = JSON.parse(message.body);
+
+    switch (type) {
+      case 'RELOAD_SUCCESS':
+        // payload: { currentUser, members, connectedUserIds, volunteers, votedUsers, currentPhase, ... }
+        initializeRoomState(payload);
+        break;
+      case 'VOTE_UPDATED':
+        // payload: { votedUserIds, unvotedUserIds, volunteerIds, totalCount, votedCount }
+        updateVoteUI(payload);
+        break;
+      case 'ERROR':
+        alert(payload.message);
+        break;
+    }
   });
 }
 
@@ -683,12 +754,7 @@ function selectGame(roomId, gameType) {
   });
 }
 
-// 타이밍 게임 시작 (방장만)
-function startTiming(roomId) {
-  client.publish({ destination: `/pub/room/${roomId}/start-timing`, body: '{}' });
-}
-
-// 타이밍 결과 제출
+// 타이밍 결과 제출 (개별 게임 완료 후)
 function submitTimingResult(roomId, elapsedSeconds) {
   const timeDifference = Math.abs(7.777 - elapsedSeconds);
   client.publish({
@@ -704,23 +770,99 @@ function confirmAndDisconnect(roomId) {
 }
 ```
 
-### 7.2 타이밍 게임 시간 계산
+### 7.2 타이밍 게임 구현 (개별 플레이)
+
+타이밍 게임은 서버가 시간을 관리하지 않습니다. 각 유저가 개별적으로 게임을 진행합니다.
 
 ```javascript
 let startTime = null;
+let isPlaying = false;
 
-// PHASE_CHANGE {phase: "GAME_PLAYING"} 수신 후
+// PHASE_CHANGE {phase: "GAME_PLAYING"} 수신 후 게임 화면 표시
+function onTimingGameReady() {
+  // 게임 UI 표시 (START 버튼 활성화)
+  showTimingGameUI();
+}
+
+// 유저가 START 버튼 클릭 시
 function onTimingStart() {
   startTime = performance.now();
+  isPlaying = true;
+  // UI 업데이트 (타이머 시작, STOP 버튼 표시)
 }
 
 // 유저가 STOP 버튼 클릭 시
 function onTimingStop(roomId) {
+  if (!isPlaying) return;
+
   const elapsedMs = performance.now() - startTime;
   const elapsedSeconds = elapsedMs / 1000;
   const timeDifference = Math.abs(7.777 - elapsedSeconds);
 
-  submitTimingResult(roomId, elapsedSeconds);
+  isPlaying = false;
+
+  // 서버에 결과 제출
+  client.publish({
+    destination: `/pub/room/${roomId}/timing-result`,
+    body: JSON.stringify({ timeDifference }),
+  });
+
+  // UI 업데이트 (대기 화면으로 전환, 다른 유저 대기 중 표시)
+}
+```
+
+### 7.3 방 상태 초기화 (reload 응답 처리)
+
+```javascript
+function initializeRoomState(payload) {
+  const {
+    currentUser,
+    members,
+    connectedUserIds,
+    volunteers,
+    votedUsers,
+    currentPhase,
+    phaseStartTime,
+    remainingTime,
+    selectedGame,
+    winnerId,
+    winnerName
+  } = payload;
+
+  // 멤버 목록 초기화 (온라인 상태 포함)
+  setMembers(members.map(member => ({
+    ...member,
+    isOnline: connectedUserIds.includes(member.userId)
+  })));
+
+  // 현재 게임 단계에 따른 UI 복원
+  switch (currentPhase) {
+    case null:
+      // 게임 시작 전 - 대기 화면
+      showWaitingScreen();
+      break;
+    case 'VOLUNTEER':
+      // 투표 단계 - 투표 여부에 따라 UI 분기
+      const hasVoted = votedUsers.includes(currentUser.userId);
+      if (hasVoted) {
+        showVoteStatus({ volunteers, votedUsers });
+      } else {
+        showVoteScreen(remainingTime);
+      }
+      break;
+    case 'GAME_SELECT':
+      // 게임 선택 대기 (방장이면 선택 UI, 아니면 대기)
+      showGameSelectScreen();
+      break;
+    case 'GAME_PLAYING':
+      // 타이밍 게임 진행 중
+      showTimingGameUI();
+      break;
+    case 'RESULT':
+      // 결과 화면
+      showResultScreen({ winnerId, winnerName, selectedGame });
+      break;
+  }
 }
 ```
 
@@ -735,14 +877,11 @@ function onTimingStop(roomId) {
 | **CONNECT** | `ws://localhost:8080/ws-stomp` | JWT 인증과 함께 연결 |
 | **DISCONNECT** | - | `client.deactivate()` |
 | **SUBSCRIBE** | `/sub/room/{roomId}` | 방 브로드캐스트 (팀 멤버 검증) |
-| **SUBSCRIBE** | `/user/queue/join-response` | 입장 응답 (본인만) |
-| **SUBSCRIBE** | `/user/queue/vote-status` | 투표 현황 (본인만) |
-| **SUBSCRIBE** | `/sub/room/{roomId}/user/{userId}` | 에러 메시지 (선택) |
-| **PUBLISH** | `/pub/room/{roomId}/join` | 입장 |
+| **SUBSCRIBE** | `/sub/room/{roomId}/user/{userId}` | 개인 메시지 (reload, 투표, 에러) |
+| **PUBLISH** | `/pub/room/{roomId}/reload` | 방 상태 조회 (새로고침/재접속) |
 | **PUBLISH** | `/pub/room/{roomId}/volunteer` | 팀장 지원 |
 | **PUBLISH** | `/pub/room/{roomId}/pass` | 지원 안함 |
 | **PUBLISH** | `/pub/room/{roomId}/select-game` | 게임 선택 (방장) |
-| **PUBLISH** | `/pub/room/{roomId}/start-timing` | 타이밍 시작 (방장) |
 | **PUBLISH** | `/pub/room/{roomId}/timing-result` | 타이밍 결과 제출 |
 | **PUBLISH** | `/pub/room/{roomId}/leave` | 퇴장 |
 | **PUBLISH** | `/pub/room/{roomId}/confirm-result` | 결과 확인 |
@@ -751,5 +890,6 @@ function onTimingStop(roomId) {
 
 | Method | URL | 설명 | 권한 |
 |--------|-----|------|------|
+| `POST` | `/test/dummy-user` | 테스트용 더미 유저 생성 | 없음 (테스트 전용) |
 | `POST` | `/api/leader-games/rooms/{roomId}/start-volunteer` | VOLUNTEER 단계 시작 | 방장 |
 | `GET` | `/api/leader-games/rooms/{roomId}/members` | 멤버 온라인 상태 조회 | 팀원 |

@@ -22,7 +22,7 @@ import java.util.concurrent.TimeUnit;
  * 1. 게임 상태 (Hash)
  *    Key: room:{roomId}:game
  *    Fields:
- *      - phase: 현재 게임 단계 (VOLUNTEER, GAME_SELECT, GAME_READY, GAME_PLAYING, RESULT)
+ *      - phase: 현재 게임 단계 (VOLUNTEER, GAME_SELECT, GAME_PLAYING, RESULT)
  *      - phaseStartTime: 현재 단계 시작 시간 (timestamp)
  *      - participants: 참가자 목록 (JSON)
  *      - volunteers: 팀장 지원자 ID 목록 (JSON)
@@ -56,7 +56,7 @@ import java.util.concurrent.TimeUnit;
  *
  * 4. 게임 선택 (방장)
  *    → setSelectedGame(roomId, gameType)
- *    → setPhase(roomId, GamePhase.GAME_READY) // 타이밍 게임인 경우
+ *    → setPhase(roomId, GamePhase.GAME_PLAYING) // 타이밍 게임인 경우
  *
  * 5. 타이밍 게임
  *    → setGameStartTime(roomId)               // 게임 시작 시간 기록
@@ -165,12 +165,12 @@ public class GameStateRedisService {
      * 게임 단계 변경
      *
      * Phase 흐름:
-     *   VOLUNTEER → GAME_SELECT → GAME_READY(타이밍만) → GAME_PLAYING(타이밍만) → RESULT
+     *   VOLUNTEER → GAME_SELECT → GAME_PLAYING(타이밍만) → RESULT
+     *   (사다리/룰렛은 GAME_SELECT에서 바로 RESULT로)
      *
      * 사용 예시:
      *   setPhase(roomId, GamePhase.GAME_SELECT);  // 지원 마감 후
-     *   setPhase(roomId, GamePhase.GAME_READY);   // 타이밍 게임 선택 시
-     *   setPhase(roomId, GamePhase.GAME_PLAYING); // 방장이 타이밍 시작
+     *   setPhase(roomId, GamePhase.GAME_PLAYING); // 타이밍 게임 선택 시
      *   setPhase(roomId, GamePhase.RESULT);       // 게임 종료
      */
     public void setPhase(Long roomId, GamePhase phase) {
@@ -332,9 +332,9 @@ public class GameStateRedisService {
      * 예시:
      *   setSelectedGame(roomId, GameType.TIMING);
      *   if (gameType == GameType.TIMING) {
-     *       setPhase(roomId, GamePhase.GAME_READY);  // 타이밍은 추가 단계 필요
+     *       setPhase(roomId, GamePhase.GAME_PLAYING);  // 타이밍: 개별 플레이
      *   } else {
-     *       // 사다리/룰렛은 즉시 결과 계산
+     *       // 사다리/룰렛은 즉시 결과 계산 후 RESULT
      *   }
      */
     public void setSelectedGame(Long roomId, GameType gameType) {

@@ -1,10 +1,9 @@
 package com.yamoyo.be.domain.leadergame.controller;
 
 import com.yamoyo.be.domain.leadergame.dto.message.GameMessage;
-import com.yamoyo.be.domain.leadergame.dto.message.JoinPayload;
+import com.yamoyo.be.domain.leadergame.dto.message.ReloadPayload;
 import com.yamoyo.be.domain.leadergame.enums.GameType;
 import com.yamoyo.be.domain.leadergame.service.LeaderGameService;
-import com.yamoyo.be.domain.security.jwt.JwtTokenClaims;
 import com.yamoyo.be.domain.user.entity.User;
 import com.yamoyo.be.domain.user.repository.UserRepository;
 import com.yamoyo.be.exception.ErrorCode;
@@ -13,11 +12,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 
-import java.security.Principal;
 import java.util.Map;
 
 @Slf4j
@@ -30,29 +28,28 @@ public class LeaderGameWebSocketController {
     private final UserRepository userRepository;
 
     /**
-     * 게임 방 입장
-     * /pub/room/{roomId}/join
+     * 새로고침/재접속 시 현재 방 상태 조회
+     * /pub/room/{roomId}/reload
      *
-     * 응답: /user/queue/join-response 로 JOIN_SUCCESS 전송
+     * 응답: /sub/room/{roomId}/user/{userId} 로 RELOAD_SUCCESS 전송
      */
-    @MessageMapping("/room/{roomId}/join")
-    public void join(@DestinationVariable Long roomId, Principal principal) {
-        Long userId = extractUserId(principal);
-        log.info("User {} joining room {}", userId, roomId);
+    @MessageMapping("/room/{roomId}/reload")
+    public void reload(@DestinationVariable Long roomId, SimpMessageHeaderAccessor headerAccessor) {
+        Long userId = extractUserId(headerAccessor);
+        log.info("User {} reloading room {}", userId, roomId);
 
         try {
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new YamoyoException(ErrorCode.USER_NOT_FOUND));
-            JoinPayload payload = leaderGameService.handleJoin(roomId, user);
+            ReloadPayload payload = leaderGameService.handleReload(roomId, user);
 
-            // 본인에게만 현재 게임 상태 전송
-            messagingTemplate.convertAndSendToUser(
-                    userId.toString(),
-                    "/queue/join-response",
-                    GameMessage.of("JOIN_SUCCESS", payload)
+            // 본인에게만 현재 게임 상태 전송 (user-specific topic 사용)
+            messagingTemplate.convertAndSend(
+                    "/sub/room/" + roomId + "/user/" + userId,
+                    GameMessage.of("RELOAD_SUCCESS", payload)
             );
         } catch (Exception e) {
-            log.error("Join failed", e);
+            log.error("Reload failed", e);
             sendError(roomId, userId, e.getMessage());
         }
     }
@@ -62,8 +59,8 @@ public class LeaderGameWebSocketController {
      * /pub/room/{roomId}/volunteer
      */
     @MessageMapping("/room/{roomId}/volunteer")
-    public void volunteer(@DestinationVariable Long roomId, Principal principal) {
-        Long userId = extractUserId(principal);
+    public void volunteer(@DestinationVariable Long roomId, SimpMessageHeaderAccessor headerAccessor) {
+        Long userId = extractUserId(headerAccessor);
         log.info("User {} volunteering in room {}", userId, roomId);
 
         try {
@@ -79,8 +76,8 @@ public class LeaderGameWebSocketController {
      * /pub/room/{roomId}/pass
      */
     @MessageMapping("/room/{roomId}/pass")
-    public void pass(@DestinationVariable Long roomId, Principal principal) {
-        Long userId = extractUserId(principal);
+    public void pass(@DestinationVariable Long roomId, SimpMessageHeaderAccessor headerAccessor) {
+        Long userId = extractUserId(headerAccessor);
         log.info("User {} passing in room {}", userId, roomId);
 
         try {
@@ -101,10 +98,10 @@ public class LeaderGameWebSocketController {
     @MessageMapping("/room/{roomId}/timing-result")
     public void submitTimingResult(
             @DestinationVariable Long roomId,
-            Principal principal,
+            SimpMessageHeaderAccessor headerAccessor,
             Map<String, Object> payload
     ) {
-        Long userId = extractUserId(principal);
+        Long userId = extractUserId(headerAccessor);
         Double timeDifference = ((Number) payload.get("timeDifference")).doubleValue();
         log.info("User {} submitted timing result in room {}: {}", userId, roomId, timeDifference);
 
@@ -125,10 +122,10 @@ public class LeaderGameWebSocketController {
     @MessageMapping("/room/{roomId}/select-game")
     public void selectGame(
             @DestinationVariable Long roomId,
-            Principal principal,
+            SimpMessageHeaderAccessor headerAccessor,
             Map<String, Object> payload
     ) {
-        Long userId = extractUserId(principal);
+        Long userId = extractUserId(headerAccessor);
         GameType gameType = GameType.valueOf((String) payload.get("gameType"));
         log.info("User {} selected game {} in room {}", userId, gameType, roomId);
 
@@ -141,29 +138,12 @@ public class LeaderGameWebSocketController {
     }
 
     /**
-     * 타이밍 게임 시작 (방장 전용)
-     * /pub/room/{roomId}/start-timing
-     */
-    @MessageMapping("/room/{roomId}/start-timing")
-    public void startTimingGame(@DestinationVariable Long roomId, Principal principal) {
-        Long userId = extractUserId(principal);
-        log.info("User {} starting timing game in room {}", userId, roomId);
-
-        try {
-            leaderGameService.startTimingGame(roomId, userId);
-        } catch (Exception e) {
-            log.error("Start timing game failed", e);
-            sendError(roomId, userId, e.getMessage());
-        }
-    }
-
-    /**
      * 방 퇴장
      * /pub/room/{roomId}/leave
      */
     @MessageMapping("/room/{roomId}/leave")
-    public void leave(@DestinationVariable Long roomId, Principal principal) {
-        Long userId = extractUserId(principal);
+    public void leave(@DestinationVariable Long roomId, SimpMessageHeaderAccessor headerAccessor) {
+        Long userId = extractUserId(headerAccessor);
         log.info("User {} leaving room {}", userId, roomId);
 
         try {
@@ -178,8 +158,8 @@ public class LeaderGameWebSocketController {
      * /pub/room/{roomId}/confirm-result
      */
     @MessageMapping("/room/{roomId}/confirm-result")
-    public void confirmResult(@DestinationVariable Long roomId, Principal principal) {
-        Long userId = extractUserId(principal);
+    public void confirmResult(@DestinationVariable Long roomId, SimpMessageHeaderAccessor headerAccessor) {
+        Long userId = extractUserId(headerAccessor);
         log.info("User {} confirmed result in room {}", userId, roomId);
 
         try {
@@ -189,14 +169,15 @@ public class LeaderGameWebSocketController {
         }
     }
 
-    private Long extractUserId(Principal principal) {
-        if (principal instanceof Authentication auth) {
-            Object p = auth.getPrincipal();
-            if (p instanceof JwtTokenClaims claims) {
-                return claims.userId();
+    private Long extractUserId(SimpMessageHeaderAccessor headerAccessor) {
+        Map<String, Object> sessionAttributes = headerAccessor.getSessionAttributes();
+        if (sessionAttributes != null) {
+            Long userId = (Long) sessionAttributes.get("userId");
+            if (userId != null) {
+                return userId;
             }
         }
-        throw new IllegalStateException("Cannot extract userId from principal");
+        throw new IllegalStateException("Cannot extract userId from sessionAttributes");
     }
 
     private void sendError(Long roomId, Long userId, String message) {

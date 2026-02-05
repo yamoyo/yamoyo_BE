@@ -2,7 +2,7 @@ package com.yamoyo.be.domain.leadergame.service;
 
 import com.yamoyo.be.domain.leadergame.dto.GameParticipant;
 import com.yamoyo.be.domain.leadergame.dto.message.GameResultPayload;
-import com.yamoyo.be.domain.leadergame.dto.message.JoinPayload;
+import com.yamoyo.be.domain.leadergame.dto.message.ReloadPayload;
 import com.yamoyo.be.domain.leadergame.dto.response.VolunteerPhaseResponse;
 import com.yamoyo.be.domain.leadergame.enums.GamePhase;
 import com.yamoyo.be.domain.leadergame.enums.GameType;
@@ -114,136 +114,91 @@ class LeaderGameServiceTest {
         return participants;
     }
 
-    // ==================== 입장 테스트 ====================
+    // ==================== 재접속 테스트 ====================
 
     @Nested
-    @DisplayName("handleJoin - 게임 방 입장")
-    class HandleJoinTest {
+    @DisplayName("handleReload - 새로고침/재접속")
+    class HandleReloadTest {
 
         @Test
-        @DisplayName("입장 성공 - PENDING 상태")
-        void handleJoin_Success_Pending() {
+        @DisplayName("재접속 성공 - 게임 진행 중에도 가능")
+        void handleReload_Success() {
             // given
             Long roomId = 1L;
             Long userId = 1L;
             User user = createMockUser(userId, "TestUser");
-            TeamRoom teamRoom = createMockTeamRoom(roomId, Workflow.PENDING);
             TeamMember teamMember = createMockTeamMember(1L, roomId, userId, TeamRole.MEMBER);
 
-            given(teamRoomRepository.findById(roomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(roomId, userId))
                     .willReturn(Optional.of(teamMember));
-            given(redisService.getParticipants(roomId)).willReturn(createParticipants(3));
+            given(teamMemberRepository.findByTeamRoomId(roomId)).willReturn(List.of(teamMember));
             given(redisService.getConnectedUsers(roomId)).willReturn(Set.of(1L, 2L));
-            given(redisService.getPhase(roomId)).willReturn(null);
+            given(redisService.getPhase(roomId)).willReturn(GamePhase.VOLUNTEER);
+            given(redisService.getPhaseStartTime(roomId)).willReturn(System.currentTimeMillis());
+            given(redisService.getVolunteers(roomId)).willReturn(Set.of(1L));
+            given(redisService.getVotedUsers(roomId)).willReturn(Set.of(1L));
+            given(redisService.getSelectedGame(roomId)).willReturn(null);
+            given(redisService.getWinner(roomId)).willReturn(null);
 
             // when
-            JoinPayload result = leaderGameService.handleJoin(roomId, user);
+            ReloadPayload result = leaderGameService.handleReload(roomId, user);
 
             // then
             assertThat(result).isNotNull();
-            assertThat(result.getUser().userId()).isEqualTo(userId);
+            assertThat(result.currentUser().userId()).isEqualTo(userId);
+            assertThat(result.currentPhase()).isEqualTo(GamePhase.VOLUNTEER);
             verify(redisService).addConnection(roomId, userId);
             verify(messagingTemplate).convertAndSend(eq("/sub/room/" + roomId), any(Object.class));
         }
 
         @Test
-        @DisplayName("입장 실패 - 게임 진행 중 (LEADER_SELECTION)")
-        void handleJoin_Fail_GameInProgress() {
-            // given
-            Long roomId = 1L;
-            Long userId = 1L;
-            User user = createMockUser(userId, "TestUser");
-            TeamRoom teamRoom = createMockTeamRoom(roomId, Workflow.LEADER_SELECTION);
-
-            given(teamRoomRepository.findById(roomId)).willReturn(Optional.of(teamRoom));
-
-            // when / then
-            assertThatThrownBy(() -> leaderGameService.handleJoin(roomId, user))
-                    .isInstanceOf(YamoyoException.class)
-                    .satisfies(e -> assertThat(((YamoyoException) e).getErrorCode())
-                            .isEqualTo(ErrorCode.ROOM_NOT_JOINABLE));
-        }
-
-        @Test
-        @DisplayName("입장 실패 - 팀룸 없음")
-        void handleJoin_Fail_TeamRoomNotFound() {
-            // given
-            Long roomId = 999L;
-            Long userId = 1L;
-            User user = createMockUser(userId, "TestUser");
-
-            given(teamRoomRepository.findById(roomId)).willReturn(Optional.empty());
-
-            // when / then
-            assertThatThrownBy(() -> leaderGameService.handleJoin(roomId, user))
-                    .isInstanceOf(YamoyoException.class)
-                    .satisfies(e -> assertThat(((YamoyoException) e).getErrorCode())
-                            .isEqualTo(ErrorCode.TEAMROOM_NOT_FOUND));
-        }
-
-        @Test
-        @DisplayName("입장 실패 - 팀 멤버 아님")
-        void handleJoin_Fail_NotTeamMember() {
+        @DisplayName("재접속 실패 - 팀 멤버 아님")
+        void handleReload_Fail_NotTeamMember() {
             // given
             Long roomId = 1L;
             Long userId = 999L;
             User user = createMockUser(userId, "OutsiderUser");
-            TeamRoom teamRoom = createMockTeamRoom(roomId, Workflow.PENDING);
 
-            given(teamRoomRepository.findById(roomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(roomId, userId))
                     .willReturn(Optional.empty());
 
             // when / then
-            assertThatThrownBy(() -> leaderGameService.handleJoin(roomId, user))
+            assertThatThrownBy(() -> leaderGameService.handleReload(roomId, user))
                     .isInstanceOf(YamoyoException.class)
                     .satisfies(e -> assertThat(((YamoyoException) e).getErrorCode())
                             .isEqualTo(ErrorCode.NOT_TEAM_MEMBER));
         }
 
         @Test
-        @DisplayName("입장 실패 - SETUP 진행 중")
-        void handleJoin_Fail_SetupInProgress() {
+        @DisplayName("재접속 시 RESULT 단계면 당첨자 정보 포함")
+        void handleReload_WithWinnerInfo() {
             // given
             Long roomId = 1L;
             Long userId = 1L;
+            Long winnerId = 2L;
             User user = createMockUser(userId, "TestUser");
-            TeamRoom teamRoom = createMockTeamRoom(roomId, Workflow.SETUP);
+            TeamMember teamMember1 = createMockTeamMember(1L, roomId, userId, TeamRole.MEMBER);
+            TeamMember teamMember2 = createMockTeamMember(2L, roomId, winnerId, TeamRole.MEMBER);
 
-            given(teamRoomRepository.findById(roomId)).willReturn(Optional.of(teamRoom));
-
-            // when / then
-            assertThatThrownBy(() -> leaderGameService.handleJoin(roomId, user))
-                    .isInstanceOf(YamoyoException.class)
-                    .satisfies(e -> assertThat(((YamoyoException) e).getErrorCode())
-                            .isEqualTo(ErrorCode.ROOM_NOT_JOINABLE));
-        }
-
-        @Test
-        @DisplayName("입장 시 참가자 목록이 비어있으면 DB에서 조회")
-        void handleJoin_FetchParticipantsFromDb_WhenEmpty() {
-            // given
-            Long roomId = 1L;
-            Long userId = 1L;
-            User user = createMockUser(userId, "TestUser");
-            TeamRoom teamRoom = createMockTeamRoom(roomId, Workflow.PENDING);
-            TeamMember teamMember = createMockTeamMember(1L, roomId, userId, TeamRole.MEMBER);
-
-            given(teamRoomRepository.findById(roomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(roomId, userId))
-                    .willReturn(Optional.of(teamMember));
-            given(redisService.getParticipants(roomId)).willReturn(new ArrayList<>());
-            given(redisService.getConnectedUsers(roomId)).willReturn(Set.of(1L));
-            given(redisService.getPhase(roomId)).willReturn(null);
-            given(teamMemberRepository.findByTeamRoomId(roomId)).willReturn(List.of(teamMember));
+                    .willReturn(Optional.of(teamMember1));
+            given(teamMemberRepository.findByTeamRoomId(roomId)).willReturn(List.of(teamMember1, teamMember2));
+            given(redisService.getConnectedUsers(roomId)).willReturn(Set.of(1L, 2L));
+            given(redisService.getPhase(roomId)).willReturn(GamePhase.RESULT);
+            given(redisService.getPhaseStartTime(roomId)).willReturn(System.currentTimeMillis());
+            given(redisService.getVolunteers(roomId)).willReturn(Set.of(1L, 2L));
+            given(redisService.getVotedUsers(roomId)).willReturn(Set.of(1L, 2L));
+            given(redisService.getSelectedGame(roomId)).willReturn(GameType.LADDER);
+            given(redisService.getWinner(roomId)).willReturn(winnerId);
 
             // when
-            JoinPayload result = leaderGameService.handleJoin(roomId, user);
+            ReloadPayload result = leaderGameService.handleReload(roomId, user);
 
             // then
             assertThat(result).isNotNull();
-            verify(teamMemberRepository).findByTeamRoomId(roomId);
+            assertThat(result.currentPhase()).isEqualTo(GamePhase.RESULT);
+            assertThat(result.winnerId()).isEqualTo(winnerId);
+            assertThat(result.selectedGame()).isEqualTo(GameType.LADDER);
         }
     }
 
@@ -529,6 +484,7 @@ class LeaderGameServiceTest {
             Long winnerId = 1L;
             List<GameParticipant> participants = createParticipants(3);
 
+            given(redisService.getPhase(roomId)).willReturn(GamePhase.VOLUNTEER);
             given(redisService.getVolunteers(roomId)).willReturn(Set.of(winnerId));
             given(redisService.getParticipants(roomId)).willReturn(participants);
 
@@ -554,6 +510,7 @@ class LeaderGameServiceTest {
             Long roomId = 1L;
             List<GameParticipant> participants = createParticipants(3);
 
+            given(redisService.getPhase(roomId)).willReturn(GamePhase.VOLUNTEER);
             given(redisService.getVolunteers(roomId)).willReturn(new HashSet<>());
             given(redisService.getParticipants(roomId)).willReturn(participants);
 
@@ -573,6 +530,7 @@ class LeaderGameServiceTest {
             Long roomId = 1L;
             List<GameParticipant> participants = createParticipants(3);
 
+            given(redisService.getPhase(roomId)).willReturn(GamePhase.VOLUNTEER);
             given(redisService.getVolunteers(roomId)).willReturn(Set.of(1L, 2L));
             given(redisService.getParticipants(roomId)).willReturn(participants);
 
@@ -658,7 +616,7 @@ class LeaderGameServiceTest {
         }
 
         @Test
-        @DisplayName("타이밍 게임 선택 성공 - GAME_READY 전환")
+        @DisplayName("타이밍 게임 선택 성공 - GAME_PLAYING 전환")
         void selectGame_Timing_Success() {
             // given
             Long roomId = 1L;
@@ -677,7 +635,7 @@ class LeaderGameServiceTest {
 
             // then
             verify(redisService).setSelectedGame(roomId, GameType.TIMING);
-            verify(redisService).setPhase(roomId, GamePhase.GAME_READY);
+            verify(redisService).setPhase(roomId, GamePhase.GAME_PLAYING);
             verify(messagingTemplate).convertAndSend(eq("/sub/room/" + roomId), any(Object.class));
             verify(ladderGameService, never()).play(anyList());
             verify(rouletteGameService, never()).play(anyList());
@@ -740,68 +698,6 @@ class LeaderGameServiceTest {
 
             // then
             verify(ladderGameService).play(argThat(list -> list.size() == 3));
-        }
-    }
-
-    // ==================== 타이밍 게임 시작 테스트 ====================
-
-    @Nested
-    @DisplayName("startTimingGame - 타이밍 게임 시작")
-    class StartTimingGameTest {
-
-        @Test
-        @DisplayName("타이밍 게임 시작 성공")
-        void startTimingGame_Success() {
-            // given
-            Long roomId = 1L;
-            Long hostUserId = 1L;
-            TeamMember host = createMockTeamMember(1L, roomId, hostUserId, TeamRole.HOST);
-
-            given(redisService.getPhase(roomId)).willReturn(GamePhase.GAME_READY);
-            given(teamMemberRepository.findByTeamRoomIdAndUserId(roomId, hostUserId))
-                    .willReturn(Optional.of(host));
-
-            // when
-            leaderGameService.startTimingGame(roomId, hostUserId);
-
-            // then
-            verify(redisService).setPhase(roomId, GamePhase.GAME_PLAYING);
-            verify(messagingTemplate).convertAndSend(eq("/sub/room/" + roomId), any(Object.class));
-        }
-
-        @Test
-        @DisplayName("타이밍 게임 시작 실패 - 잘못된 게임 단계")
-        void startTimingGame_Fail_InvalidPhase() {
-            // given
-            Long roomId = 1L;
-            Long hostUserId = 1L;
-
-            given(redisService.getPhase(roomId)).willReturn(GamePhase.GAME_SELECT);
-
-            // when / then
-            assertThatThrownBy(() -> leaderGameService.startTimingGame(roomId, hostUserId))
-                    .isInstanceOf(YamoyoException.class)
-                    .satisfies(e -> assertThat(((YamoyoException) e).getErrorCode())
-                            .isEqualTo(ErrorCode.INVALID_GAME_PHASE));
-        }
-
-        @Test
-        @DisplayName("타이밍 게임 시작 실패 - 방장 아님")
-        void startTimingGame_Fail_NotHost() {
-            // given
-            Long roomId = 1L;
-            Long userId = 2L;
-            TeamMember member = createMockTeamMember(2L, roomId, userId, TeamRole.MEMBER);
-
-            given(redisService.getPhase(roomId)).willReturn(GamePhase.GAME_READY);
-            given(teamMemberRepository.findByTeamRoomIdAndUserId(roomId, userId))
-                    .willReturn(Optional.of(member));
-
-            // when / then
-            assertThatThrownBy(() -> leaderGameService.startTimingGame(roomId, userId))
-                    .isInstanceOf(YamoyoException.class)
-                    .satisfies(e -> assertThat(((YamoyoException) e).getErrorCode())
-                            .isEqualTo(ErrorCode.NOT_ROOM_HOST));
         }
     }
 
@@ -873,7 +769,7 @@ class LeaderGameServiceTest {
             Long userId = 1L;
             Double timeDifference = 1.0;
 
-            given(redisService.getPhase(roomId)).willReturn(GamePhase.GAME_READY);
+            given(redisService.getPhase(roomId)).willReturn(GamePhase.GAME_SELECT);
 
             // when / then
             assertThatThrownBy(() -> leaderGameService.submitTimingResult(roomId, userId, timeDifference))
