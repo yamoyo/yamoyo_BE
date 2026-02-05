@@ -214,8 +214,8 @@ public class LeaderGameService {
 
     /**
      * 투표 현황을 투표 완료자에게만 전송
-     * - 프론트엔드 구독 경로: /user/queue/vote-status
-     * - convertAndSendToUser 사용으로 사용자별 전송
+     * - 프론트엔드 구독 경로: /sub/room/{roomId}/user/{userId}
+     * - SimpUserRegistry 문제 우회를 위해 user-specific topic 사용
      */
     private void broadcastVoteStatus(Long roomId) {
         // 게임 참가자 목록 ID
@@ -239,11 +239,10 @@ public class LeaderGameService {
                 votedUserIds, unvotedUserIds, volunteerIds, participants.size());
         GameMessage<VoteStatusPayload> message = GameMessage.of("VOTE_UPDATED", payload);
 
-        // 투표 완료자에게만 전송
+        // 투표 완료자에게만 전송 (user-specific topic 사용)
         for (Long votedUserId : votedUserIds) {
-            messagingTemplate.convertAndSendToUser(
-                    votedUserId.toString(),
-                    "/queue/vote-status",
+            messagingTemplate.convertAndSend(
+                    "/sub/room/" + roomId + "/user/" + votedUserId,
                     message
             );
         }

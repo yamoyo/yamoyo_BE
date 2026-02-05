@@ -89,10 +89,9 @@ class LeaderGameWebSocketControllerTest {
 
             // then
             verify(leaderGameService).handleReload(roomId, user);
-            verify(messagingTemplate).convertAndSendToUser(
-                    eq(userId.toString()),
-                    eq("/queue/reload-response"),
-                    any()
+            verify(messagingTemplate).convertAndSend(
+                    eq("/sub/room/" + roomId + "/user/" + userId),
+                    any(Object.class)
             );
         }
 

@@ -56,25 +56,22 @@ client.deactivate();
 
 ## 2. SUBSCRIBE (구독)
 
-연결 성공 후 아래 3개 주소를 **모두** 구독해야 합니다.
+연결 성공 후 아래 2개 주소를 **모두** 구독해야 합니다.
 
 ### 2.1 구독 주소 목록
 
 | 구독 주소 | 대상 | 수신 메시지 |
 |----------|------|-----------|
 | `/sub/room/{roomId}` | 방 전체 | USER_RECONNECTED, USER_LEFT, USER_STATUS_CHANGE, PHASE_CHANGE, GAME_RESULT |
-| `/user/queue/reload-response` | 본인만 | RELOAD_SUCCESS |
-| `/user/queue/vote-status` | 투표 완료자만 | VOTE_UPDATED |
+| `/sub/room/{roomId}/user/{userId}` | 본인만 | RELOAD_SUCCESS, VOTE_UPDATED, ERROR |
 
 > `/sub/room/{roomId}` 구독 시 서버가 **팀 멤버 여부를 DB에서 검증**합니다.
 > 팀 멤버가 아니면 구독이 거부됩니다.
 
-> 에러 메시지는 `/sub/room/{roomId}/user/{userId}` 로 전달됩니다. 필요 시 추가 구독하세요.
-
 ### 2.2 구독 코드 예시
 
 ```javascript
-function subscribeAll(roomId) {
+function subscribeAll(roomId, myUserId) {
   // 1. 방 전체 브로드캐스트
   client.subscribe(`/sub/room/${roomId}`, (message) => {
     const { type, payload } = JSON.parse(message.body);
@@ -88,25 +85,15 @@ function subscribeAll(roomId) {
     }
   });
 
-  // 2. Reload 응답 (본인에게만 전달)
-  client.subscribe('/user/queue/reload-response', (message) => {
-    const { type, payload } = JSON.parse(message.body);
-    // type === 'RELOAD_SUCCESS'
-    handleReloadSuccess(payload);
-  });
-
-  // 3. 투표 현황 (투표 완료 후부터 수신)
-  client.subscribe('/user/queue/vote-status', (message) => {
-    const { type, payload } = JSON.parse(message.body);
-    // type === 'VOTE_UPDATED'
-    handleVoteUpdated(payload);
-  });
-
-  // 4. (선택) 에러 메시지 수신
+  // 2. 개인 메시지 (reload 응답, 투표 현황, 에러)
   client.subscribe(`/sub/room/${roomId}/user/${myUserId}`, (message) => {
     const { type, payload } = JSON.parse(message.body);
-    // type === 'ERROR'
-    handleError(payload);
+
+    switch (type) {
+      case 'RELOAD_SUCCESS':  handleReloadSuccess(payload);  break;
+      case 'VOTE_UPDATED':    handleVoteUpdated(payload);    break;
+      case 'ERROR':           handleError(payload);          break;
+    }
   });
 }
 ```
@@ -351,7 +338,7 @@ Authorization: Bearer {accessToken}
 
 ### 5.1 `RELOAD_SUCCESS`
 
-**수신 경로**: `/user/queue/reload-response` (본인만)
+**수신 경로**: `/sub/room/{roomId}/user/{userId}` (본인만)
 **발생 시점**: `/pub/room/{roomId}/reload` 발행 후
 
 현재 방의 전체 상태를 스냅샷으로 전달합니다. 새로고침/재접속 시 현재 상태를 복원하는 용도입니다.
@@ -480,7 +467,7 @@ Authorization: Bearer {accessToken}
 
 ### 5.6 `VOTE_UPDATED`
 
-**수신 경로**: `/user/queue/vote-status` (투표 완료자만 수신)
+**수신 경로**: `/sub/room/{roomId}/user/{userId}` (투표 완료자만 수신)
 **발생 시점**: 누군가 volunteer 또는 pass 할 때
 
 ```json
@@ -601,8 +588,7 @@ Authorization: Bearer {accessToken}
     │
     ├─ 1. WebSocket 연결: new SockJS('/ws-stomp') + STOMP CONNECT (JWT 필수)
     ├─ 2. 구독: /sub/room/{roomId}
-    │        /user/queue/reload-response
-    │        /user/queue/vote-status
+    │        /sub/room/{roomId}/user/{myUserId}
     ├─ 3. 발행: /pub/room/{roomId}/reload (현재 방 상태 조회)
     │
     ▼ 방장이 HTTP: POST /start-volunteer 호출
@@ -674,11 +660,9 @@ function connect(accessToken, roomId, myUserId) {
       Authorization: `Bearer ${accessToken}`,
     },
     onConnect: () => {
-      // Step 1: 구독 (3개 필수 + 1개 선택)
+      // Step 1: 구독 (2개 필수)
       subscribeRoom(roomId);
-      subscribeReloadResponse();
-      subscribeVoteStatus();
-      subscribeError(roomId, myUserId);  // 선택
+      subscribeUserMessages(roomId, myUserId);
 
       // Step 2: 방 상태 조회
       client.publish({ destination: `/pub/room/${roomId}/reload`, body: '{}' });
@@ -719,26 +703,24 @@ function subscribeRoom(roomId) {
   });
 }
 
-function subscribeReloadResponse() {
-  client.subscribe('/user/queue/reload-response', (message) => {
-    const { payload } = JSON.parse(message.body);
-    // payload: { currentUser, members, connectedUserIds, volunteers, votedUsers, currentPhase, ... }
-    initializeRoomState(payload);
-  });
-}
-
-function subscribeVoteStatus() {
-  client.subscribe('/user/queue/vote-status', (message) => {
-    const { payload } = JSON.parse(message.body);
-    // payload: { votedUserIds, unvotedUserIds, volunteerIds, totalCount, votedCount }
-    updateVoteUI(payload);
-  });
-}
-
-function subscribeError(roomId, myUserId) {
+function subscribeUserMessages(roomId, myUserId) {
+  // 개인 메시지 (reload 응답, 투표 현황, 에러) - 단일 구독으로 통합
   client.subscribe(`/sub/room/${roomId}/user/${myUserId}`, (message) => {
-    const { payload } = JSON.parse(message.body);
-    alert(payload.message);
+    const { type, payload } = JSON.parse(message.body);
+
+    switch (type) {
+      case 'RELOAD_SUCCESS':
+        // payload: { currentUser, members, connectedUserIds, volunteers, votedUsers, currentPhase, ... }
+        initializeRoomState(payload);
+        break;
+      case 'VOTE_UPDATED':
+        // payload: { votedUserIds, unvotedUserIds, volunteerIds, totalCount, votedCount }
+        updateVoteUI(payload);
+        break;
+      case 'ERROR':
+        alert(payload.message);
+        break;
+    }
   });
 }
 
@@ -895,9 +877,7 @@ function initializeRoomState(payload) {
 | **CONNECT** | `ws://localhost:8080/ws-stomp` | JWT 인증과 함께 연결 |
 | **DISCONNECT** | - | `client.deactivate()` |
 | **SUBSCRIBE** | `/sub/room/{roomId}` | 방 브로드캐스트 (팀 멤버 검증) |
-| **SUBSCRIBE** | `/user/queue/reload-response` | Reload 응답 (본인만) |
-| **SUBSCRIBE** | `/user/queue/vote-status` | 투표 현황 (본인만) |
-| **SUBSCRIBE** | `/sub/room/{roomId}/user/{userId}` | 에러 메시지 (선택) |
+| **SUBSCRIBE** | `/sub/room/{roomId}/user/{userId}` | 개인 메시지 (reload, 투표, 에러) |
 | **PUBLISH** | `/pub/room/{roomId}/reload` | 방 상태 조회 (새로고침/재접속) |
 | **PUBLISH** | `/pub/room/{roomId}/volunteer` | 팀장 지원 |
 | **PUBLISH** | `/pub/room/{roomId}/pass` | 지원 안함 |

@@ -31,7 +31,7 @@ public class LeaderGameWebSocketController {
      * 새로고침/재접속 시 현재 방 상태 조회
      * /pub/room/{roomId}/reload
      *
-     * 응답: /user/queue/reload-response 로 RELOAD_SUCCESS 전송
+     * 응답: /sub/room/{roomId}/user/{userId} 로 RELOAD_SUCCESS 전송
      */
     @MessageMapping("/room/{roomId}/reload")
     public void reload(@DestinationVariable Long roomId, SimpMessageHeaderAccessor headerAccessor) {
@@ -43,10 +43,9 @@ public class LeaderGameWebSocketController {
                     .orElseThrow(() -> new YamoyoException(ErrorCode.USER_NOT_FOUND));
             ReloadPayload payload = leaderGameService.handleReload(roomId, user);
 
-            // 본인에게만 현재 게임 상태 전송
-            messagingTemplate.convertAndSendToUser(
-                    userId.toString(),
-                    "/queue/reload-response",
+            // 본인에게만 현재 게임 상태 전송 (user-specific topic 사용)
+            messagingTemplate.convertAndSend(
+                    "/sub/room/" + roomId + "/user/" + userId,
                     GameMessage.of("RELOAD_SUCCESS", payload)
             );
         } catch (Exception e) {
