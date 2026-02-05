@@ -14,6 +14,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.messaging.SessionConnectEvent;
+import org.springframework.web.socket.messaging.SessionConnectedEvent;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 import org.springframework.web.socket.messaging.SessionSubscribeEvent;
 
@@ -43,6 +44,17 @@ public class WebSocketEventListener {
                 .orElse(null);
 
         log.info("WebSocket CONNECT: sessionId={}, principalName={}", sessionId, principalName);
+    }
+
+    @EventListener
+    public void handleConnectedEvent(SessionConnectedEvent event) {
+        StompHeaderAccessor accessor = StompHeaderAccessor.wrap(event.getMessage());
+        String sessionId = accessor.getSessionId();
+        String principalName = Optional.ofNullable(accessor.getUser())
+                .map(java.security.Principal::getName)
+                .orElse(null);
+
+        log.info("WebSocket CONNECTED: sessionId={}, principalName={}", sessionId, principalName);
     }
 
     @EventListener

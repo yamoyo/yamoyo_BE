@@ -36,6 +36,9 @@ public class StompHandler implements ChannelInterceptor {
 
         if(StompCommand.CONNECT.equals(accessor.getCommand())) {
             String jwt = accessor.getFirstNativeHeader("Authorization");
+            if (jwt == null) {
+                jwt = accessor.getFirstNativeHeader("authorization");
+            }
 
             if (jwt != null && jwt.startsWith("Bearer ")) {
                 jwt = jwt.substring(7);
