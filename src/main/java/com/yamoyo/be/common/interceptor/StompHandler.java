@@ -35,6 +35,7 @@ public class StompHandler implements ChannelInterceptor {
         StompHeaderAccessor accessor = StompHeaderAccessor.wrap(message);
 
         if(StompCommand.CONNECT.equals(accessor.getCommand())) {
+            log.info("STOMP CONNECT: sessionId={}, user={}", accessor.getSessionId(), accessor.getUser());
             String jwt = accessor.getFirstNativeHeader("Authorization");
             if (jwt == null) {
                 jwt = accessor.getFirstNativeHeader("authorization");
@@ -60,6 +61,7 @@ public class StompHandler implements ChannelInterceptor {
             }
 
         } else if(StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
+            log.info("STOMP SUBSCRIBE: sessionId={}, user={}, destination={}", accessor.getSessionId(), accessor.getUser(), accessor.getDestination());
             validateSubscription(accessor);
         }
 
@@ -84,6 +86,10 @@ public class StompHandler implements ChannelInterceptor {
 
         // /user/queue/* 구독은 인증된 사용자면 허용 (convertAndSendToUser용)
         if (destination != null && destination.startsWith("/user/queue/")) {
+            if (userId == null) {
+                log.warn("인증 없는 사용자 큐 구독 시도. destination: {}", destination);
+                throw new YamoyoException(ErrorCode.UNAUTHORIZED);
+            }
             log.info("사용자 큐 구독 승인. userId: {}, destination: {}", userId, destination);
             return;
         }
