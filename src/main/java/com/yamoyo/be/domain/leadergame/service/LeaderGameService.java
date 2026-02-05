@@ -316,9 +316,11 @@ public class LeaderGameService {
         // 지원자 전원이 제출 완료하면 결과 계산
         List<GameParticipant> candidates = filterVolunteersOnly(roomId);
         long recordCount = redisService.getTimingRecordCount(roomId);
+        log.info("recordCount={}, candidates={}", recordCount, candidates.size());
         if (recordCount >= candidates.size()) {
             finishTimingGame(roomId);
         }
+        log.info("recordCount={}, candidates={}", recordCount, candidates.size());
     }
 
     // ========================================================================
