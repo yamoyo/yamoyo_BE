@@ -13,10 +13,12 @@ import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.stereotype.Component;
+import org.springframework.web.socket.messaging.SessionConnectEvent;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 import org.springframework.web.socket.messaging.SessionSubscribeEvent;
 
 import java.util.Map;
+import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
@@ -31,6 +33,17 @@ public class WebSocketEventListener {
     private static final String USER_STATUS_CHANGE = "USER_STATUS_CHANGE";
     private static final String ONLINE = "ONLINE";
     private static final String OFFLINE = "OFFLINE";
+
+    @EventListener
+    public void handleConnectEvent(SessionConnectEvent event) {
+        StompHeaderAccessor accessor = StompHeaderAccessor.wrap(event.getMessage());
+        String sessionId = accessor.getSessionId();
+        String principalName = Optional.ofNullable(accessor.getUser())
+                .map(java.security.Principal::getName)
+                .orElse(null);
+
+        log.info("WebSocket CONNECT: sessionId={}, principalName={}", sessionId, principalName);
+    }
 
     @EventListener
     public void handleWebSocketSubscribeListener(SessionSubscribeEvent event) {
