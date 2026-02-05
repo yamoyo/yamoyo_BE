@@ -10,6 +10,8 @@ import com.yamoyo.be.exception.YamoyoException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
+import org.springframework.messaging.simp.SimpUser;
+import org.springframework.messaging.simp.SimpUserRegistry;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.stereotype.Component;
@@ -30,6 +32,7 @@ public class WebSocketEventListener {
     private final UserRepository userRepository;
     private final GameStateRedisService gameStateRedisService;
     private final LeaderGameService leaderGameService;
+    private final SimpUserRegistry simpUserRegistry;
 
     private static final String USER_STATUS_CHANGE = "USER_STATUS_CHANGE";
     private static final String ONLINE = "ONLINE";
@@ -62,6 +65,16 @@ public class WebSocketEventListener {
         StompHeaderAccessor headerAccessor = StompHeaderAccessor.wrap(event.getMessage());
 
         String destination = headerAccessor.getDestination();
+        String sessionId = headerAccessor.getSessionId();
+        String principalName = Optional.ofNullable(headerAccessor.getUser())
+                .map(java.security.Principal::getName)
+                .orElse(null);
+
+        if (destination != null && destination.startsWith("/user/queue/")) {
+            log.info("User queue subscribed. principalName={}, sessionId={}, destination={}", principalName, sessionId, destination);
+            logUserSubscriptionsSnapshot();
+            return;
+        }
 
         // 팀룸 구독인 경우에만 처리
         if(destination == null || !destination.startsWith("/sub/room/")) {
@@ -96,6 +109,7 @@ public class WebSocketEventListener {
         UserStatusResponse userStatusResponse =
                 new UserStatusResponse(USER_STATUS_CHANGE, userId, user.getName(), profileImageId, ONLINE);
         messagingTemplate.convertAndSend("/sub/room/" + roomId, userStatusResponse);
+        logUserSubscriptionsSnapshot();
     }
 
     @EventListener
@@ -121,6 +135,19 @@ public class WebSocketEventListener {
             UserStatusResponse userStatusResponse = new UserStatusResponse(USER_STATUS_CHANGE, userId, null, null, OFFLINE);
             messagingTemplate.convertAndSend("/sub/room/" + roomId, userStatusResponse);
         }
+    }
+
+    private void logUserSubscriptionsSnapshot() {
+        StringBuilder sb = new StringBuilder("SimpUserRegistry snapshot: ");
+        for (SimpUser user : simpUserRegistry.getUsers()) {
+            sb.append("user=").append(user.getName()).append(" sessions=");
+            user.getSessions().forEach(session -> {
+                sb.append(session.getId()).append("[");
+                session.getSubscriptions().forEach(sub -> sb.append(sub.getDestination()).append(","));
+                sb.append("] ");
+            });
+        }
+        log.info(sb.toString());
     }
 
     public Long parseRoomId(String destination) {
