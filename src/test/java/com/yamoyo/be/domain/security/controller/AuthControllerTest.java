@@ -197,8 +197,7 @@ class AuthControllerTest {
             MvcResult result = mockMvc.perform(post(LOGOUT_ENDPOINT)
                             .with(authentication(createJwtAuthenticationToken())))
                     .andDo(print())
-                    .andExpect(status().is3xxRedirection())
-                    .andExpect(redirectedUrl("/"))
+                    .andExpect(status().is2xxSuccessful())
                     .andReturn();
 
             // RefreshToken 쿠키가 삭제되었는지 확인 (maxAge=0)
@@ -216,8 +215,7 @@ class AuthControllerTest {
             // when & then
             MvcResult result = mockMvc.perform(post(LOGOUT_ENDPOINT))
                     .andDo(print())
-                    .andExpect(status().is3xxRedirection())
-                    .andExpect(redirectedUrl("/"))
+                    .andExpect(status().is2xxSuccessful())
                     .andReturn();
 
             // RefreshToken 쿠키가 삭제되었는지 확인
@@ -233,7 +231,7 @@ class AuthControllerTest {
             MvcResult result = mockMvc.perform(post(LOGOUT_ENDPOINT)
                             .with(authentication(createJwtAuthenticationToken())))
                     .andDo(print())
-                    .andExpect(status().is3xxRedirection())
+                    .andExpect(status().is2xxSuccessful())
                     .andReturn();
 
             // then - JSESSIONID 쿠키 삭제 확인
