@@ -40,18 +40,24 @@ public class StompHandler implements ChannelInterceptor {
             if (jwt == null) {
                 jwt = accessor.getFirstNativeHeader("authorization");
             }
+            log.info("STOMP CONNECT: authorizationHeaderPresent={}", jwt != null);
 
             if (jwt != null && jwt.startsWith("Bearer ")) {
                 jwt = jwt.substring(7);
             }
+            log.info("STOMP CONNECT: bearerStrippedPresent={}", jwt != null && !jwt.isBlank());
 
-            if (!jwtTokenProvider.validateToken(jwt)) {
+            boolean valid = jwtTokenProvider.validateToken(jwt);
+            log.info("STOMP CONNECT: jwtValid={}", valid);
+            if (!valid) {
                 throw new YamoyoException(ErrorCode.INVALID_ACCESSTOKEN);
             }
 
             JwtTokenClaims claims = jwtTokenProvider.parseClaims(jwt);
+            log.info("STOMP CONNECT: claimsUserId={}", claims.userId());
             Authentication authentication = JwtAuthenticationToken.authenticated(claims);
             accessor.setUser(authentication);
+            log.info("STOMP CONNECT: userSetTo={}", accessor.getUser());
 
             // sessionAttributes에 인증 정보 저장 (SUBSCRIBE에서 사용)
             Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
