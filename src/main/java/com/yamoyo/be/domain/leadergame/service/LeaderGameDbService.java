@@ -3,9 +3,11 @@ package com.yamoyo.be.domain.leadergame.service;
 import com.yamoyo.be.domain.meeting.service.TimepickService;
 import com.yamoyo.be.domain.teamroom.entity.TeamMember;
 import com.yamoyo.be.domain.teamroom.entity.TeamRoom;
+import com.yamoyo.be.domain.teamroom.entity.TeamRoomSetup;
 import com.yamoyo.be.domain.teamroom.entity.enums.TeamRole;
 import com.yamoyo.be.domain.teamroom.repository.TeamMemberRepository;
 import com.yamoyo.be.domain.teamroom.repository.TeamRoomRepository;
+import com.yamoyo.be.domain.teamroom.repository.TeamRoomSetupRepository;
 import com.yamoyo.be.exception.ErrorCode;
 import com.yamoyo.be.exception.YamoyoException;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +20,7 @@ public class LeaderGameDbService {
 
     private final TeamRoomRepository teamRoomRepository;
     private final TeamMemberRepository teamMemberRepository;
+    private final TeamRoomSetupRepository teamRoomSetupRepository;
     private final TimepickService timepickService;
 
     /**
@@ -25,6 +28,7 @@ public class LeaderGameDbService {
      * - 당첨자를 LEADER로 승격
      * - 기존 HOST를 MEMBER로 강등
      * - TeamRoom workflow를 SETUP으로 전환
+     * - TeamRoomSetup 생성 (6시간 타이머 시작)
      */
     @Transactional
     public void applyLeaderResult(Long roomId, Long winnerId) {
@@ -41,6 +45,10 @@ public class LeaderGameDbService {
         TeamRoom teamRoom = teamRoomRepository.findById(roomId)
                 .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
         teamRoom.completeLeaderSelection();
+
+        // TeamRoomSetup 생성 (6시간 타이머 시작)
+        TeamRoomSetup setup = TeamRoomSetup.create(teamRoom);
+        teamRoomSetupRepository.save(setup);
 
         // 타임픽 자동 생성
         timepickService.createTimepick(roomId);

@@ -3,9 +3,11 @@ package com.yamoyo.be.domain.leadergame.service;
 import com.yamoyo.be.domain.meeting.service.TimepickService;
 import com.yamoyo.be.domain.teamroom.entity.TeamMember;
 import com.yamoyo.be.domain.teamroom.entity.TeamRoom;
+import com.yamoyo.be.domain.teamroom.entity.TeamRoomSetup;
 import com.yamoyo.be.domain.teamroom.entity.enums.TeamRole;
 import com.yamoyo.be.domain.teamroom.repository.TeamMemberRepository;
 import com.yamoyo.be.domain.teamroom.repository.TeamRoomRepository;
+import com.yamoyo.be.domain.teamroom.repository.TeamRoomSetupRepository;
 import com.yamoyo.be.exception.ErrorCode;
 import com.yamoyo.be.exception.YamoyoException;
 import org.junit.jupiter.api.DisplayName;
@@ -37,6 +39,9 @@ class LeaderGameDbServiceTest {
     private TeamMemberRepository teamMemberRepository;
 
     @Mock
+    private TeamRoomSetupRepository teamRoomSetupRepository;
+
+    @Mock
     private TimepickService timepickService;
 
     @InjectMocks
@@ -60,7 +65,7 @@ class LeaderGameDbServiceTest {
     class ApplyLeaderResultTest {
 
         @Test
-        @DisplayName("팀장 선출 결과 반영 성공 - 당첨자 승격, HOST 강등")
+        @DisplayName("팀장 선출 결과 반영 성공 - 당첨자 승격, HOST 강등, TeamRoomSetup 생성")
         void applyLeaderResult_Success() {
             // given
             Long roomId = 1L;
@@ -83,11 +88,12 @@ class LeaderGameDbServiceTest {
             verify(winner).promoteToLeader();
             verify(host).demoteToMember();
             verify(teamRoom).completeLeaderSelection();
+            verify(teamRoomSetupRepository).save(any(TeamRoomSetup.class));
             verify(timepickService).createTimepick(roomId);
         }
 
         @Test
-        @DisplayName("HOST가 없는 경우에도 정상 처리")
+        @DisplayName("HOST가 없는 경우에도 정상 처리 및 TeamRoomSetup 생성")
         void applyLeaderResult_NoHost_Success() {
             // given
             Long roomId = 1L;
@@ -108,6 +114,7 @@ class LeaderGameDbServiceTest {
             // then
             verify(winner).promoteToLeader();
             verify(teamRoom).completeLeaderSelection();
+            verify(teamRoomSetupRepository).save(any(TeamRoomSetup.class));
             verify(timepickService).createTimepick(roomId);
         }
 
@@ -173,7 +180,33 @@ class LeaderGameDbServiceTest {
             verify(hostWinner).promoteToLeader();
             verify(hostWinner).demoteToMember();
             verify(teamRoom).completeLeaderSelection();
+            verify(teamRoomSetupRepository).save(any(TeamRoomSetup.class));
             verify(timepickService).createTimepick(roomId);
+        }
+
+        @Test
+        @DisplayName("TeamRoomSetup이 올바른 TeamRoom과 함께 생성되는지 검증")
+        void applyLeaderResult_VerifyTeamRoomSetupCreation() {
+            // given
+            Long roomId = 1L;
+            Long winnerId = 100L;
+
+            TeamRoom teamRoom = createMockTeamRoom(roomId);
+            TeamMember winner = createMockTeamMember(1L, winnerId, TeamRole.MEMBER);
+
+            given(teamMemberRepository.findByTeamRoomIdAndUserId(roomId, winnerId))
+                    .willReturn(Optional.of(winner));
+            given(teamMemberRepository.findByTeamRoomIdAndTeamRole(roomId, TeamRole.HOST))
+                    .willReturn(Optional.empty());
+            given(teamRoomRepository.findById(roomId)).willReturn(Optional.of(teamRoom));
+
+            // when
+            leaderGameDbService.applyLeaderResult(roomId, winnerId);
+
+            // then
+            verify(teamRoomSetupRepository).save(argThat(setup ->
+                    setup.getTeamRoom().getId().equals(roomId)
+            ));
         }
     }
 

@@ -52,7 +52,7 @@ public class RuleService {
      * 규칙 투표 제출
      */
     @Transactional
-    public void submitRuleVote(Long teamRoomId, RuleVoteRequest request, Long userId) {
+    public synchronized void submitRuleVote(Long teamRoomId, RuleVoteRequest request, Long userId) {
         log.info("규칙 투표 제출 시작 - teamRoomId: {}, ruleId: {}, userId: {}",
                 teamRoomId, request.ruleId(), userId);
 
@@ -178,12 +178,15 @@ public class RuleService {
 
         // 2. 투표한 팀원 수 계산
         long votedMembers = memberRuleVoteRepository.countDistinctMembersByTeamRoom(teamRoomId);
+        log.debug("투표한 팀원 수: {}", votedMembers);
 
         // 3. 과반수 기준
         long majorityThreshold = (votedMembers / 2) + 1;
+        log.debug("과반수 기준: {}", majorityThreshold);
 
         // 4. DB에서 규칙별 동의 득표 수 집계
         List<Object[]> agreeCountResults = memberRuleVoteRepository.countAgreeVotesByRule(teamRoomId);
+        log.debug("규칙별 동의 득표 결과: {}", agreeCountResults.size());
 
         Map<Long, Long> agreeCountByRule = agreeCountResults.stream()
                 .collect(Collectors.toMap(
@@ -191,11 +194,18 @@ public class RuleService {
                         row -> (Long) row[1]   // count
                 ));
 
+        // 득표 현황 로그
+        agreeCountByRule.forEach((ruleId, count) ->
+                log.debug("규칙 ID: {}, 동의 득표 수: {}, 과반수 달성: {}", ruleId, count, count >= majorityThreshold)
+        );
+
         // 5. 과반수 이상 득표한 규칙 필터링
         List<Long> confirmedRuleIds = agreeCountByRule.entrySet().stream()
                 .filter(entry -> entry.getValue() >= majorityThreshold)
                 .map(Map.Entry::getKey)
                 .toList();
+
+        log.debug("과반수 달성한 규칙 수: {}", confirmedRuleIds.size());
 
         // 6. 팀 규칙으로 저장
         for (Long ruleId : confirmedRuleIds) {
@@ -205,7 +215,8 @@ public class RuleService {
             TeamRule teamRule = TeamRule.create(teamRoom, template.getContent());
             teamRuleRepository.save(teamRule);
 
-            log.info("규칙 확정 - ruleId: {}, content: {}", ruleId, template.getContent());
+            log.debug("규칙 확정 저장 완료 - ruleId: {}, teamRuleId: {}, content: {}",
+                    ruleId, teamRule.getId(), template.getContent());
         }
 
         // 7. Setup 상태 업데이트
