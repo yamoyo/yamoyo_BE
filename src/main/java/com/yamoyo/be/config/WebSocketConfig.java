@@ -36,8 +36,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         // WebSocket 연결 엔드포인트
         registry.addEndpoint("/ws-stomp")
-                // cors 설정, 배포 환경에서 수정 필요
-                .setAllowedOriginPatterns("*")
+                .setAllowedOriginPatterns(
+                        "https://yamoyo.kr"
+                )
                 .withSockJS();
     }
 

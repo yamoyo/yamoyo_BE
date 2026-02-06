@@ -1,7 +1,9 @@
 package com.yamoyo.be.domain.teamroom.repository;
 
 import com.yamoyo.be.domain.teamroom.entity.TeamRoomSetup;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -32,4 +34,17 @@ public interface TeamRoomSetupRepository extends JpaRepository<TeamRoomSetup, Lo
     AND (s.toolCompleted = false OR s.ruleCompleted = false OR s.meetingCompleted = false)
     """)
     List<TeamRoomSetup> findExpiredSetups(@Param("now") LocalDateTime now);
+
+    /**
+     * Setup 정보를 조회하면서 DB 레벨에서 행 잠금
+     * 확정 처리 로직에서 동시성 문제를 방지
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+        SELECT s
+        FROM TeamRoomSetup s
+        WHERE s.teamRoom.id = :teamRoomId
+        """)
+    Optional<TeamRoomSetup> findByTeamRoomIdForUpdate(@Param("teamRoomId") Long teamRoomId);
+
 }

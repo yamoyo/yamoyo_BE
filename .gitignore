@@ -41,3 +41,7 @@ out/
 
 .claude
 firebase-adminsdk.json
+
+### Local HTTPS 환경 ###
+infra/local/certs/
+.env.local

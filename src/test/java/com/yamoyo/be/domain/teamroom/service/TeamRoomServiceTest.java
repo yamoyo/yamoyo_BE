@@ -5,12 +5,14 @@ import com.yamoyo.be.domain.teamroom.dto.request.JoinTeamRoomRequest;
 import com.yamoyo.be.domain.teamroom.dto.response.*;
 import com.yamoyo.be.domain.teamroom.entity.TeamMember;
 import com.yamoyo.be.domain.teamroom.entity.TeamRoom;
+import com.yamoyo.be.domain.teamroom.entity.TeamRoomSetup;
 import com.yamoyo.be.domain.teamroom.entity.enums.Lifecycle;
 import com.yamoyo.be.domain.teamroom.entity.enums.TeamRole;
 import com.yamoyo.be.domain.teamroom.entity.enums.Workflow;
 import com.yamoyo.be.domain.teamroom.repository.BannedTeamMemberRepository;
 import com.yamoyo.be.domain.teamroom.repository.TeamMemberRepository;
 import com.yamoyo.be.domain.teamroom.repository.TeamRoomRepository;
+import com.yamoyo.be.domain.teamroom.repository.TeamRoomSetupRepository;
 import com.yamoyo.be.domain.user.entity.User;
 import com.yamoyo.be.domain.user.repository.UserRepository;
 import com.yamoyo.be.event.event.NotificationEvent;
@@ -57,6 +59,9 @@ class TeamRoomServiceTest {
 
     @Mock
     private BannedTeamMemberRepository bannedTeamMemberRepository;
+
+    @Mock
+    private TeamRoomSetupRepository setupRepository;
 
     @Mock
     private InviteTokenService inviteTokenService;
@@ -473,6 +478,88 @@ class TeamRoomServiceTest {
             verify(teamRoomRepository).findById(teamRoomId);
             verify(teamMemberRepository).findByTeamRoomIdAndUserId(teamRoomId, userId);
             verify(teamMemberRepository, never()).findByTeamRoomId(anyLong());
+        }
+
+        @Test
+        @DisplayName("팀룸 상세 조회 성공 - SETUP 단계일 때 setupCreatedAt 포함")
+        void getTeamRoomDetail_SetupWorkflow_IncludesSetupCreatedAt() {
+            // given
+            Long userId = 1L;
+            Long teamRoomId = 10L;
+            LocalDateTime setupCreatedAt = LocalDateTime.now();
+
+            User user = createMockUser(userId, "test@example.com", "테스트유저");
+
+            // SETUP workflow인 TeamRoom mock 생성
+            TeamRoom teamRoom = mock(TeamRoom.class);
+            given(teamRoom.getId()).willReturn(teamRoomId);
+            given(teamRoom.getTitle()).willReturn("팀룸 제목");
+            given(teamRoom.getDescription()).willReturn("팀룸 설명");
+            given(teamRoom.getDeadline()).willReturn(LocalDateTime.now().plusDays(7));
+            given(teamRoom.getLifecycle()).willReturn(Lifecycle.ACTIVE);
+            given(teamRoom.getWorkflow()).willReturn(Workflow.SETUP);
+            given(teamRoom.getBannerImageId()).willReturn(null);
+            given(teamRoom.getCreatedAt()).willReturn(LocalDateTime.now());
+
+            TeamMember myMember = createMockTeamMember(1L, teamRoom, user, TeamRole.LEADER);
+
+            // TeamRoomSetup mock 생성
+            TeamRoomSetup setup = mock(TeamRoomSetup.class);
+            given(setup.getCreatedAt()).willReturn(setupCreatedAt);
+
+            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
+            given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
+                    .willReturn(Optional.of(myMember));
+            given(teamMemberRepository.findByTeamRoomId(teamRoomId))
+                    .willReturn(Arrays.asList(myMember));
+            given(setupRepository.findByTeamRoomId(teamRoomId))
+                    .willReturn(Optional.of(setup));
+
+            // when
+            TeamRoomDetailResponse response = teamRoomService.getTeamRoomDetail(teamRoomId, userId);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.teamRoomId()).isEqualTo(teamRoomId);
+            assertThat(response.workflow()).isEqualTo(Workflow.SETUP);
+            assertThat(response.setupCreatedAt()).isEqualTo(setupCreatedAt);
+
+            verify(teamRoomRepository).findById(teamRoomId);
+            verify(teamMemberRepository).findByTeamRoomIdAndUserId(teamRoomId, userId);
+            verify(teamMemberRepository).findByTeamRoomId(teamRoomId);
+            verify(setupRepository).findByTeamRoomId(teamRoomId);
+        }
+
+        @Test
+        @DisplayName("팀룸 상세 조회 성공 - PENDING 단계일 때 setupCreatedAt null")
+        void getTeamRoomDetail_PendingWorkflow_NoSetupCreatedAt() {
+            // given
+            Long userId = 1L;
+            Long teamRoomId = 10L;
+
+            User user = createMockUser(userId, "test@example.com", "테스트유저");
+            TeamRoom teamRoom = createMockTeamRoom(teamRoomId, "팀룸 제목"); // Workflow.PENDING
+            TeamMember myMember = createMockTeamMember(1L, teamRoom, user, TeamRole.MEMBER);
+
+            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
+            given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
+                    .willReturn(Optional.of(myMember));
+            given(teamMemberRepository.findByTeamRoomId(teamRoomId))
+                    .willReturn(Arrays.asList(myMember));
+
+            // when
+            TeamRoomDetailResponse response = teamRoomService.getTeamRoomDetail(teamRoomId, userId);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.teamRoomId()).isEqualTo(teamRoomId);
+            assertThat(response.workflow()).isEqualTo(Workflow.PENDING);
+            assertThat(response.setupCreatedAt()).isNull();
+
+            verify(teamRoomRepository).findById(teamRoomId);
+            verify(teamMemberRepository).findByTeamRoomIdAndUserId(teamRoomId, userId);
+            verify(teamMemberRepository).findByTeamRoomId(teamRoomId);
+            verify(setupRepository, never()).findByTeamRoomId(anyLong());
         }
     }
 

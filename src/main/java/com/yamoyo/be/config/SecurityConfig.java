@@ -5,6 +5,7 @@ import com.yamoyo.be.domain.security.jwt.filter.JwtAuthenticationFilter;
 import com.yamoyo.be.domain.security.oauth.handler.OAuth2AuthenticationSuccessHandler;
 import com.yamoyo.be.domain.security.oauth.service.CustomOAuth2UserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
@@ -63,6 +64,9 @@ public class SecurityConfig {
     private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final CustomLogoutSuccessHandler customLogoutSuccessHandler;
+
+    @Value("${app.front.base-url}")
+    private String frontBaseUrl;
 
     // 인증 없이 접근을 허용할 경로 목록
     private static final String[] PERMIT_ALL_PATTERNS = {
@@ -186,7 +190,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         // 프론트엔드(3000)와 백엔드(8080) 허용
-        configuration.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:5173", "http://localhost:8080"));
+        configuration.setAllowedOrigins(List.of(frontBaseUrl));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true); // 쿠키 및 인증 헤더 허용
