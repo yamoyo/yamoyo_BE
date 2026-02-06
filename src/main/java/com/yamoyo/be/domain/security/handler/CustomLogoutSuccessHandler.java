@@ -6,10 +6,11 @@ import com.yamoyo.be.domain.security.oauth.CookieProperties;
 import com.yamoyo.be.domain.security.oauth.CustomOAuth2User;
 import com.yamoyo.be.domain.security.refreshtoken.RefreshTokenRepository;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
@@ -63,18 +64,21 @@ public class CustomLogoutSuccessHandler implements LogoutSuccessHandler {
         }
 
         // 2. Refresh Token 쿠키 삭제
-        Cookie refreshTokenCookie = new Cookie("refresh_token", null);
-        refreshTokenCookie.setHttpOnly(true);
-        refreshTokenCookie.setSecure(cookieProperties.secure()); // HTTPS 적용 시 true로 변경 필요
-        refreshTokenCookie.setPath("/api/auth");
-        refreshTokenCookie.setMaxAge(0); // 쿠키 즉시 만료
-        response.addCookie(refreshTokenCookie);
+        ResponseCookie refreshTokenCookie = ResponseCookie.from("refresh_token", "")
+                .httpOnly(true)
+                .secure(cookieProperties.secure())
+                .path("/api/auth")
+                .maxAge(0)
+                .sameSite("Lax")
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString());
 
         // 3. JSESSIONID 쿠키 삭제 (세션 기반 인증 호환)
-        Cookie sessionCookie = new Cookie("JSESSIONID", null);
-        sessionCookie.setPath("/");
-        sessionCookie.setMaxAge(0);
-        response.addCookie(sessionCookie);
+        ResponseCookie sessionCookie = ResponseCookie.from("JSESSIONID", "")
+                .path("/")
+                .maxAge(0)
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, sessionCookie.toString());
 
         log.info("로그아웃 성공 - 쿠키 삭제 및 리다이렉트 완료");
     }
