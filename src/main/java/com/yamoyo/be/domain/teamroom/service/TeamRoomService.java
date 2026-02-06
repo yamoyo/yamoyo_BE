@@ -265,7 +265,7 @@ public class TeamRoomService {
                 .sorted(Comparator.comparing(TeamRoomDetailResponse.MemberSummary::role))
                 .collect(Collectors.toList());
 
-        // 5. Setup deadline 조회 (SETUP 단계일 때만)
+        // 5. Setup 시작 시간 조회 (SETUP 단계일 때만)
         LocalDateTime setupCreatedAt = null;
         if (teamRoom.getWorkflow() == Workflow.SETUP) {
             setupCreatedAt = getSetupCreatedAt(teamRoomId);
