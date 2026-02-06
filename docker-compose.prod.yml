@@ -84,6 +84,9 @@ services:
         max-size: "10m"
         max-file: "3"
 
+    volumes:
+      - /opt/yamoyo/secret/firebase-adminsdk.json:/app/config/firebase-adminsdk.json:ro
+
   # ========================================
   # Redis (캐시 & 세션)
   # ========================================
