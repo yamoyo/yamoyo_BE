@@ -481,12 +481,12 @@ class TeamRoomServiceTest {
         }
 
         @Test
-        @DisplayName("팀룸 상세 조회 성공 - SETUP 단계일 때 setupDeadline 포함")
-        void getTeamRoomDetail_SetupWorkflow_IncludesSetupDeadline() {
+        @DisplayName("팀룸 상세 조회 성공 - SETUP 단계일 때 setupCreatedAt 포함")
+        void getTeamRoomDetail_SetupWorkflow_IncludesSetupCreatedAt() {
             // given
             Long userId = 1L;
             Long teamRoomId = 10L;
-            LocalDateTime setupDeadline = LocalDateTime.now().plusHours(6);
+            LocalDateTime setupCreatedAt = LocalDateTime.now();
 
             User user = createMockUser(userId, "test@example.com", "테스트유저");
 
@@ -505,7 +505,7 @@ class TeamRoomServiceTest {
 
             // TeamRoomSetup mock 생성
             TeamRoomSetup setup = mock(TeamRoomSetup.class);
-            given(setup.getDeadline()).willReturn(setupDeadline);
+            given(setup.getCreatedAt()).willReturn(setupCreatedAt);
 
             given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
@@ -522,7 +522,7 @@ class TeamRoomServiceTest {
             assertThat(response).isNotNull();
             assertThat(response.teamRoomId()).isEqualTo(teamRoomId);
             assertThat(response.workflow()).isEqualTo(Workflow.SETUP);
-            assertThat(response.setupCreatedAt()).isEqualTo(setupDeadline);
+            assertThat(response.setupCreatedAt()).isEqualTo(setupCreatedAt);
 
             verify(teamRoomRepository).findById(teamRoomId);
             verify(teamMemberRepository).findByTeamRoomIdAndUserId(teamRoomId, userId);
@@ -531,8 +531,8 @@ class TeamRoomServiceTest {
         }
 
         @Test
-        @DisplayName("팀룸 상세 조회 성공 - PENDING 단계일 때 setupDeadline null")
-        void getTeamRoomDetail_PendingWorkflow_NoSetupDeadline() {
+        @DisplayName("팀룸 상세 조회 성공 - PENDING 단계일 때 setupCreatedAt null")
+        void getTeamRoomDetail_PendingWorkflow_NoSetupCreatedAt() {
             // given
             Long userId = 1L;
             Long teamRoomId = 10L;
