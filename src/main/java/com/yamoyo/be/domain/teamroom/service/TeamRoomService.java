@@ -6,11 +6,13 @@ import com.yamoyo.be.domain.teamroom.dto.request.JoinTeamRoomRequest;
 import com.yamoyo.be.domain.teamroom.dto.response.*;
 import com.yamoyo.be.domain.teamroom.entity.TeamMember;
 import com.yamoyo.be.domain.teamroom.entity.TeamRoom;
+import com.yamoyo.be.domain.teamroom.entity.TeamRoomSetup;
 import com.yamoyo.be.domain.teamroom.entity.enums.Lifecycle;
 import com.yamoyo.be.domain.teamroom.entity.enums.Workflow;
 import com.yamoyo.be.domain.teamroom.repository.BannedTeamMemberRepository;
 import com.yamoyo.be.domain.teamroom.repository.TeamMemberRepository;
 import com.yamoyo.be.domain.teamroom.repository.TeamRoomRepository;
+import com.yamoyo.be.domain.teamroom.repository.TeamRoomSetupRepository;
 import com.yamoyo.be.domain.user.entity.User;
 import com.yamoyo.be.domain.user.repository.UserRepository;
 import com.yamoyo.be.event.event.NotificationEvent;
@@ -39,6 +41,7 @@ public class TeamRoomService {
     private final TeamRoomRepository teamRoomRepository;
     private final TeamMemberRepository teamMemberRepository;
     private final BannedTeamMemberRepository bannedTeamMemberRepository;
+    private final TeamRoomSetupRepository setupRepository;
     private final InviteTokenService inviteTokenService;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -262,7 +265,15 @@ public class TeamRoomService {
                 .sorted(Comparator.comparing(TeamRoomDetailResponse.MemberSummary::role))
                 .collect(Collectors.toList());
 
-        // 5. 응답 DTO 생성
+        // 5. Setup deadline 조회 (SETUP 단계일 때만)
+        LocalDateTime setupDeadline = null;
+        if (teamRoom.getWorkflow() == Workflow.SETUP) {
+            setupDeadline = setupRepository.findByTeamRoomId(teamRoomId)
+                    .map(TeamRoomSetup::getDeadline)
+                    .orElse(null);
+        }
+
+        // 6. 응답 DTO 생성
         return new TeamRoomDetailResponse(
                 teamRoom.getId(),
                 teamRoom.getTitle(),
@@ -274,7 +285,8 @@ public class TeamRoomService {
                 teamRoom.getWorkflow(),
                 members.size(),
                 memberSummaries,
-                myMember.getTeamRole()
+                myMember.getTeamRole(),
+                setupDeadline
         );
     }
 

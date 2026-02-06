@@ -41,7 +41,10 @@ public record TeamRoomDetailResponse(
         List<MemberSummary> members,
 
         @Schema(description = "현재 사용자의 역할 (설정 버튼 노출 여부)", example = "LEADER")
-        TeamRole myRole
+        TeamRole myRole,
+
+        @Schema(description = "Setup 마감 시각 (팀장 선출 완료 후 6시간, SETUP 단계에서만 존재)", example = "2026-01-01T06:00:00", nullable = true)
+        LocalDateTime setupDeadline
 ){
     @Schema(description = "멤버 상세 정보")
     public record MemberSummary(
