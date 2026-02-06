@@ -37,7 +37,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         // WebSocket 연결 엔드포인트
         registry.addEndpoint("/ws-stomp")
                 .setAllowedOriginPatterns(
-                        "*"
+                        "https://yamoyo.kr"
                 )
                 .withSockJS();
     }
