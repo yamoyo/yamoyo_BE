@@ -522,7 +522,7 @@ class TeamRoomServiceTest {
             assertThat(response).isNotNull();
             assertThat(response.teamRoomId()).isEqualTo(teamRoomId);
             assertThat(response.workflow()).isEqualTo(Workflow.SETUP);
-            assertThat(response.setupDeadline()).isEqualTo(setupDeadline);
+            assertThat(response.setupCreatedAt()).isEqualTo(setupDeadline);
 
             verify(teamRoomRepository).findById(teamRoomId);
             verify(teamMemberRepository).findByTeamRoomIdAndUserId(teamRoomId, userId);
@@ -554,7 +554,7 @@ class TeamRoomServiceTest {
             assertThat(response).isNotNull();
             assertThat(response.teamRoomId()).isEqualTo(teamRoomId);
             assertThat(response.workflow()).isEqualTo(Workflow.PENDING);
-            assertThat(response.setupDeadline()).isNull();
+            assertThat(response.setupCreatedAt()).isNull();
 
             verify(teamRoomRepository).findById(teamRoomId);
             verify(teamMemberRepository).findByTeamRoomIdAndUserId(teamRoomId, userId);
