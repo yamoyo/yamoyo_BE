@@ -1,0 +1,141 @@
+# ========================================
+# Yamoyo API - 로컬 개발 환경
+# ========================================
+# 사용법:
+#   1. MySQL, Redis만 실행 (Spring Boot -> IDE에서 실행):
+#      docker compose up -d
+#
+#   2. 전체 실행 (MySQL + Redis + Spring Boot):
+#      docker compose --profile full up -d
+#
+#   3. 종료:
+#      docker compose down
+#
+#   4. 데이터 초기화:
+#      docker compose down -v
+#
+#   5. 로그 확인:
+#      docker compose logs -f mysql
+#
+#   6. 이미지 재빌드 후 실행
+#      docker compose --profile full up -d --build
+#
+#   7. 볼륨까지 삭제 및 컨테이너 종료:
+#      docker compose --profile full down -v
+# ========================================
+
+services:
+  # ========================================
+  # MySQL Database (로컬 개발용)
+  # ========================================
+  mysql:
+    image: mysql:8.0
+    container_name: yamoyo-mysql
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: 1234
+      MYSQL_DATABASE: ${MYSQL_DB:-yamoyo}
+      MYSQL_USER: ${MYSQL_USER:-yamoyo}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-yamoyo123}
+      TZ: Asia/Seoul
+    volumes:
+      - mysql-data:/var/lib/mysql
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p1234"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - yamoyo-network
+
+  # ========================================
+  # Redis Cache (로컬 개발용)
+  # ========================================
+  redis:
+    image: redis:7-alpine
+    container_name: yamoyo-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: ["redis-server"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - yamoyo-network
+
+  # ========================================
+  # Spring Boot Backend (로컬 전체 실행용)
+  # ========================================
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: yamoyo-api
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      # Database
+      DB_URL: jdbc:mysql://mysql:3306/${MYSQL_DB:-yamoyo}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=utf8
+      DB_USERNAME: ${MYSQL_USER:-yamoyo}
+      DB_PASSWORD: ${MYSQL_PASSWORD:-yamoyo123}
+      TZ: Asia/Seoul
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
+      ## ==== OAuth 설정 ====
+      # JWT 설정
+      # 기본값은 'local-dev-secret-key-for-yamoyo-project'를 Base64 인코딩한 값입니다.
+      JWT_SECRET: ${JWT_SECRET:-bG9jYWwtZGV2LXNlY3JldC1rZXktZm9yLXlhbW95by1wcm9qZWN0}
+      JWT_ACCESS_EXPIRATION: ${JWT_ACCESS_EXPIRATION:-3600000}
+      JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION:-604800000}
+      # OAuth2 - Kakao
+      KAKAO_CLIENT_ID: ${KAKAO_CLIENT_ID:-}
+      KAKAO_CLIENT_SECRET: ${KAKAO_CLIENT_SECRET:-}
+      KAKAO_REDIRECT_URI: ${KAKAO_REDIRECT_URI:-http://localhost:8080/api/auth/kakao/callback}
+      # OAuth2 - Google
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:8080/api/auth/google/callback}
+
+      #FIREBASE
+      FIREBASE_KEY_PATH: ${FIREBASE_KEY_PATH:-/app/config/firebase-adminsdk.json}
+
+    volumes :
+      # [호스트 경로] : [컨테이너 내부 경로] : [읽기 전용]
+      # 왼쪽의 FIREBASE_KEY_PATH(.env값)에 있는 파일을
+      # 오른쪽의 컨테이너 내부 /app/config/... 경로로 연결합니다.
+      - ${FIREBASE_KEY_PATH:-./firebase-adminsdk.json}:/app/config/firebase-adminsdk.json
+
+    networks:
+      - yamoyo-network
+    profiles:
+      - full
+
+volumes:
+  mysql-data:
+    name: yamoyo-mysql-data
+  redis-data:
+    name: yamoyo-redis-data
+
+networks:
+  yamoyo-network:
+    name: yamoyo-network
+    driver: bridge

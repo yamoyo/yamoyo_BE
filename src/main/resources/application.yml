@@ -9,21 +9,31 @@ spring:
   # JPA 설정
   jpa:
     hibernate:
-      ddl-auto: update  # 개발: update, 프로덕션: validate
+      ddl-auto: validate  # Flyway가 스키마 관리, Hibernate는 검증만
     show-sql: true
     properties:
       hibernate:
         format_sql: true
 
-  # H2 Database (개발용, 프로덕션에서는 MySQL/PostgreSQL 사용 권장)
+  # Flyway 설정
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+
+  # Database Configuration (MySQL)
+  # 환경변수(DB_URL 등)가 있으면 그것을 사용(Docker), 없으면 기본값 사용(Local IDE)
   datasource:
-    url: jdbc:h2:mem:testdb
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
-  h2:
-    console:
-      enabled: true  # H2 콘솔: http://localhost:8080/h2-console
+    url: ${DB_URL:jdbc:mysql://localhost:3306/yamoyo?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=utf8}
+    username: ${DB_USERNAME:yamoyo}
+    password: ${DB_PASSWORD:yamoyo123}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  # Redis 설정
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
 
   # OAuth2 Client Configuration
   # Role: Google, Kakao 등 여러 OAuth2 Provider 설정
@@ -47,6 +57,10 @@ spring:
               - profile
               - email
 
+            # Redirect URI (Nginx 미사용 시 8080 포트 명시)
+            # Nginx 도입 시: http://localhost/login/oauth2/code/google
+            redirect-uri: http://localhost:8080/login/oauth2/code/google
+
           # ===== Kakao OAuth2 Provider =====
           # Kakao Developers Console: https://developers.kakao.com/
           kakao:
@@ -58,8 +72,9 @@ spring:
             # 환경변수: KAKAO_CLIENT_SECRET (선택사항)
             client-secret: ${KAKAO_CLIENT_SECRET}
 
-            # Redirect URI (Custom Provider는 필수 설정)
-            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            # Redirect URI (Nginx 미사용 시 8080 포트 명시)
+            # Nginx 도입 시: http://localhost/login/oauth2/code/kakao
+            redirect-uri: http://localhost:8080/login/oauth2/code/kakao
 
             # OAuth2 인가 방식
             authorization-grant-type: authorization_code
@@ -117,7 +132,43 @@ logging:
     org.springframework.security.oauth2: DEBUG
 
 jwt:
-  secret-key: ${SECRET_KEY} #openssl rand -hex 32
+  # JWT 시크릿 키 (Base64 인코딩). 환경변수 JWT_SECRET으로 주입받습니다.
+  # 생성 예시: echo -n 'your-long-and-secure-secret-string' | base64
+  secret-key: ${JWT_SECRET}
   access-token-expiration: 600000 # 10분
   refresh-token-expiration: 604800000 # 7일
   issuer: yamoyo-application
+
+# OAuth2 로그인 성공 후 프론트엔드 리다이렉트 URL
+# 프론트엔드 주소에 맞게 설정 (예: http://localhost:3000/oauth/callback)
+oauth2:
+  redirect-uri: ${OAUTH2_REDIRECT_URI:http://localhost:8080/oauth/callback}
+
+cookie:
+  secure: false
+
+app:
+  front:
+    base-url: ${FRONT_BASE_URL:http://localhost:5173}
+    paths:
+      home: /home
+      onboarding:
+        terms: /onboarding/terms
+        profile: /onboarding/profile
+
+# Actuator 설정
+management:
+  endpoints:
+    web:
+      base-path: /api/actuator
+
+# SpringDoc (Swagger/OpenAPI) 설정
+springdoc:
+  swagger-ui:
+    tags-sorter: alpha
+    operations-sorter: method
+  packages-to-scan: com.yamoyo.be.domain
+  paths-to-match: /api/**
+
+firebase:
+  key-path: ${FIREBASE_KEY_PATH:/app/config/firebase-adminsdk.json}

@@ -1,0 +1,141 @@
+# ========================================
+# Yamoyo - 운영 환경 설정
+# ========================================
+
+spring:
+  # JPA 설정
+  jpa:
+    hibernate:
+      ddl-auto: validate  # 운영에서는 validate만 (Flyway가 관리)
+    show-sql: false       # 운영에서는 SQL 로그 끄기
+    properties:
+      hibernate:
+        format_sql: false
+
+  # Flyway 설정
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+    validate-on-migrate: true
+
+  # Database Configuration (Cloud DB)
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  # Redis 설정
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+
+  # OAuth2 Client Configuration
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope:
+              - profile
+              - email
+            redirect-uri: ${GOOGLE_REDIRECT_URI}
+
+          kakao:
+            client-id: ${KAKAO_CLIENT_ID}
+            client-secret: ${KAKAO_CLIENT_SECRET}
+            redirect-uri: ${KAKAO_REDIRECT_URI}
+            authorization-grant-type: authorization_code
+            client-authentication-method: client_secret_post
+            scope:
+              - profile_nickname
+              - profile_image
+              - account_email
+            client-name: Kakao
+
+        provider:
+          kakao:
+            authorization-uri: https://kauth.kakao.com/oauth/authorize
+            token-uri: https://kauth.kakao.com/oauth/token
+            user-info-uri: https://kapi.kakao.com/v2/user/me
+            user-name-attribute: id
+
+# Server Configuration
+server:
+  port: 8080
+  forward-headers-strategy: framework
+  shutdown: graceful
+
+  # 압축 설정
+  compression:
+    enabled: true
+    mime-types:
+      - application/json
+      - application/xml
+      - text/html
+      - text/xml
+      - text/plain
+
+# JWT 설정
+jwt:
+  secret-key: ${JWT_SECRET}
+  access-token-expiration: ${JWT_ACCESS_EXPIRATION:3600000}
+  refresh-token-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
+  issuer: yamoyo-application
+
+# OAuth2 설정
+oauth2:
+  redirect-uri: ${OAUTH2_REDIRECT_URI}
+
+# Cookie 설정
+cookie:
+  secure: true  # 운영에서는 HTTPS 사용 시 true
+
+# Frontend 설정
+app:
+  front:
+    base-url: ${FRONT_BASE_URL}
+    paths:
+      home: /home
+      onboarding:
+        terms: /onboarding/terms
+        profile: /onboarding/profile
+
+# Actuator 설정
+management:
+  endpoints:
+    web:
+      base-path: /api/actuator
+      exposure:
+        include: health,info  # 운영에서는 최소한만 노출
+  endpoint:
+    health:
+      show-details: when-authorized  # 인증된 사용자만 상세 정보
+
+# SpringDoc (Swagger) - 운영에서는 비활성화
+springdoc:
+  swagger-ui:
+    enabled: false
+  api-docs:
+    enabled: false
+
+# Logging
+logging:
+  level:
+    root: INFO
+    com.yamoyo.be: INFO
+    org.springframework: WARN
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

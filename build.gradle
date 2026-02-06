@@ -34,6 +34,12 @@ dependencies {
     // 인증 및 권한 부여 (Spring Security)
     implementation 'org.springframework.boot:spring-boot-starter-security'
 
+    // OAuth2 클라이언트 (Google, Kakao 등 소셜 로그인)
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+
+    // Thymeleaf 템플릿 엔진
+    implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+
     // Jwt
     implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
@@ -44,6 +50,9 @@ dependencies {
 
     // 롬복: Getter, Setter 등 반복 코드 자동 생성
     compileOnly 'org.projectlombok:lombok'
+
+    // valid
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
 
     // 프로메테우스 모니터링 시스템 연동
     runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
@@ -58,10 +67,37 @@ dependencies {
     // H2 데이터베이스 (인메모리, 개발/테스트용)
     runtimeOnly 'com.h2database:h2'
 
+    // MySQL 데이터베이스 드라이버
+    runtimeOnly 'com.mysql:mysql-connector-j'
+
+    // Redis 캐시
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
+    // WebSocket (STOMP)
+    implementation 'org.springframework.boot:spring-boot-starter-websocket'
+
+    // Flyway 데이터베이스 마이그레이션
+    implementation 'org.flywaydb:flyway-core'
+    implementation 'org.flywaydb:flyway-mysql'
+
+    // Swagger/OpenAPI 문서
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.4'
+
     // JUnit 플랫폼 런처
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // Firebase Admin SDK
+    implementation 'com.google.firebase:firebase-admin:9.2.0'
 }
 
 tasks.named('test') {
     useJUnitPlatform()
+}
+
+tasks.named('jar') {
+    enabled = false
+}
+
+tasks.named('bootJar') {
+    archiveFileName = 'app.jar'
 }
