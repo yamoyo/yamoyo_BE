@@ -268,9 +268,7 @@ public class TeamRoomService {
         // 5. Setup deadline 조회 (SETUP 단계일 때만)
         LocalDateTime setupDeadline = null;
         if (teamRoom.getWorkflow() == Workflow.SETUP) {
-            setupDeadline = setupRepository.findByTeamRoomId(teamRoomId)
-                    .map(TeamRoomSetup::getDeadline)
-                    .orElse(null);
+            setupDeadline = getSetupDeadline(teamRoomId);
         }
 
         // 6. 응답 DTO 생성
@@ -360,4 +358,12 @@ public class TeamRoomService {
         }
     }
 
+    /**
+     * setup 마감 시간 조회
+     */
+    private LocalDateTime getSetupDeadline(Long teamRoomId) {
+        return setupRepository.findByTeamRoomId(teamRoomId)
+                .map(TeamRoomSetup::getDeadline)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.SETUP_NOT_FOUND));
+    }
 }

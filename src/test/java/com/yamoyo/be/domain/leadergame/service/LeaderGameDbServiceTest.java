@@ -205,7 +205,7 @@ class LeaderGameDbServiceTest {
 
             // then
             verify(teamRoomSetupRepository).save(argThat(setup ->
-                setup != null
+                    setup.getTeamRoom().getId().equals(roomId)
             ));
         }
     }
