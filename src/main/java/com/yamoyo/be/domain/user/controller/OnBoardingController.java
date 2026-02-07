@@ -4,7 +4,10 @@ import com.yamoyo.be.common.dto.ApiResponse;
 import com.yamoyo.be.domain.security.jwt.JwtTokenClaims;
 import com.yamoyo.be.domain.user.dto.request.ProfileSetupRequest;
 import com.yamoyo.be.domain.user.dto.request.TermsAgreementRequest;
+import com.yamoyo.be.domain.user.repository.UserAgreementRepository;
 import com.yamoyo.be.domain.user.service.OnBoardingService;
+import com.yamoyo.be.exception.ErrorCode;
+import com.yamoyo.be.exception.YamoyoException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -36,6 +39,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class OnBoardingController {
 
     private final OnBoardingService onBoardingService;
+    private final UserAgreementRepository userAgreementRepository;
 
     @Operation(summary = "약관 동의", description = "서비스 이용약관 및 개인정보 처리방침에 동의합니다. 필수 약관에 모두 동의해야 온보딩을 진행할 수 있습니다.")
     @ApiResponses(value = {
@@ -70,6 +74,12 @@ public class OnBoardingController {
     ) {
         log.info("프로필 설정 요청 - UserId: {}, Name: {}, Major: {}, MBTI: {}",
                 claims.userId(), request.name(), request.major(), request.mbti());
+
+        // WebConfig에서 /api/onboarding/** 를 Interceptor 예외로 두고 있어,
+        // 프로필 설정은 컨트롤러 레벨에서 약관 동의 여부를 한 번 더 검증한다.
+        if (!userAgreementRepository.hasAgreedToAllMandatoryTerms(claims.userId())) {
+            throw new YamoyoException(ErrorCode.TERMS_NOT_AGREED);
+        }
 
         onBoardingService.setupProfile(claims.userId(), request);
 

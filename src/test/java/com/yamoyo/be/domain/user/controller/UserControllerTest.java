@@ -2,10 +2,14 @@ package com.yamoyo.be.domain.user.controller;
 
 import com.yamoyo.be.domain.security.jwt.JwtTokenClaims;
 import com.yamoyo.be.domain.security.jwt.authentication.JwtAuthenticationToken;
+import com.yamoyo.be.domain.user.entity.User;
 import com.yamoyo.be.domain.user.dto.response.UserResponse;
+import com.yamoyo.be.domain.user.repository.UserAgreementRepository;
+import com.yamoyo.be.domain.user.repository.UserRepository;
 import com.yamoyo.be.domain.user.service.UserService;
 import com.yamoyo.be.exception.ErrorCode;
 import com.yamoyo.be.exception.YamoyoException;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -17,6 +21,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -48,11 +53,28 @@ class UserControllerTest {
     @MockitoBean
     private UserService userService;
 
+    @MockitoBean
+    private UserAgreementRepository userAgreementRepository;
+
+    @MockitoBean
+    private UserRepository userRepository;
+
     private static final Long USER_ID = 1L;
     private static final String USER_EMAIL = "test@example.com";
     private static final String USER_NAME = "테스트";
     private static final String PROVIDER = "google";
     private static final String ME_ENDPOINT = "/api/users/me";
+
+    @BeforeEach
+    void allowOnboardedUserAccess() {
+        // OnboardingInterceptor가 /api/** 에 적용되어 있어,
+        // 컨트롤러 테스트에서도 "온보딩 완료" 상태를 기본으로 맞춰준다.
+        given(userAgreementRepository.hasAgreedToAllMandatoryTerms(USER_ID)).willReturn(true);
+
+        User onboardedUser = User.create(USER_EMAIL, USER_NAME);
+        onboardedUser.updateMajor("컴퓨터공학");
+        given(userRepository.findById(USER_ID)).willReturn(Optional.of(onboardedUser));
+    }
 
     @Nested
     @DisplayName("GET /api/users/me - 내 프로필 조회")

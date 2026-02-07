@@ -1,9 +1,13 @@
 package com.yamoyo.be.common.interceptor;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yamoyo.be.domain.security.jwt.JwtTokenClaims;
 import com.yamoyo.be.domain.security.jwt.authentication.JwtAuthenticationToken;
+import com.yamoyo.be.domain.user.entity.OnboardingStatus;
+import com.yamoyo.be.domain.user.entity.User;
 import com.yamoyo.be.domain.user.repository.UserAgreementRepository;
+import com.yamoyo.be.domain.user.repository.UserRepository;
+import com.yamoyo.be.exception.ErrorCode;
+import com.yamoyo.be.exception.YamoyoException;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -18,6 +22,7 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
@@ -35,8 +40,10 @@ class OnboardingInterceptorTest {
     @Mock
     private UserAgreementRepository userAgreementRepository;
 
+    @Mock
+    private UserRepository userRepository;
+
     private OnboardingInterceptor interceptor;
-    private ObjectMapper objectMapper;
 
     private MockHttpServletRequest request;
     private MockHttpServletResponse response;
@@ -45,8 +52,7 @@ class OnboardingInterceptorTest {
 
     @BeforeEach
     void setUp() {
-        objectMapper = new ObjectMapper();
-        interceptor = new OnboardingInterceptor(userAgreementRepository, objectMapper);
+        interceptor = new OnboardingInterceptor(userAgreementRepository, userRepository);
         request = new MockHttpServletRequest();
         response = new MockHttpServletResponse();
         request.setRequestURI("/api/onboarding/profile");
@@ -58,6 +64,9 @@ class OnboardingInterceptorTest {
         // given
         setupSecurityContext(USER_ID);
         given(userAgreementRepository.hasAgreedToAllMandatoryTerms(USER_ID)).willReturn(true);
+        User onboardedUser = User.create(USER_EMAIL, "테스트");
+        onboardedUser.updateMajor("컴퓨터공학");
+        given(userRepository.findById(USER_ID)).willReturn(java.util.Optional.of(onboardedUser));
 
         // when
         boolean result = interceptor.preHandle(request, response, new Object());
@@ -74,16 +83,14 @@ class OnboardingInterceptorTest {
         setupSecurityContext(USER_ID);
         given(userAgreementRepository.hasAgreedToAllMandatoryTerms(USER_ID)).willReturn(false);
 
-        // when
-        boolean result = interceptor.preHandle(request, response, new Object());
-
-        // then
-        assertThat(result).isFalse();
-        assertThat(response.getStatus()).isEqualTo(HttpServletResponse.SC_FORBIDDEN);
-        assertThat(response.getContentType()).isEqualTo("application/json;charset=UTF-8");
-
-        String responseBody = response.getContentAsString();
-        assertThat(responseBody).contains("\"code\":403");
+        // when & then
+        assertThatThrownBy(() -> interceptor.preHandle(request, response, new Object()))
+                .isInstanceOf(YamoyoException.class)
+                .satisfies(ex -> {
+                    YamoyoException ye = (YamoyoException) ex;
+                    assertThat(ye.getErrorCode()).isEqualTo(ErrorCode.ONBOARDING_REQUIRED);
+                    assertThat(ye.getDetails()).containsEntry("onboardingStatus", OnboardingStatus.TERMS_PENDING.name());
+                });
     }
 
     @Test
