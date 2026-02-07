@@ -21,9 +21,14 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        // 프로필 설정 API에 대해 온보딩 Interceptor 적용
-        // 약관 미동의 사용자의 접근 차단
+        // 온보딩 완료 전에는 핵심 API 접근 차단
+        // 인증/온보딩/헬스체크 등은 예외로 허용
         registry.addInterceptor(onboardingInterceptor)
-                .addPathPatterns("/api/onboarding/profile");
+                .addPathPatterns("/api/**")
+                .excludePathPatterns(
+                        "/api/auth/**",
+                        "/api/onboarding/**",
+                        "/api/actuator/health"
+                );
     }
 }
