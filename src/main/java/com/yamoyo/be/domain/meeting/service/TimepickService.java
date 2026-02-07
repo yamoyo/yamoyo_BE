@@ -14,6 +14,7 @@ import com.yamoyo.be.domain.teamroom.entity.TeamMember;
 import com.yamoyo.be.domain.teamroom.entity.TeamRoom;
 import com.yamoyo.be.domain.teamroom.repository.TeamMemberRepository;
 import com.yamoyo.be.domain.teamroom.repository.TeamRoomRepository;
+import com.yamoyo.be.domain.teamroom.repository.TeamRoomSetupRepository;
 import com.yamoyo.be.domain.user.entity.User;
 import com.yamoyo.be.exception.ErrorCode;
 import com.yamoyo.be.exception.YamoyoException;
@@ -53,6 +54,7 @@ public class TimepickService {
     private final MeetingRepository meetingRepository;
     private final MeetingParticipantRepository meetingParticipantRepository;
     private final EverytimeParsingStrategy everytimeParsingStrategy;
+    private final TeamRoomSetupRepository teamRoomSetupRepository;
 
     public TimepickResponse getTimepick(Long teamRoomId, Long userId) {
         Timepick timepick = timepickRepository.findByTeamRoomId(teamRoomId)
@@ -83,7 +85,7 @@ public class TimepickService {
 
         log.info("가용시간 제출 완료 - TeamRoomId: {}, UserId: {}", teamRoomId, userId);
 
-        checkAndFinalizeIfAllSubmitted(context.timepick().getId());
+        checkAndFinalizeIfAllSubmitted(context.timepick().getId(), teamRoomId);
     }
 
     @Transactional
@@ -99,7 +101,7 @@ public class TimepickService {
 
         log.info("선호시간대 제출 완료 - TeamRoomId: {}, UserId: {}", teamRoomId, userId);
 
-        checkAndFinalizeIfAllSubmitted(context.timepick().getId());
+        checkAndFinalizeIfAllSubmitted(context.timepick().getId(), teamRoomId);
     }
 
     @Transactional
@@ -182,7 +184,7 @@ public class TimepickService {
      * 전원이 가용시간과 선호시간대를 모두 제출했는지 확인하고,
      * 전원 제출 시 타임픽을 자동 마감한다.
      */
-    private void checkAndFinalizeIfAllSubmitted(Long timepickId) {
+    private void checkAndFinalizeIfAllSubmitted(Long timepickId, Long teamRoomId) {
         List<TimepickParticipant> participants = timepickParticipantRepository
                 .findByTimepickIdWithUser(timepickId);
 
@@ -192,6 +194,12 @@ public class TimepickService {
         if (allSubmitted) {
             log.info("전원 제출 완료 - 자동 마감 시작. TimepickId: {}", timepickId);
             finalizeTimepickInternal(timepickId, participants);
+
+            teamRoomSetupRepository.findByTeamRoomId(teamRoomId)
+                    .ifPresent(setup -> {
+                        setup.completeMeetingSetup();
+                        log.info("정기회의 Setup 완료 처리 - teamRoomId: {}", teamRoomId);
+                    });
         }
     }
 
