@@ -81,6 +81,11 @@ public class WebSocketEventListener {
             return;
         }
 
+        // user-specific topic은 무시 (이미 /sub/room/{roomId} 구독에서 온라인 처리됨)
+        if(destination.contains("/user/")) {
+            return;
+        }
+
         // roomId: destination에서 직접 파싱 (같은 SUBSCRIBE 메시지 처리 중이라 sessionAttributes 전파가 안 될 수 있음)
         Long roomId = parseRoomId(destination);
         // userId: CONNECT 시점에 이미 저장되어 있으므로 안전
