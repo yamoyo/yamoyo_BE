@@ -83,6 +83,10 @@ class LeaderGameServiceTest {
     void setUp() {
         // 기본값: 10초 (환경변수로 오버라이드 가능)
         when(leaderGameProperties.getVolunteerDurationSeconds()).thenReturn(10L);
+
+        // VOLUNTEER 단계에서는 phaseStartTime이 존재하는 것이 정상이라 기본 스텁을 둔다.
+        // (스케줄러 실패 시 타임아웃 강제 종료 로직이 phaseStartTime을 참조함)
+        lenient().when(redisService.getPhaseStartTime(anyLong())).thenReturn(System.currentTimeMillis());
     }
 
     // ==================== 공통 헬퍼 메서드 ====================
@@ -496,7 +500,8 @@ class LeaderGameServiceTest {
             List<GameParticipant> participants = createParticipants(3);
 
             given(redisService.getPhase(roomId)).willReturn(GamePhase.VOLUNTEER);
-            given(redisService.getVolunteers(roomId)).willReturn(Set.of(winnerId));
+            given(redisService.getVolunteers(roomId)).willReturn(new HashSet<>(Set.of(winnerId)));
+            given(redisService.getVotedUsers(roomId)).willReturn(Set.of(1L, 2L, 3L)); // 전원 투표 완료
             given(redisService.getParticipants(roomId)).willReturn(participants);
 
             // when - private 메서드 호출
@@ -523,6 +528,7 @@ class LeaderGameServiceTest {
 
             given(redisService.getPhase(roomId)).willReturn(GamePhase.VOLUNTEER);
             given(redisService.getVolunteers(roomId)).willReturn(new HashSet<>());
+            given(redisService.getVotedUsers(roomId)).willReturn(Set.of(1L, 2L, 3L)); // 전원 투표 완료 (모두 패스)
             given(redisService.getParticipants(roomId)).willReturn(participants);
 
             // when
@@ -542,7 +548,8 @@ class LeaderGameServiceTest {
             List<GameParticipant> participants = createParticipants(3);
 
             given(redisService.getPhase(roomId)).willReturn(GamePhase.VOLUNTEER);
-            given(redisService.getVolunteers(roomId)).willReturn(Set.of(1L, 2L));
+            given(redisService.getVolunteers(roomId)).willReturn(new HashSet<>(Set.of(1L, 2L)));
+            given(redisService.getVotedUsers(roomId)).willReturn(Set.of(1L, 2L, 3L)); // 전원 투표 완료
             given(redisService.getParticipants(roomId)).willReturn(participants);
 
             // when
@@ -552,6 +559,32 @@ class LeaderGameServiceTest {
             verify(redisService).setPhase(roomId, GamePhase.GAME_SELECT);
             verify(dbService, never()).applyLeaderResult(anyLong(), anyLong());
             verify(eventPublisher, never()).publishEvent(any(NotificationEvent.class));
+        }
+
+        @Test
+        @DisplayName("투표하지 않은 사람들을 지원자로 추가 후 GAME_SELECT 단계로 전환")
+        void endVolunteerPhase_UnvotedUsers_AddAsVolunteers() {
+            // given
+            Long roomId = 1L;
+            List<GameParticipant> participants = createParticipants(5); // 5명 참가자
+
+            // User1만 지원함, User2는 패스함, User3,4,5는 투표 안함
+            given(redisService.getPhase(roomId)).willReturn(GamePhase.VOLUNTEER);
+            given(redisService.getVolunteers(roomId)).willReturn(new HashSet<>(Set.of(1L))); // User1만 지원
+            given(redisService.getVotedUsers(roomId)).willReturn(Set.of(1L, 2L)); // User1, User2만 투표 완료
+            given(redisService.getParticipants(roomId)).willReturn(participants);
+
+            // when
+            ReflectionTestUtils.invokeMethod(leaderGameService, "endVolunteerPhase", roomId);
+
+            // then
+            // User3, User4, User5가 투표하지 않았으므로 지원자로 추가되어야 함
+            verify(redisService).addVolunteer(roomId, 3L);
+            verify(redisService).addVolunteer(roomId, 4L);
+            verify(redisService).addVolunteer(roomId, 5L);
+            // 총 4명의 지원자 (User1 + User3,4,5)이므로 GAME_SELECT로 전환
+            verify(redisService).setPhase(roomId, GamePhase.GAME_SELECT);
+            verify(dbService, never()).applyLeaderResult(anyLong(), anyLong());
         }
     }
 

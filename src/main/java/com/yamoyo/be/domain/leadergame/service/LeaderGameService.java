@@ -61,6 +61,9 @@ public class LeaderGameService {
         teamMemberRepository.findByTeamRoomIdAndUserId(roomId, user.getId())
                 .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
 
+        // 스케줄러가 지연/실패하더라도 다음 요청 시 타임아웃을 강제 반영해 "VOLUNTEER에 갇힘"을 방지한다.
+        maybeEndVolunteerPhaseIfTimedOut(roomId);
+
         // 재접속 처리
         redisService.addConnection(roomId, user.getId());
 
@@ -161,8 +164,10 @@ public class LeaderGameService {
         List<GameParticipant> participants = getParticipantsFromDb(roomId);
         redisService.initializeGame(roomId, participants);
 
-        long phaseStartTime = System.currentTimeMillis();
         long durationSeconds = leaderGameProperties.getVolunteerDurationSeconds();
+        long phaseStartTime = redisService.getPhaseStartTime(roomId) != null
+                ? redisService.getPhaseStartTime(roomId)
+                : System.currentTimeMillis();
 
         // WebSocket 브로드캐스트
         PhaseChangePayload payload = PhaseChangePayload.of(
@@ -171,7 +176,15 @@ public class LeaderGameService {
 
         // 10초 후 지원 단계 종료
         taskScheduler.schedule(
-                () -> endVolunteerPhase(roomId),
+                () -> {
+                    try {
+                        log.info("[TaskScheduler] Executing endVolunteerPhase for roomId={}", roomId);
+                        endVolunteerPhase(roomId);
+                        log.info("[TaskScheduler] Completed endVolunteerPhase for roomId={}", roomId);
+                    } catch (Exception e) {
+                        log.error("[TaskScheduler] Failed to execute endVolunteerPhase for roomId={}", roomId, e);
+                    }
+                },
                 Instant.now().plusSeconds(durationSeconds)
         );
 
@@ -183,6 +196,9 @@ public class LeaderGameService {
     // ========================================================================
 
     public void vote(Long roomId, Long userId, boolean isVolunteer) {
+        // 스케줄러 지연/실패 시에도 투표 요청을 통해 타임아웃을 반영한다.
+        maybeEndVolunteerPhaseIfTimedOut(roomId);
+
         GamePhase phase = redisService.getPhase(roomId);
         if (phase != GamePhase.VOLUNTEER) {
             throw new YamoyoException(ErrorCode.INVALID_GAME_PHASE);
@@ -203,15 +219,15 @@ public class LeaderGameService {
             redisService.addVolunteer(roomId, userId);
         }
 
+        // 투표 현황 브로드캐스트
+        broadcastVoteStatus(roomId);
+
         List<GameParticipant> participants = redisService.getParticipants(roomId);
 
         Set<Long> votedUsers = redisService.getVotedUsers(roomId);
         if(votedUsers.size() == participants.size()) {
             endVolunteerPhase(roomId);
         }
-
-        // 투표 현황 브로드캐스트
-        broadcastVoteStatus(roomId);
     }
 
     /**
@@ -340,26 +356,62 @@ public class LeaderGameService {
     // ========================================================================
 
     private void endVolunteerPhase(Long roomId) {
-        if (redisService.getPhase(roomId) != GamePhase.VOLUNTEER) {
+        log.info("[endVolunteerPhase] START roomId={}", roomId);
+
+        GamePhase currentPhase = redisService.getPhase(roomId);
+        if (currentPhase != GamePhase.VOLUNTEER) {
+            log.info("[endVolunteerPhase] SKIP - currentPhase={} (expected VOLUNTEER)", currentPhase);
             return;
         }
 
-        Set<Long> volunteers = redisService.getVolunteers(roomId);
+        Set<Long> volunteers = new HashSet<>(redisService.getVolunteers(roomId));
+        Set<Long> votedUsers = redisService.getVotedUsers(roomId);
         List<GameParticipant> participants = redisService.getParticipants(roomId);
 
-        // 지원자 없다면 전원 지원자로 추가
+        log.info("[endVolunteerPhase] roomId={}, volunteers={}, votedUsers={}, participantsCount={}",
+                roomId, volunteers, votedUsers, participants.size());
+
+        // 투표하지 않은 사람들을 지원자로 추가
+        for (GameParticipant participant : participants) {
+            if (!votedUsers.contains(participant.userId())) {
+                log.info("[endVolunteerPhase] Adding unvoted user as volunteer: userId={}", participant.userId());
+                redisService.addVolunteer(roomId, participant.userId());
+                volunteers.add(participant.userId());
+            }
+        }
+
+        // 지원자 없다면 (모두가 패스한 경우)
         if (volunteers.isEmpty()) {
+            log.info("[endVolunteerPhase] No volunteers, broadcasting NO_VOLUNTEERS first");
+
+            // 먼저 지원자 0명 상태를 브로드캐스트 (프론트에서 다른 모달 표시용)
+            broadcast(roomId, "NO_VOLUNTEERS", Map.of("volunteerCount", 0));
+
+            // 전원을 지원자로 추가
             volunteers = participants.stream()
                     .map(GameParticipant::userId)
                     .collect(Collectors.toSet());
             for (Long uid : volunteers) {
                 redisService.addVolunteer(roomId, uid);
             }
+
+            log.info("[endVolunteerPhase] Added all participants as volunteers: {}", volunteers);
+
+            // GAME_SELECT로 전환
+            redisService.setPhase(roomId, GamePhase.GAME_SELECT);
+            broadcast(roomId, "PHASE_CHANGE",
+                    PhaseChangePayload.of(GamePhase.GAME_SELECT, System.currentTimeMillis(), null));
+
+            log.info("[endVolunteerPhase] END roomId={}", roomId);
+            return;
         }
+
+        log.info("[endVolunteerPhase] Final volunteers count={}, volunteers={}", volunteers.size(), volunteers);
 
         // 지원자 1명일 때
         if (volunteers.size() == 1) {
             Long winnerId = volunteers.iterator().next();
+            log.info("[endVolunteerPhase] Single volunteer, finishing game. winnerId={}", winnerId);
             finishGame(roomId, winnerId);
 
             String winnerName = participants.stream()
@@ -369,9 +421,36 @@ public class LeaderGameService {
             broadcast(roomId, "GAME_RESULT",
                     new GameResultPayload(GameType.LADDER, winnerId, winnerName, participants, null));
         } else {
+            log.info("[endVolunteerPhase] Multiple volunteers ({}), transitioning to GAME_SELECT", volunteers.size());
             redisService.setPhase(roomId, GamePhase.GAME_SELECT);
             broadcast(roomId, "PHASE_CHANGE",
                     PhaseChangePayload.of(GamePhase.GAME_SELECT, System.currentTimeMillis(), null));
+        }
+
+        log.info("[endVolunteerPhase] END roomId={}", roomId);
+    }
+
+    private void maybeEndVolunteerPhaseIfTimedOut(Long roomId) {
+        GamePhase phase = redisService.getPhase(roomId);
+        if (phase != GamePhase.VOLUNTEER) {
+            return;
+        }
+
+        Long phaseStartTime = redisService.getPhaseStartTime(roomId);
+        if (phaseStartTime == null) {
+            return;
+        }
+
+        long durationSeconds = leaderGameProperties.getVolunteerDurationSeconds();
+        long elapsedSeconds = (System.currentTimeMillis() - phaseStartTime) / 1000;
+        if (elapsedSeconds >= durationSeconds) {
+            log.warn(
+                    "VOLUNTEER phase timed out. roomId={}, elapsedSeconds={}, durationSeconds={}",
+                    roomId,
+                    elapsedSeconds,
+                    durationSeconds
+            );
+            endVolunteerPhase(roomId);
         }
     }
 
@@ -428,6 +507,15 @@ public class LeaderGameService {
     }
 
     private <T> void broadcast(Long roomId, String type, T payload) {
-        messagingTemplate.convertAndSend(getTopic(roomId), GameMessage.of(type, payload));
+        String topic = getTopic(roomId);
+        GameMessage<T> message = GameMessage.of(type, payload);
+        log.info("[Broadcast] Attempting to send - roomId={}, type={}, topic={}", roomId, type, topic);
+        try {
+            messagingTemplate.convertAndSend(topic, message);
+            log.info("[Broadcast] Successfully sent - roomId={}, type={}, topic={}", roomId, type, topic);
+        } catch (Exception e) {
+            log.error("[Broadcast] Failed to send - roomId={}, type={}, topic={}", roomId, type, topic, e);
+            throw e;
+        }
     }
 }
