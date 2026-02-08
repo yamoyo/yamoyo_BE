@@ -12,8 +12,10 @@ import com.yamoyo.be.domain.meeting.entity.enums.TimepickParticipantStatus;
 import com.yamoyo.be.domain.meeting.entity.enums.TimepickStatus;
 import com.yamoyo.be.domain.meeting.repository.*;
 import com.yamoyo.be.domain.teamroom.entity.TeamRoom;
+import com.yamoyo.be.domain.teamroom.entity.TeamRoomSetup;
 import com.yamoyo.be.domain.teamroom.repository.TeamMemberRepository;
 import com.yamoyo.be.domain.teamroom.repository.TeamRoomRepository;
+import com.yamoyo.be.domain.teamroom.repository.TeamRoomSetupRepository;
 import com.yamoyo.be.domain.user.entity.User;
 import com.yamoyo.be.exception.ErrorCode;
 import com.yamoyo.be.exception.YamoyoException;
@@ -68,6 +70,9 @@ class TimepickServiceTest {
 
     @Mock
     private MeetingParticipantRepository meetingParticipantRepository;
+
+    @Mock
+    private TeamRoomSetupRepository teamRoomSetupRepository;
 
     @InjectMocks
     private TimepickService timepickService;
@@ -417,6 +422,50 @@ class TimepickServiceTest {
                         YamoyoException yamoyoException = (YamoyoException) exception;
                         assertThat(yamoyoException.getErrorCode()).isEqualTo(ErrorCode.TIMEPICK_PREFERRED_BLOCK_ALREADY_SUBMITTED);
                     });
+        }
+    }
+
+    @Nested
+    @DisplayName("전원 제출 시 자동 마감 및 Setup 완료 처리")
+    class AutoFinalizeAndSetupCompleteTest {
+
+        @Test
+        @DisplayName("마지막 참가자 제출 시 자동 마감되고 meetingCompleted가 true로 변경된다")
+        void submitPreferredBlock_전원제출_자동마감_및_Setup완료() {
+            // given
+            TeamRoom teamRoom = createTeamRoom();
+            Timepick timepick = createTimepickWithTeamRoom(TimepickStatus.OPEN, teamRoom);
+            User user = createUser(USER_ID);
+            TimepickParticipant participant = createParticipantWithUserAndAvailability(
+                    user,
+                    TimepickParticipantStatus.SUBMITTED,
+                    TimepickParticipantStatus.PENDING
+            );
+            PreferredBlockSubmitRequest request = createPreferredBlockSubmitRequest(PreferredBlock.BLOCK_12_16);
+            TeamRoomSetup setup = TeamRoomSetup.create(teamRoom);
+
+            given(timepickRepository.findByTeamRoomId(TEAM_ROOM_ID))
+                    .willReturn(Optional.of(timepick));
+            given(timepickParticipantRepository.findByTimepickIdAndUserId(TIMEPICK_ID, USER_ID))
+                    .willReturn(Optional.of(participant));
+            given(timepickParticipantRepository.findByTimepickIdWithUser(TIMEPICK_ID))
+                    .willReturn(List.of(participant));
+            given(timepickRepository.findById(TIMEPICK_ID))
+                    .willReturn(Optional.of(timepick));
+            given(meetingScheduleAlgorithmService.calculateOptimalSchedule(any()))
+                    .willReturn(new MeetingScheduleAlgorithmService.ScheduleResult(
+                            DayOfWeek.MON, LocalTime.of(10, 0), 1, 1
+                    ));
+            given(teamRoomSetupRepository.findByTeamRoomId(TEAM_ROOM_ID))
+                    .willReturn(Optional.of(setup));
+
+            // when
+            timepickService.submitPreferredBlock(TEAM_ROOM_ID, USER_ID, request);
+
+            // then
+            assertThat(timepick.isFinalized()).isTrue();
+            assertThat(setup.isMeetingCompleted()).isTrue();
+            verify(teamRoomSetupRepository).findByTeamRoomId(TEAM_ROOM_ID);
         }
     }
 

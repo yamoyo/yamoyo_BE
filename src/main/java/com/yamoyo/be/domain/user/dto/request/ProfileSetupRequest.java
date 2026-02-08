@@ -18,9 +18,11 @@ public record ProfileSetupRequest(
         @NotBlank(message = "전공은 필수입니다.")
         String major,
 
-        @Schema(description = "MBTI (영문 대문자 4자)", example = "INTJ", requiredMode = Schema.RequiredMode.REQUIRED)
-        @NotBlank(message = "MBTI는 필수입니다.")
-        @Pattern(regexp = "^[A-Z]{4}$", message = "MBTI는 영문 대문자 4자로 입력해주세요. (예: INTJ)")
+        @Schema(description = "MBTI (16가지 유형)", example = "INTJ", requiredMode = Schema.RequiredMode.REQUIRED)
+        @Pattern(
+                regexp = "^(ISTJ|ISFJ|INFJ|INTJ|ISTP|ISFP|INFP|INTP|ESTP|ESFP|ENFP|ENTP|ESTJ|ESFJ|ENFJ|ENTJ)$",
+                message = "MBTI는 16가지 유형 중 하나여야 합니다. (예: INTJ)"
+        )
         String mbti,
 
         @Schema(description = "프로필 이미지 ID", example = "1", requiredMode = Schema.RequiredMode.REQUIRED)
