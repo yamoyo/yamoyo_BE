@@ -3,6 +3,7 @@ package com.yamoyo.be.domain.leadergame.service;
 import com.yamoyo.be.domain.leadergame.dto.GameParticipant;
 import com.yamoyo.be.domain.leadergame.dto.message.*;
 import com.yamoyo.be.domain.leadergame.dto.response.VolunteerPhaseResponse;
+import com.yamoyo.be.domain.leadergame.config.LeaderGameProperties;
 import com.yamoyo.be.domain.leadergame.enums.GamePhase;
 import com.yamoyo.be.domain.leadergame.enums.GameType;
 import com.yamoyo.be.domain.notification.entity.NotificationType;
@@ -35,13 +36,12 @@ public class LeaderGameService {
     private final LeaderGameDbService dbService;
     private final LadderGameService ladderGameService;
     private final RouletteGameService rouletteGameService;
+    private final LeaderGameProperties leaderGameProperties;
     private final TeamRoomRepository teamRoomRepository;
     private final TeamMemberRepository teamMemberRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final TaskScheduler taskScheduler;
     private final ApplicationEventPublisher eventPublisher;
-
-    private static final long VOLUNTEER_DURATION_SECONDS = 60000;
 
     private String getTopic(Long roomId) {
         return "/sub/room/" + roomId;
@@ -85,8 +85,9 @@ public class LeaderGameService {
         // VOLUNTEER 단계 남은 시간 계산
         Long remainingTime = null;
         if (currentPhase == GamePhase.VOLUNTEER && phaseStartTime != null) {
+            long durationSeconds = leaderGameProperties.getVolunteerDurationSeconds();
             long elapsed = (System.currentTimeMillis() - phaseStartTime) / 1000;
-            remainingTime = Math.max(0, VOLUNTEER_DURATION_SECONDS - elapsed);
+            remainingTime = Math.max(0, durationSeconds - elapsed);
         }
 
         // 당첨자 이름 조회
@@ -161,19 +162,20 @@ public class LeaderGameService {
         redisService.initializeGame(roomId, participants);
 
         long phaseStartTime = System.currentTimeMillis();
+        long durationSeconds = leaderGameProperties.getVolunteerDurationSeconds();
 
         // WebSocket 브로드캐스트
         PhaseChangePayload payload = PhaseChangePayload.of(
-                GamePhase.VOLUNTEER, phaseStartTime, VOLUNTEER_DURATION_SECONDS);
+                GamePhase.VOLUNTEER, phaseStartTime, durationSeconds);
         broadcast(roomId, "PHASE_CHANGE", payload);
 
         // 10초 후 지원 단계 종료
         taskScheduler.schedule(
                 () -> endVolunteerPhase(roomId),
-                Instant.now().plusSeconds(VOLUNTEER_DURATION_SECONDS)
+                Instant.now().plusSeconds(durationSeconds)
         );
 
-        return VolunteerPhaseResponse.of(phaseStartTime, VOLUNTEER_DURATION_SECONDS, participants);
+        return VolunteerPhaseResponse.of(phaseStartTime, durationSeconds, participants);
     }
 
     // ========================================================================

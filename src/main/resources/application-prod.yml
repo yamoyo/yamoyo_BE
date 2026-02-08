@@ -138,4 +138,8 @@ logging:
     org.springframework.security: WARN
     org.hibernate.SQL: WARN
   pattern:
+
+leadergame:
+  # 지원(Volunteer) 단계 지속 시간(초)
+  volunteer-duration-seconds: ${VOLUNTEER_DURATION_SECONDS:10}
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
