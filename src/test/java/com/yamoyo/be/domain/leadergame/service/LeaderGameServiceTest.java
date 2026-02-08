@@ -4,6 +4,7 @@ import com.yamoyo.be.domain.leadergame.dto.GameParticipant;
 import com.yamoyo.be.domain.leadergame.dto.message.GameResultPayload;
 import com.yamoyo.be.domain.leadergame.dto.message.ReloadPayload;
 import com.yamoyo.be.domain.leadergame.dto.response.VolunteerPhaseResponse;
+import com.yamoyo.be.domain.leadergame.config.LeaderGameProperties;
 import com.yamoyo.be.domain.leadergame.enums.GamePhase;
 import com.yamoyo.be.domain.leadergame.enums.GameType;
 import com.yamoyo.be.domain.notification.entity.NotificationType;
@@ -18,6 +19,7 @@ import com.yamoyo.be.domain.user.entity.User;
 import com.yamoyo.be.exception.ErrorCode;
 import com.yamoyo.be.exception.YamoyoException;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -57,6 +59,9 @@ class LeaderGameServiceTest {
     private RouletteGameService rouletteGameService;
 
     @Mock
+    private LeaderGameProperties leaderGameProperties;
+
+    @Mock
     private TeamRoomRepository teamRoomRepository;
 
     @Mock
@@ -73,6 +78,12 @@ class LeaderGameServiceTest {
 
     @InjectMocks
     private LeaderGameService leaderGameService;
+
+    @BeforeEach
+    void setUp() {
+        // 기본값: 10초 (환경변수로 오버라이드 가능)
+        when(leaderGameProperties.getVolunteerDurationSeconds()).thenReturn(10L);
+    }
 
     // ==================== 공통 헬퍼 메서드 ====================
 
@@ -252,7 +263,7 @@ class LeaderGameServiceTest {
 
             // then
             assertThat(result).isNotNull();
-            assertThat(result.durationSeconds()).isEqualTo(60000);
+            assertThat(result.durationSeconds()).isEqualTo(10);
             verify(dbService).startLeaderSelection(roomId);
             verify(redisService).initializeGame(eq(roomId), anyList());
             verify(messagingTemplate).convertAndSend(eq("/sub/room/" + roomId), any(Object.class));

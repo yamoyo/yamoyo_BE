@@ -115,6 +115,9 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:8080/api/auth/google/callback}
 
+      # LeaderGame
+      VOLUNTEER_DURATION_SECONDS: ${VOLUNTEER_DURATION_SECONDS:-10}
+
       #FIREBASE
       FIREBASE_KEY_PATH: ${FIREBASE_KEY_PATH:-/app/config/firebase-adminsdk.json}
 
