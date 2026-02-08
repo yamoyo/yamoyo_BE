@@ -226,6 +226,12 @@ public class RuleService {
         // 7. Setup 상태 업데이트
         setup.completeRuleSetup();
 
+        // 8. 모든 설정이 완료되었으면 workflow를 COMPLETED로 변경
+        if (setup.isAllCompleted()) {
+            teamRoom.completeSetup();
+            log.info("모든 설정 완료 - workflow COMPLETED 전환 - teamRoomId: {}", teamRoomId);
+        }
+
         eventPublisher.publishEvent(NotificationEvent.ofSingle(
                 teamRoomId,
                 teamRoomId,  // 규칙 확정은 팀룸 전체 알림이므로 teamRoomId

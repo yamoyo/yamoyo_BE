@@ -199,6 +199,12 @@ public class TimepickService {
                     .ifPresent(setup -> {
                         setup.completeMeetingSetup();
                         log.info("정기회의 Setup 완료 처리 - teamRoomId: {}", teamRoomId);
+
+                        // 모든 설정이 완료되었으면 workflow를 COMPLETED로 변경
+                        if (setup.isAllCompleted()) {
+                            setup.getTeamRoom().completeSetup();
+                            log.info("모든 설정 완료 - workflow COMPLETED 전환 - teamRoomId: {}", teamRoomId);
+                        }
                     });
         }
     }

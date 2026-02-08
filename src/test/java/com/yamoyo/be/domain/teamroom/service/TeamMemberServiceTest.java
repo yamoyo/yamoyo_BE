@@ -176,7 +176,7 @@ class TeamMemberServiceTest {
             // when / then
             assertThatThrownBy(() -> teamMemberService.leaveTeamRoom(teamRoomId, userId))
                     .isInstanceOf(YamoyoException.class)
-                    .hasMessageContaining(ErrorCode.TEAMROOM_LEAVE_FORBIDDEN.getMessage());
+                    .hasMessageContaining(ErrorCode.TEAMROOM_LEAVE_LAST_MEMBER.getMessage());
 
             verify(teamMemberRepository, never()).delete(any());
         }
