@@ -79,7 +79,7 @@ public class SetupScheduler {
                             .orElseThrow(() -> new YamoyoException(ErrorCode.TIMEPICK_NOT_FOUND));
 
                     if (!timepick.isFinalized()) {
-                        timepickService.finalizeTimepick(timepick.getId());
+                        timepickService. finalizeTimepick(timepick.getId());
                     }
                     setup.completeMeetingSetup();
                 }

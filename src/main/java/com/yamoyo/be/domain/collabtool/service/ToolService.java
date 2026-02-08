@@ -194,6 +194,11 @@ public class ToolService {
      */
     @Transactional
     public void confirmTools(Long teamRoomId) {
+        // 이미 확정된 경우 중복 방지
+        TeamRoomSetup setup = setupRepository.findByTeamRoomId(teamRoomId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.SETUP_NOT_FOUND));
+        if (setup.isToolCompleted()) return;
+
         log.info("협업툴 확정 처리 시작 - teamRoomId: {}", teamRoomId);
 
         // 1. 모든 투표 조회
@@ -245,9 +250,14 @@ public class ToolService {
             }
         }
 
-        TeamRoomSetup setup = setupRepository.findByTeamRoomId(teamRoomId)
-                .orElseThrow(() -> new YamoyoException(ErrorCode.SETUP_NOT_FOUND));
+        // 5. Setup 상태 업데이트
         setup.completeToolSetup();
+
+        // 6. 모든 설정이 완료되었으면 workflow를 COMPLETED로 변경
+        if (setup.isAllCompleted()) {
+            teamRoom.completeSetup();
+            log.info("모든 설정 완료 - workflow COMPLETED 전환 - teamRoomId: {}", teamRoomId);
+        }
 
         log.info("협업툴 확정 완료 - teamRoomId: {}", teamRoomId);
     }
