@@ -61,6 +61,9 @@ public class LeaderGameService {
         teamMemberRepository.findByTeamRoomIdAndUserId(roomId, user.getId())
                 .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
 
+        // 스케줄러가 지연/실패하더라도 다음 요청 시 타임아웃을 강제 반영해 "VOLUNTEER에 갇힘"을 방지한다.
+        maybeEndVolunteerPhaseIfTimedOut(roomId);
+
         // 재접속 처리
         redisService.addConnection(roomId, user.getId());
 
@@ -161,8 +164,10 @@ public class LeaderGameService {
         List<GameParticipant> participants = getParticipantsFromDb(roomId);
         redisService.initializeGame(roomId, participants);
 
-        long phaseStartTime = System.currentTimeMillis();
         long durationSeconds = leaderGameProperties.getVolunteerDurationSeconds();
+        long phaseStartTime = redisService.getPhaseStartTime(roomId) != null
+                ? redisService.getPhaseStartTime(roomId)
+                : System.currentTimeMillis();
 
         // WebSocket 브로드캐스트
         PhaseChangePayload payload = PhaseChangePayload.of(
@@ -183,6 +188,9 @@ public class LeaderGameService {
     // ========================================================================
 
     public void vote(Long roomId, Long userId, boolean isVolunteer) {
+        // 스케줄러 지연/실패 시에도 투표 요청을 통해 타임아웃을 반영한다.
+        maybeEndVolunteerPhaseIfTimedOut(roomId);
+
         GamePhase phase = redisService.getPhase(roomId);
         if (phase != GamePhase.VOLUNTEER) {
             throw new YamoyoException(ErrorCode.INVALID_GAME_PHASE);
@@ -344,10 +352,19 @@ public class LeaderGameService {
             return;
         }
 
-        Set<Long> volunteers = redisService.getVolunteers(roomId);
+        Set<Long> volunteers = new HashSet<>(redisService.getVolunteers(roomId));
+        Set<Long> votedUsers = redisService.getVotedUsers(roomId);
         List<GameParticipant> participants = redisService.getParticipants(roomId);
 
-        // 지원자 없다면 전원 지원자로 추가
+        // 투표하지 않은 사람들을 지원자로 추가
+        for (GameParticipant participant : participants) {
+            if (!votedUsers.contains(participant.userId())) {
+                redisService.addVolunteer(roomId, participant.userId());
+                volunteers.add(participant.userId());
+            }
+        }
+
+        // 지원자 없다면 전원 지원자로 추가 (모두가 패스한 경우)
         if (volunteers.isEmpty()) {
             volunteers = participants.stream()
                     .map(GameParticipant::userId)
@@ -372,6 +389,30 @@ public class LeaderGameService {
             redisService.setPhase(roomId, GamePhase.GAME_SELECT);
             broadcast(roomId, "PHASE_CHANGE",
                     PhaseChangePayload.of(GamePhase.GAME_SELECT, System.currentTimeMillis(), null));
+        }
+    }
+
+    private void maybeEndVolunteerPhaseIfTimedOut(Long roomId) {
+        GamePhase phase = redisService.getPhase(roomId);
+        if (phase != GamePhase.VOLUNTEER) {
+            return;
+        }
+
+        Long phaseStartTime = redisService.getPhaseStartTime(roomId);
+        if (phaseStartTime == null) {
+            return;
+        }
+
+        long durationSeconds = leaderGameProperties.getVolunteerDurationSeconds();
+        long elapsedSeconds = (System.currentTimeMillis() - phaseStartTime) / 1000;
+        if (elapsedSeconds >= durationSeconds) {
+            log.warn(
+                    "VOLUNTEER phase timed out. roomId={}, elapsedSeconds={}, durationSeconds={}",
+                    roomId,
+                    elapsedSeconds,
+                    durationSeconds
+            );
+            endVolunteerPhase(roomId);
         }
     }
 
