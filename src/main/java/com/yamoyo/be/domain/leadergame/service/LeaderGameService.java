@@ -219,15 +219,15 @@ public class LeaderGameService {
             redisService.addVolunteer(roomId, userId);
         }
 
+        // 투표 현황 브로드캐스트
+        broadcastVoteStatus(roomId);
+
         List<GameParticipant> participants = redisService.getParticipants(roomId);
 
         Set<Long> votedUsers = redisService.getVotedUsers(roomId);
         if(votedUsers.size() == participants.size()) {
             endVolunteerPhase(roomId);
         }
-
-        // 투표 현황 브로드캐스트
-        broadcastVoteStatus(roomId);
     }
 
     /**
