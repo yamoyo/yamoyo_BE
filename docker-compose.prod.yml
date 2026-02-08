@@ -73,6 +73,9 @@ services:
       # Frontend
       FRONT_BASE_URL: ${FRONT_BASE_URL}
 
+      # LeaderGame
+      VOLUNTEER_DURATION_SECONDS: ${VOLUNTEER_DURATION_SECONDS:-10}
+
     depends_on:
       redis:
         condition: service_healthy
