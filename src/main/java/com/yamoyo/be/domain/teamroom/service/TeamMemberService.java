@@ -64,7 +64,7 @@ public class TeamMemberService {
         // 4. 1명 남았을 경우 나가기 불가
         long memberCount = teamMemberRepository.countByTeamRoomId(teamRoomId);
         if (memberCount <= 1) {
-            throw new YamoyoException(ErrorCode.TEAMROOM_LEAVE_FORBIDDEN);
+            throw new YamoyoException(ErrorCode.TEAMROOM_LEAVE_LAST_MEMBER);
         }
 
         // 5. MEMBER면 바로 삭제
@@ -228,7 +228,7 @@ public class TeamMemberService {
 
         // 6. 남은 멤버가 없을 경우 불가능
         if (remainingMembers.isEmpty()) {
-            throw new YamoyoException(ErrorCode.TEAMROOM_LEAVE_FORBIDDEN);
+            throw new YamoyoException(ErrorCode.TEAMROOM_LEAVE_LAST_MEMBER);
         }
 
         // 7. 권한 위임 (대상은 랜덤으로 지정)
