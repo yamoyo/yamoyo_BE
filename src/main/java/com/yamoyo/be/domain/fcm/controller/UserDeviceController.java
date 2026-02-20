@@ -25,6 +25,7 @@ public class UserDeviceController {
             @AuthenticationPrincipal JwtTokenClaims claims,
             @RequestBody DeviceUpdateRequest request
     ) {
+        log.info("POST /api/devices - 기기 정보 업데이트, UserId: {}, DeviceType: {}", claims.userId(), request.deviceType());
         userDeviceService.updateDeviceStatus(
                 claims.userId(),
                 request.fcmToken(),
