@@ -366,4 +366,42 @@ public class TeamRoomService {
                 .map(TeamRoomSetup::getCreatedAt)
                 .orElseThrow(() -> new YamoyoException(ErrorCode.SETUP_NOT_FOUND));
     }
+
+    /**
+     * 초대 토큰으로 팀룸 정보 조회 (비로그인 허용)
+     *
+     * @param token 초대 토큰
+     * @return 팀룸 정보
+     */
+    public InviteInfoResponse getInviteInfo(String token) {
+        log.info("초대 정보 조회 시작 - token: {}", token);
+
+        // 1. 토큰으로 teamRoomId 조회
+        Long teamRoomId = inviteTokenService.getTeamRoomIdByToken(token);
+        if (teamRoomId == null) {
+            throw new YamoyoException(ErrorCode.INVITE_INVALID);
+        }
+
+        // 2. 팀룸 조회 (ACTIVE 상태만)
+        TeamRoom teamRoom = teamRoomRepository.findById(teamRoomId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
+
+        if (teamRoom.getLifecycle() != Lifecycle.ACTIVE) {
+            throw new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND);
+        }
+
+        // 3. 현재 멤버 수 조회
+        long currentMemberCount = teamMemberRepository.countByTeamRoomId(teamRoomId);
+
+        log.info("초대 정보 조회 완료 - teamRoomId: {}, title: {}", teamRoomId, teamRoom.getTitle());
+
+        return new InviteInfoResponse(
+                teamRoom.getId(),
+                teamRoom.getTitle(),
+                teamRoom.getDescription(),
+                teamRoom.getBannerImageId(),
+                (int) currentMemberCount,
+                MAX_MEMBER_COUNT
+        );
+    }
 }

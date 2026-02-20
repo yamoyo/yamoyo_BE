@@ -152,4 +152,18 @@ public class TeamRoomController {
         teamRoomService.deleteTeamRoom(teamRoomId, userId);
         return ApiResponse.success(null);
     }
+
+    @Operation(summary = "초대 정보 조회", description = "초대 토큰으로 팀룸 정보를 조회합니다. 비로그인 사용자도 조회 가능합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "팀룸 없음"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "410", description = "초대링크 만료/무효")
+    })
+    @GetMapping("/invite-info")
+    public ApiResponse<InviteInfoResponse> getInviteInfo(
+            @Parameter(description = "초대 토큰", required = true) @RequestParam String token
+    ) {
+        InviteInfoResponse response = teamRoomService.getInviteInfo(token);
+        return ApiResponse.success(response);
+    }
 }
