@@ -45,7 +45,7 @@ public class User {
     private String mbti;
 
     @Column(name = "is_alarm_on")
-    private boolean isAlarmOn;
+    private boolean isAlarmOn = true;
 
     @Enumerated(EnumType.STRING)
     private UserRole userRole = UserRole.GUEST;
