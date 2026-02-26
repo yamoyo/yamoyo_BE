@@ -1,11 +1,9 @@
 package com.yamoyo.be.common.interceptor;
 
 import com.yamoyo.be.domain.user.entity.OnboardingStatus;
-import com.yamoyo.be.domain.user.entity.User;
 import com.yamoyo.be.domain.user.repository.UserRepository;
 import com.yamoyo.be.domain.security.jwt.JwtTokenClaims;
 import com.yamoyo.be.domain.security.jwt.authentication.JwtAuthenticationToken;
-import com.yamoyo.be.domain.user.repository.UserAgreementRepository;
 import com.yamoyo.be.exception.ErrorCode;
 import com.yamoyo.be.exception.YamoyoException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -42,7 +40,6 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class OnboardingInterceptor implements HandlerInterceptor {
 
-    private final UserAgreementRepository userAgreementRepository;
     private final UserRepository userRepository;
 
     @Override
@@ -67,8 +64,11 @@ public class OnboardingInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        // 3. DB에서 약관 동의/프로필 완료 여부 확인
-        boolean hasAgreedToTerms = userAgreementRepository.hasAgreedToAllMandatoryTerms(userId);
+        // 3. DB에서 약관 동의/프로필 완료 여부 확인 (단일 쿼리)
+        UserRepository.OnboardingCheckProjection onboardingStatus = userRepository.findOnboardingStatusByUserId(userId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.USER_NOT_FOUND));
+
+        boolean hasAgreedToTerms = Boolean.TRUE.equals(onboardingStatus.getHasAgreedToTerms());
         if (!hasAgreedToTerms) {
             log.warn("온보딩(약관) 미완료 사용자 접근 차단 - UserId: {}, URI: {}",
                     userId, request.getRequestURI());
@@ -78,10 +78,7 @@ public class OnboardingInterceptor implements HandlerInterceptor {
             );
         }
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new YamoyoException(ErrorCode.USER_NOT_FOUND));
-
-        boolean isProfileCompleted = user.getMajor() != null;
+        boolean isProfileCompleted = Boolean.TRUE.equals(onboardingStatus.getProfileCompleted());
         if (!isProfileCompleted) {
             log.warn("온보딩(프로필) 미완료 사용자 접근 차단 - UserId: {}, URI: {}",
                     userId, request.getRequestURI());

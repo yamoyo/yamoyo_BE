@@ -3,8 +3,6 @@ package com.yamoyo.be.common.interceptor;
 import com.yamoyo.be.domain.security.jwt.JwtTokenClaims;
 import com.yamoyo.be.domain.security.jwt.authentication.JwtAuthenticationToken;
 import com.yamoyo.be.domain.user.entity.OnboardingStatus;
-import com.yamoyo.be.domain.user.entity.User;
-import com.yamoyo.be.domain.user.repository.UserAgreementRepository;
 import com.yamoyo.be.domain.user.repository.UserRepository;
 import com.yamoyo.be.exception.ErrorCode;
 import com.yamoyo.be.exception.YamoyoException;
@@ -38,9 +36,6 @@ import static org.mockito.Mockito.mock;
 class OnboardingInterceptorTest {
 
     @Mock
-    private UserAgreementRepository userAgreementRepository;
-
-    @Mock
     private UserRepository userRepository;
 
     private OnboardingInterceptor interceptor;
@@ -52,7 +47,7 @@ class OnboardingInterceptorTest {
 
     @BeforeEach
     void setUp() {
-        interceptor = new OnboardingInterceptor(userAgreementRepository, userRepository);
+        interceptor = new OnboardingInterceptor(userRepository);
         request = new MockHttpServletRequest();
         response = new MockHttpServletResponse();
         request.setRequestURI("/api/onboarding/profile");
@@ -63,10 +58,9 @@ class OnboardingInterceptorTest {
     void preHandle_TermsAgreed_AllowRequest() throws Exception {
         // given
         setupSecurityContext(USER_ID);
-        given(userAgreementRepository.hasAgreedToAllMandatoryTerms(USER_ID)).willReturn(true);
-        User onboardedUser = User.create(USER_EMAIL, "테스트");
-        onboardedUser.updateMajor("컴퓨터공학");
-        given(userRepository.findById(USER_ID)).willReturn(java.util.Optional.of(onboardedUser));
+        UserRepository.OnboardingCheckProjection onboardingStatus = createOnboardingStatus(true, true);
+        given(userRepository.findOnboardingStatusByUserId(USER_ID))
+                .willReturn(java.util.Optional.of(onboardingStatus));
 
         // when
         boolean result = interceptor.preHandle(request, response, new Object());
@@ -81,7 +75,9 @@ class OnboardingInterceptorTest {
     void preHandle_TermsNotAgreed_BlockRequest() throws Exception {
         // given
         setupSecurityContext(USER_ID);
-        given(userAgreementRepository.hasAgreedToAllMandatoryTerms(USER_ID)).willReturn(false);
+        UserRepository.OnboardingCheckProjection onboardingStatus = createOnboardingStatus(false, true);
+        given(userRepository.findOnboardingStatusByUserId(USER_ID))
+                .willReturn(java.util.Optional.of(onboardingStatus));
 
         // when & then
         assertThatThrownBy(() -> interceptor.preHandle(request, response, new Object()))
@@ -158,5 +154,22 @@ class OnboardingInterceptorTest {
         SecurityContext securityContext = mock(SecurityContext.class);
         given(securityContext.getAuthentication()).willReturn(authentication);
         SecurityContextHolder.setContext(securityContext);
+    }
+
+    private UserRepository.OnboardingCheckProjection createOnboardingStatus(boolean hasAgreedToTerms, boolean profileCompleted) {
+        return new TestOnboardingStatus(hasAgreedToTerms, profileCompleted);
+    }
+
+    private record TestOnboardingStatus(boolean hasAgreedToTerms, boolean profileCompleted)
+            implements UserRepository.OnboardingCheckProjection {
+        @Override
+        public Boolean getHasAgreedToTerms() {
+            return hasAgreedToTerms;
+        }
+
+        @Override
+        public Boolean getProfileCompleted() {
+            return profileCompleted;
+        }
     }
 }
