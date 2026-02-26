@@ -76,6 +76,11 @@ services:
       # LeaderGame
       VOLUNTEER_DURATION_SECONDS: ${VOLUNTEER_DURATION_SECONDS:-10}
 
+      # OOM 힙덤프 저장
+      JAVA_TOOL_OPTIONS: >-
+        -XX:+HeapDumpOnOutOfMemoryError
+        -XX:HeapDumpPath=/app/dumps
+
     depends_on:
       redis:
         condition: service_healthy
@@ -91,6 +96,7 @@ services:
 
     volumes:
       - /opt/yamoyo/secret/firebase-adminsdk.json:/app/config/firebase-adminsdk.json:ro
+      - /opt/yamoyo/heapdumps:/app/dumps
 
   # ========================================
   # Redis (캐시 & 세션)
