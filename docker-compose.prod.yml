@@ -1,10 +1,10 @@
 # ========================================
-# Yamoyo - 운영 환경 Docker Compose (Final)
+# Yamoyo - 운영 환경 Docker Compose (Final Version 2)
 # ========================================
 # - Nginx: 프록시 + 프론트 정적 파일 (80/443)
 # - Backend: Spring Boot API (expose 8080)
 # - Redis: 캐시/세션 (expose 6379, AOF + volume)
-# - DB: NCP Cloud DB for MySQL
+# - DB: MySQL (로컬 Docker 컨테이너)
 # ========================================
 
 services:
@@ -43,8 +43,8 @@ services:
       SPRING_PROFILES_ACTIVE: prod
       TZ: Asia/Seoul
 
-      # Database (Cloud DB)
-      DB_URL: jdbc:mysql://${DB_HOST}:${DB_PORT}/${DB_NAME}?useSSL=true&requireSSL=true&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+      # Database (Local MySQL)
+      DB_URL: jdbc:mysql://${DB_HOST}:${DB_PORT}/${DB_NAME}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
 
@@ -76,7 +76,14 @@ services:
       # LeaderGame
       VOLUNTEER_DURATION_SECONDS: ${VOLUNTEER_DURATION_SECONDS:-10}
 
+      # OOM 힙덤프 저장
+      JAVA_TOOL_OPTIONS: >-
+        -XX:+HeapDumpOnOutOfMemoryError
+        -XX:HeapDumpPath=/app/dumps
+
     depends_on:
+      mysql:
+        condition: service_healthy
       redis:
         condition: service_healthy
 
@@ -91,6 +98,7 @@ services:
 
     volumes:
       - /opt/yamoyo/secret/firebase-adminsdk.json:/app/config/firebase-adminsdk.json:ro
+      - /opt/yamoyo/heapdumps:/app/dumps
 
   # ========================================
   # Redis (캐시 & 세션)
@@ -118,7 +126,43 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # ========================================
+  # MySQL (운영 로컬 서버)
+  # ========================================
+  mysql:
+    image: mysql:8.0
+    container_name: yamoyo-mysql
+    restart: unless-stopped
+    expose:
+      - "3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      TZ: Asia/Seoul
+    volumes:
+      - mysql-data:/var/lib/mysql
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - yamoyo-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 volumes:
+  mysql-data:
+    name: yamoyo-mysql-data
   redis-data:
     name: yamoyo-redis-data
 

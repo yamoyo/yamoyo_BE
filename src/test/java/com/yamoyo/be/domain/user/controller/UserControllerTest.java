@@ -69,6 +69,9 @@ class UserControllerTest {
     void allowOnboardedUserAccess() {
         // OnboardingInterceptor가 /api/** 에 적용되어 있어,
         // 컨트롤러 테스트에서도 "온보딩 완료" 상태를 기본으로 맞춰준다.
+        given(userRepository.findOnboardingStatusByUserId(USER_ID))
+                .willReturn(Optional.of(createOnboardingStatus(true, true)));
+
         given(userAgreementRepository.hasAgreedToAllMandatoryTerms(USER_ID)).willReturn(true);
 
         User onboardedUser = User.create(USER_EMAIL, USER_NAME);
@@ -313,5 +316,22 @@ class UserControllerTest {
                 1L,
                 LocalDateTime.now()
         );
+    }
+
+    private UserRepository.OnboardingCheckProjection createOnboardingStatus(
+            boolean hasAgreedToTerms,
+            boolean profileCompleted
+    ) {
+        return new UserRepository.OnboardingCheckProjection() {
+            @Override
+            public Boolean getHasAgreedToTerms() {
+                return hasAgreedToTerms;
+            }
+
+            @Override
+            public Boolean getProfileCompleted() {
+                return profileCompleted;
+            }
+        };
     }
 }
