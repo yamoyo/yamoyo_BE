@@ -21,10 +21,13 @@ import com.yamoyo.be.domain.teamroom.repository.TeamRoomRepository;
 import com.yamoyo.be.domain.teamroom.repository.TeamRoomSetupRepository;
 import com.yamoyo.be.domain.user.entity.User;
 import com.yamoyo.be.domain.user.repository.UserRepository;
+import com.yamoyo.be.domain.notification.entity.NotificationType;
+import com.yamoyo.be.event.event.NotificationEvent;
 import com.yamoyo.be.exception.ErrorCode;
 import com.yamoyo.be.exception.YamoyoException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,6 +47,7 @@ public class ToolService {
     private final TeamRoomRepository teamRoomRepository;
     private final UserRepository userRepository;
     private final TeamRoomSetupRepository setupRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 협업툴 투표 일괄 제출
@@ -353,6 +357,12 @@ public class ToolService {
 
         toolProposalRepository.saveAll(proposals);
 
+        // 4. 제안 알림 이벤트 발행
+        proposals.forEach(proposal ->
+                eventPublisher.publishEvent(NotificationEvent.ofSingle(
+                        teamRoomId, proposal.getId(), NotificationType.TOOL_SUGGESTION))
+        );
+
         log.info("협업툴 제안 완료 - {}건 생성", proposals.size());
     }
 
@@ -404,6 +414,14 @@ public class ToolService {
                     teamRoomId, proposal.getCategoryId(), proposal.getToolId(), proposalId);
             duplicatePendingProposals.forEach(p -> p.updateApprovalStatus(true));
             log.info("동일 제안 자동 승인 처리 - {}건", duplicatePendingProposals.size());
+
+            // 승인 알림 이벤트 발행
+            eventPublisher.publishEvent(NotificationEvent.ofSingle(
+                    teamRoomId, proposalId, NotificationType.TOOL_APPROVED));
+        } else {
+            // 반려 알림 이벤트 발행
+            eventPublisher.publishEvent(NotificationEvent.ofSingle(
+                    teamRoomId, proposalId, NotificationType.TOOL_REJECTED));
         }
 
         log.info("제안 승인/반려 완료 - proposalId: {}, isApproved: {}", proposalId, request.isApproved());
