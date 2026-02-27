@@ -20,6 +20,7 @@ import com.yamoyo.be.domain.user.entity.User;
 import com.yamoyo.be.domain.user.repository.UserRepository;
 import com.yamoyo.be.exception.ErrorCode;
 import com.yamoyo.be.exception.YamoyoException;
+import org.springframework.context.ApplicationEventPublisher;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -62,6 +63,9 @@ class ToolServiceTest {
 
     @Mock
     private TeamRoomSetupRepository setupRepository;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @Nested
     @DisplayName("협업툴 투표 일괄 제출")
@@ -323,27 +327,26 @@ class ToolServiceTest {
     class ProposeTool {
 
         @Test
-        @DisplayName("성공: 협업툴 제안")
+        @DisplayName("성공: 협업툴 다건 제안")
         void proposeTool_Success() {
             // given
             Long teamRoomId = 1L;
             Long userId = 1L;
-            ProposeToolRequest request = new ProposeToolRequest(1, 5);
+            ProposeToolRequest request = new ProposeToolRequest(1, List.of(4, 5));
 
             TeamRoom teamRoom = mock(TeamRoom.class);
             TeamMember member = mock(TeamMember.class);
-            ToolProposal proposal = mock(ToolProposal.class);
 
             given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
                     .willReturn(Optional.of(member));
-            given(toolProposalRepository.save(any(ToolProposal.class))).willReturn(proposal);
 
             // when
             toolService.proposeTool(teamRoomId, userId, request);
 
             // then
-            then(toolProposalRepository).should().save(any(ToolProposal.class));
+            then(toolProposalRepository).should().saveAll(argThat((List<ToolProposal> proposals) ->
+                    proposals.size() == 2));
         }
 
         @Test
@@ -352,7 +355,7 @@ class ToolServiceTest {
             // given
             Long teamRoomId = 1L;
             Long userId = 1L;
-            ProposeToolRequest request = new ProposeToolRequest(1, 5);
+            ProposeToolRequest request = new ProposeToolRequest(1, List.of(5));
 
             given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.empty());
 
@@ -368,7 +371,7 @@ class ToolServiceTest {
             // given
             Long teamRoomId = 1L;
             Long userId = 1L;
-            ProposeToolRequest request = new ProposeToolRequest(1, 5);
+            ProposeToolRequest request = new ProposeToolRequest(1, List.of(5));
 
             TeamRoom teamRoom = mock(TeamRoom.class);
 
@@ -408,6 +411,8 @@ class ToolServiceTest {
             given(toolProposalRepository.existsByIdAndTeamRoomId(proposalId, teamRoomId)).willReturn(true);
             given(proposal.getCategoryId()).willReturn(1);
             given(proposal.getToolId()).willReturn(5);
+            given(toolProposalRepository.findPendingByCategoryAndTool(teamRoomId, 1, 5, proposalId))
+                    .willReturn(List.of());
 
             // when
             toolService.approveOrRejectProposal(teamRoomId, proposalId, userId, request);
@@ -415,6 +420,42 @@ class ToolServiceTest {
             // then
             then(proposal).should().updateApprovalStatus(true);
             then(teamToolRepository).should().save(any());
+        }
+
+        @Test
+        @DisplayName("성공: 제안 승인 시 동일 제안 자동 승인")
+        void approveProposal_AutoApproveDuplicates() {
+            // given
+            Long teamRoomId = 1L;
+            Long proposalId = 1L;
+            Long userId = 1L;
+            ApproveProposalRequest request = new ApproveProposalRequest(true);
+
+            TeamRoom teamRoom = mock(TeamRoom.class);
+            TeamMember member = mock(TeamMember.class);
+            ToolProposal proposal = mock(ToolProposal.class);
+            ToolProposal duplicateProposal1 = mock(ToolProposal.class);
+            ToolProposal duplicateProposal2 = mock(ToolProposal.class);
+
+            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
+            given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
+                    .willReturn(Optional.of(member));
+            given(member.hasManagementAuthority()).willReturn(true);
+            given(toolProposalRepository.findById(proposalId)).willReturn(Optional.of(proposal));
+            given(toolProposalRepository.existsByIdAndTeamRoomId(proposalId, teamRoomId)).willReturn(true);
+            given(proposal.getCategoryId()).willReturn(1);
+            given(proposal.getToolId()).willReturn(5);
+            given(toolProposalRepository.findPendingByCategoryAndTool(teamRoomId, 1, 5, proposalId))
+                    .willReturn(List.of(duplicateProposal1, duplicateProposal2));
+
+            // when
+            toolService.approveOrRejectProposal(teamRoomId, proposalId, userId, request);
+
+            // then
+            then(proposal).should().updateApprovalStatus(true);
+            then(duplicateProposal1).should().updateApprovalStatus(true);
+            then(duplicateProposal2).should().updateApprovalStatus(true);
+            then(teamToolRepository).should(times(1)).save(any());
         }
 
         @Test
