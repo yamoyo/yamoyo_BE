@@ -335,8 +335,8 @@ public class ToolService {
      */
     @Transactional
     public void proposeTool(Long teamRoomId, Long userId, ProposeToolRequest request) {
-        log.info("협업툴 제안 시작 - teamRoomId: {}, userId: {}, categoryId: {}, toolId: {}",
-                teamRoomId, userId, request.categoryId(), request.toolId());
+        log.info("협업툴 제안 시작 - teamRoomId: {}, userId: {}, categoryId: {}, toolIds: {}",
+                teamRoomId, userId, request.categoryId(), request.toolIds());
 
         // 1. 팀룸 조회
         TeamRoom teamRoom = teamRoomRepository.findById(teamRoomId)
@@ -346,17 +346,14 @@ public class ToolService {
         teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId)
                 .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
 
-        // 3. 제안 생성
-        ToolProposal proposal = ToolProposal.create(
-                teamRoom,
-                request.categoryId(),
-                request.toolId(),
-                userId
-        );
+        // 3. 제안 다건 생성
+        List<ToolProposal> proposals = request.toolIds().stream()
+                .map(toolId -> ToolProposal.create(teamRoom, request.categoryId(), toolId, userId))
+                .toList();
 
-        toolProposalRepository.save(proposal);
+        toolProposalRepository.saveAll(proposals);
 
-        log.info("협업툴 제안 완료 - proposalId: {}", proposal.getId());
+        log.info("협업툴 제안 완료 - {}건 생성", proposals.size());
     }
 
     /**
@@ -401,6 +398,12 @@ public class ToolService {
             teamToolRepository.save(teamTool);
             log.info("승인된 협업툴 확정 테이블 추가 - categoryId: {}, toolId: {}",
                     proposal.getCategoryId(), proposal.getToolId());
+
+            // 7. 같은 조합의 나머지 PENDING 제안 자동 승인
+            List<ToolProposal> duplicatePendingProposals = toolProposalRepository.findPendingByCategoryAndTool(
+                    teamRoomId, proposal.getCategoryId(), proposal.getToolId(), proposalId);
+            duplicatePendingProposals.forEach(p -> p.updateApprovalStatus(true));
+            log.info("동일 제안 자동 승인 처리 - {}건", duplicatePendingProposals.size());
         }
 
         log.info("제안 승인/반려 완료 - proposalId: {}, isApproved: {}", proposalId, request.isApproved());
