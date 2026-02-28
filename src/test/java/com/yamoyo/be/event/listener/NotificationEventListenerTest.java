@@ -449,6 +449,7 @@ class NotificationEventListenerTest {
             given(proposal.getRequestedBy()).willReturn(proposerUserId);
 
             given(teamRoomRepository.findById(TEAM_ROOM_ID)).willReturn(Optional.of(teamRoom));
+            given(toolProposalRepository.existsByIdAndTeamRoomId(proposalId, TEAM_ROOM_ID)).willReturn(true);
             given(toolProposalRepository.findById(proposalId)).willReturn(Optional.of(proposal));
             given(userRepository.findById(proposerUserId)).willReturn(Optional.of(proposerUser));
             given(userDeviceRepository.findAllByUserIdIn(List.of(proposerUserId))).willReturn(List.of(proposerDevice));
@@ -468,6 +469,30 @@ class NotificationEventListenerTest {
         }
 
         @Test
+        @DisplayName("보안: TOOL_REJECTED 이벤트 시 제안이 팀룸에 속하지 않으면 알림 없음")
+        void handleNotificationEvent_ToolRejected_ProposalNotInTeamRoom() {
+            // given
+            Long proposalId = 10L;
+            NotificationEvent event = new NotificationEvent(
+                    TEAM_ROOM_ID, proposalId, NotificationType.TOOL_REJECTED, null, null
+            );
+
+            // 팀룸은 존재하지만 proposalId가 해당 팀룸에 속하지 않음
+            TeamRoom teamRoom = mock(TeamRoom.class);
+
+            given(teamRoomRepository.findById(TEAM_ROOM_ID)).willReturn(Optional.of(teamRoom));
+            given(toolProposalRepository.existsByIdAndTeamRoomId(proposalId, TEAM_ROOM_ID)).willReturn(false);
+
+            // when
+            notificationEventListener.handleNotificationEvent(event);
+
+            // then - 보안 검증 실패로 알림/FCM 발송 안 함
+            then(toolProposalRepository).should(never()).findById(any());
+            then(notificationService).should(never()).saveAll(anyList());
+            then(fcmService).should(never()).sendMessage(anyList(), anyString(), anyString(), any(Map.class));
+        }
+
+        @Test
         @DisplayName("실패: TOOL_REJECTED 이벤트 시 제안이 없으면 알림/FCM 발송 안 함")
         void handleNotificationEvent_ToolRejected_ProposalNotFound() {
             // given
@@ -480,6 +505,7 @@ class NotificationEventListenerTest {
             TeamRoom teamRoom = mock(TeamRoom.class);
 
             given(teamRoomRepository.findById(TEAM_ROOM_ID)).willReturn(Optional.of(teamRoom));
+            given(toolProposalRepository.existsByIdAndTeamRoomId(proposalId, TEAM_ROOM_ID)).willReturn(true);
             given(toolProposalRepository.findById(proposalId)).willReturn(Optional.empty());
 
             // when - 예외가 catch 블록에서 처리됨
@@ -506,6 +532,7 @@ class NotificationEventListenerTest {
             given(proposal.getRequestedBy()).willReturn(proposerUserId);
 
             given(teamRoomRepository.findById(TEAM_ROOM_ID)).willReturn(Optional.of(teamRoom));
+            given(toolProposalRepository.existsByIdAndTeamRoomId(proposalId, TEAM_ROOM_ID)).willReturn(true);
             given(toolProposalRepository.findById(proposalId)).willReturn(Optional.of(proposal));
             given(userRepository.findById(proposerUserId)).willReturn(Optional.empty());
 

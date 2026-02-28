@@ -146,19 +146,18 @@ public class NotificationEventListener {
                         .orElse(Collections.emptyList());
             }
             case TOOL_REJECTED -> {
+                // 제안이 해당 팀룸에 속하는지 검증 (보안)
+                if (!toolProposalRepository.existsByIdAndTeamRoomId(event.targetId(), event.teamRoomId())) {
+                    log.warn("TOOL_REJECTED: proposalId={}가 teamRoomId={}에 속하지 않음",
+                            event.targetId(), event.teamRoomId());
+                    yield Collections.emptyList();
+                }
                 // 제안자에게만 알림 (targetId = proposalId)
                 ToolProposal proposal = toolProposalRepository.findById(event.targetId())
                         .orElseThrow(() -> new YamoyoException(ErrorCode.PROPOSAL_NOT_FOUND));
                 User proposer = userRepository.findById(proposal.getRequestedBy())
                         .orElseThrow(() -> new YamoyoException(ErrorCode.USER_NOT_FOUND));
                 yield List.of(proposer);
-            }
-            case TOOL_APPROVED -> {
-                // 팀룸 전체 (기존 로직)
-                yield teamMemberRepository.findByTeamRoomId(event.teamRoomId())
-                        .stream()
-                        .map(TeamMember::getUser)
-                        .collect(Collectors.toList());
             }
             default -> {
                 // 기존 로직
