@@ -4,13 +4,17 @@ import com.yamoyo.be.domain.fcm.entity.UserDevice;
 import com.yamoyo.be.domain.fcm.repository.UserDeviceRepository;
 import com.yamoyo.be.domain.fcm.service.FcmService;
 import com.yamoyo.be.domain.notification.entity.Notification;
+import com.yamoyo.be.domain.collabtool.entity.ToolProposal;
+import com.yamoyo.be.domain.collabtool.repository.ToolProposalRepository;
 import com.yamoyo.be.domain.notification.entity.NotificationType;
 import com.yamoyo.be.domain.notification.service.NotificationService;
 import com.yamoyo.be.domain.teamroom.entity.TeamMember;
 import com.yamoyo.be.domain.teamroom.entity.TeamRoom;
+import com.yamoyo.be.domain.teamroom.entity.enums.TeamRole;
 import com.yamoyo.be.domain.teamroom.repository.TeamMemberRepository;
 import com.yamoyo.be.domain.teamroom.repository.TeamRoomRepository;
 import com.yamoyo.be.domain.user.entity.User;
+import com.yamoyo.be.domain.user.repository.UserRepository;
 import com.yamoyo.be.event.event.NotificationEvent;
 import com.yamoyo.be.exception.ErrorCode;
 import com.yamoyo.be.exception.YamoyoException;
@@ -34,6 +38,8 @@ public class NotificationEventListener {
     private final UserDeviceRepository userDeviceRepository;
     private final TeamRoomRepository teamRoomRepository;
     private final TeamMemberRepository teamMemberRepository;
+    private final ToolProposalRepository toolProposalRepository;
+    private final UserRepository userRepository;
 
     @Async("notificationExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -43,15 +49,7 @@ public class NotificationEventListener {
             TeamRoom teamRoom = teamRoomRepository.findById(event.teamRoomId())
                     .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
 
-            List<User> receivers = teamMemberRepository.findByTeamRoomId(event.teamRoomId())
-                    .stream()
-                    .map(TeamMember::getUser)
-                    .collect(Collectors.toList());
-
-            // 팀룸 입장 알림의 경우 본인은 제외
-            if(NotificationType.TEAM_JOIN.equals(event.type()) && event.targetId() != null) {
-                receivers.removeIf(user -> user.getId().equals(event.targetId()));
-            }
+            List<User> receivers = determineReceivers(event);
 
             log.info("[DEBUG] receivers 수: {}, receiverIds: {}", receivers.size(),
                     receivers.stream().map(User::getId).toList());
@@ -133,5 +131,46 @@ public class NotificationEventListener {
         } catch (Exception e) {
             log.error("[FCM] 알림 이벤트 처리 중 예외 발생: {}", e.getMessage(), e);
         }
+    }
+
+    /**
+     * 알림 타입에 따라 수신자 결정
+     */
+    private List<User> determineReceivers(NotificationEvent event) {
+        return switch (event.type()) {
+            case TOOL_SUGGESTION -> {
+                // LEADER에게만 알림
+                yield teamMemberRepository
+                        .findByTeamRoomIdAndTeamRole(event.teamRoomId(), TeamRole.LEADER)
+                        .map(leader -> List.of(leader.getUser()))
+                        .orElse(Collections.emptyList());
+            }
+            case TOOL_REJECTED -> {
+                // 제안자에게만 알림 (targetId = proposalId)
+                ToolProposal proposal = toolProposalRepository.findById(event.targetId())
+                        .orElseThrow(() -> new YamoyoException(ErrorCode.PROPOSAL_NOT_FOUND));
+                User proposer = userRepository.findById(proposal.getRequestedBy())
+                        .orElseThrow(() -> new YamoyoException(ErrorCode.USER_NOT_FOUND));
+                yield List.of(proposer);
+            }
+            case TOOL_APPROVED -> {
+                // 팀룸 전체 (기존 로직)
+                yield teamMemberRepository.findByTeamRoomId(event.teamRoomId())
+                        .stream()
+                        .map(TeamMember::getUser)
+                        .collect(Collectors.toList());
+            }
+            default -> {
+                // 기존 로직
+                List<User> receivers = teamMemberRepository.findByTeamRoomId(event.teamRoomId())
+                        .stream()
+                        .map(TeamMember::getUser)
+                        .collect(Collectors.toList());
+                if (NotificationType.TEAM_JOIN.equals(event.type()) && event.targetId() != null) {
+                    receivers.removeIf(user -> user.getId().equals(event.targetId()));
+                }
+                yield receivers;
+            }
+        };
     }
 }
