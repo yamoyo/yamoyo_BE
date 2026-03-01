@@ -2,6 +2,7 @@ package com.yamoyo.be.domain.user.controller;
 
 import com.yamoyo.be.domain.security.jwt.JwtTokenClaims;
 import com.yamoyo.be.domain.security.jwt.authentication.JwtAuthenticationToken;
+import com.yamoyo.be.domain.user.entity.OnboardingStatus;
 import com.yamoyo.be.domain.user.entity.User;
 import com.yamoyo.be.domain.user.dto.response.UserResponse;
 import com.yamoyo.be.domain.user.repository.UserAgreementRepository;
@@ -302,7 +303,7 @@ class UserControllerTest {
     // ========== Helper Methods ==========
 
     private JwtAuthenticationToken createJwtAuthenticationToken() {
-        JwtTokenClaims claims = new JwtTokenClaims(USER_ID, USER_EMAIL, PROVIDER);
+        JwtTokenClaims claims = new JwtTokenClaims(USER_ID, USER_EMAIL, PROVIDER, OnboardingStatus.COMPLETED);
         return JwtAuthenticationToken.authenticated(claims);
     }
 

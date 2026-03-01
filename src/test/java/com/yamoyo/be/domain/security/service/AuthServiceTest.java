@@ -5,6 +5,7 @@ import com.yamoyo.be.domain.security.jwt.JwtTokenDto;
 import com.yamoyo.be.domain.security.jwt.JwtTokenProvider;
 import com.yamoyo.be.domain.security.refreshtoken.RefreshToken;
 import com.yamoyo.be.domain.security.refreshtoken.RefreshTokenRepository;
+import com.yamoyo.be.domain.user.entity.OnboardingStatus;
 import com.yamoyo.be.domain.user.entity.User;
 import com.yamoyo.be.domain.user.repository.UserRepository;
 import com.yamoyo.be.exception.ErrorCode;
@@ -74,14 +75,15 @@ class AuthServiceTest {
 
         User user = User.create(USER_EMAIL, "Test User");
         ReflectionTestUtils.setField(user, "id", USER_ID);
+        user.updateOnboardingStatus(OnboardingStatus.COMPLETED);
 
-        JwtTokenClaims claims = new JwtTokenClaims(USER_ID, USER_EMAIL, PROVIDER);
+        JwtTokenClaims claims = new JwtTokenClaims(USER_ID, USER_EMAIL, PROVIDER, OnboardingStatus.COMPLETED);
         JwtTokenDto newTokens = new JwtTokenDto("Bearer", NEW_ACCESS_TOKEN, NEW_REFRESH_TOKEN, 600000L);
 
         given(refreshTokenRepository.findByToken(OLD_REFRESH_TOKEN)).willReturn(Optional.of(storedRefreshToken));
         given(jwtTokenProvider.parseClaimsFromExpiredToken(OLD_REFRESH_TOKEN)).willReturn(claims);
         given(userRepository.findById(USER_ID)).willReturn(Optional.of(user));
-        given(jwtTokenProvider.generateToken(USER_ID, USER_EMAIL, PROVIDER)).willReturn(newTokens);
+        given(jwtTokenProvider.generateToken(USER_ID, USER_EMAIL, PROVIDER, OnboardingStatus.COMPLETED)).willReturn(newTokens);
 
         // when
         JwtTokenDto result = authService.refresh(OLD_REFRESH_TOKEN);
@@ -138,7 +140,7 @@ class AuthServiceTest {
         RefreshToken storedRefreshToken = RefreshToken.create(USER_ID, OLD_REFRESH_TOKEN, LocalDateTime.now().plusDays(7));
         ReflectionTestUtils.setField(storedRefreshToken, "id", 1L);
 
-        JwtTokenClaims claims = new JwtTokenClaims(USER_ID, USER_EMAIL, PROVIDER);
+        JwtTokenClaims claims = new JwtTokenClaims(USER_ID, USER_EMAIL, PROVIDER, OnboardingStatus.COMPLETED);
 
         given(refreshTokenRepository.findByToken(OLD_REFRESH_TOKEN)).willReturn(Optional.of(storedRefreshToken));
         given(jwtTokenProvider.parseClaimsFromExpiredToken(OLD_REFRESH_TOKEN)).willReturn(claims);
@@ -149,7 +151,7 @@ class AuthServiceTest {
                 .isInstanceOf(YamoyoException.class)
                 .satisfies(e -> assertThat(((YamoyoException) e).getErrorCode()).isEqualTo(ErrorCode.USER_NOT_FOUND));
 
-        verify(jwtTokenProvider, never()).generateToken(anyLong(), anyString(), anyString());
+        verify(jwtTokenProvider, never()).generateToken(anyLong(), anyString(), anyString(), any(OnboardingStatus.class));
     }
 
     @Test
@@ -161,14 +163,15 @@ class AuthServiceTest {
 
         User user = User.create(USER_EMAIL, "Test User");
         ReflectionTestUtils.setField(user, "id", USER_ID);
+        user.updateOnboardingStatus(OnboardingStatus.COMPLETED);
 
-        JwtTokenClaims claims = new JwtTokenClaims(USER_ID, USER_EMAIL, PROVIDER);
+        JwtTokenClaims claims = new JwtTokenClaims(USER_ID, USER_EMAIL, PROVIDER, OnboardingStatus.COMPLETED);
         JwtTokenDto newTokens = new JwtTokenDto("Bearer", NEW_ACCESS_TOKEN, NEW_REFRESH_TOKEN, 600000L);
 
         given(refreshTokenRepository.findByToken(OLD_REFRESH_TOKEN)).willReturn(Optional.of(storedRefreshToken));
         given(jwtTokenProvider.parseClaimsFromExpiredToken(OLD_REFRESH_TOKEN)).willReturn(claims);
         given(userRepository.findById(USER_ID)).willReturn(Optional.of(user));
-        given(jwtTokenProvider.generateToken(USER_ID, USER_EMAIL, PROVIDER)).willReturn(newTokens);
+        given(jwtTokenProvider.generateToken(USER_ID, USER_EMAIL, PROVIDER, OnboardingStatus.COMPLETED)).willReturn(newTokens);
 
         // when
         authService.refresh(OLD_REFRESH_TOKEN);

@@ -6,6 +6,7 @@ import com.yamoyo.be.domain.security.jwt.JwtTokenDto;
 import com.yamoyo.be.domain.security.jwt.JwtTokenProvider;
 import com.yamoyo.be.domain.security.refreshtoken.RefreshToken;
 import com.yamoyo.be.domain.security.refreshtoken.RefreshTokenRepository;
+import com.yamoyo.be.domain.user.entity.OnboardingStatus;
 import com.yamoyo.be.domain.user.entity.SocialAccount;
 import com.yamoyo.be.domain.user.entity.Term;
 import com.yamoyo.be.domain.user.entity.User;
@@ -67,6 +68,7 @@ public class DummyUserController {
         user.updateMBTI(mbti);
         user.updateProfileImageId(profileImageId);
         user.completeOnboarding();
+        user.updateOnboardingStatus(OnboardingStatus.COMPLETED);
 
         // SocialAccount 생성
         SocialAccount socialAccount = SocialAccount.create("test", UUID.randomUUID().toString(), email);
@@ -83,7 +85,7 @@ public class DummyUserController {
         userAgreementRepository.saveAll(agreements);
 
         // JWT 토큰 생성
-        JwtTokenDto tokenDto = jwtTokenProvider.generateToken(user.getId(), email, "test");
+        JwtTokenDto tokenDto = jwtTokenProvider.generateToken(user.getId(), email, "test", OnboardingStatus.COMPLETED);
 
         // RefreshToken DB 저장
         LocalDateTime expiryDate = LocalDateTime.now()

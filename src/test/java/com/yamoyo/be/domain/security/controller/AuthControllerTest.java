@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yamoyo.be.domain.security.jwt.JwtTokenClaims;
 import com.yamoyo.be.domain.security.jwt.JwtTokenDto;
 import com.yamoyo.be.domain.security.jwt.authentication.JwtAuthenticationToken;
+import com.yamoyo.be.domain.user.entity.OnboardingStatus;
 import com.yamoyo.be.domain.security.refreshtoken.RefreshTokenRepository;
 import com.yamoyo.be.domain.security.service.AuthService;
 import com.yamoyo.be.exception.ErrorCode;
@@ -244,7 +245,7 @@ class AuthControllerTest {
     // ========== Helper Methods ==========
 
     private JwtAuthenticationToken createJwtAuthenticationToken() {
-        JwtTokenClaims claims = new JwtTokenClaims(USER_ID, USER_EMAIL, PROVIDER);
+        JwtTokenClaims claims = new JwtTokenClaims(USER_ID, USER_EMAIL, PROVIDER, OnboardingStatus.COMPLETED);
         return JwtAuthenticationToken.authenticated(claims);
     }
 }

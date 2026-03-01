@@ -6,7 +6,7 @@ import com.yamoyo.be.domain.security.jwt.authentication.JwtAuthenticationToken;
 import com.yamoyo.be.domain.user.dto.request.ProfileSetupRequest;
 import com.yamoyo.be.domain.user.dto.request.TermsAgreementRequest;
 import com.yamoyo.be.domain.user.dto.request.TermsAgreementRequest.TermAgreement;
-import com.yamoyo.be.domain.user.repository.UserAgreementRepository;
+import com.yamoyo.be.domain.user.entity.OnboardingStatus;
 import com.yamoyo.be.domain.user.service.OnBoardingService;
 import com.yamoyo.be.exception.ErrorCode;
 import com.yamoyo.be.exception.YamoyoException;
@@ -26,7 +26,6 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.willDoNothing;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
@@ -58,9 +57,6 @@ class OnBoardingControllerTest {
     @MockitoBean
     private OnBoardingService onBoardingService;
 
-    @MockitoBean
-    private UserAgreementRepository userAgreementRepository;
-
     private static final Long USER_ID = 1L;
     private static final String TERMS_ENDPOINT = "/api/onboarding/terms";
     private static final String PROFILE_ENDPOINT = "/api/onboarding/profile";
@@ -78,11 +74,9 @@ class OnBoardingControllerTest {
                     new TermAgreement(2L, true)
             ));
 
-            willDoNothing().given(onBoardingService).agreeToTerms(eq(USER_ID), any(TermsAgreementRequest.class));
-
             // when & then
             mockMvc.perform(post(TERMS_ENDPOINT)
-                            .with(authentication(createJwtAuthenticationToken()))
+                            .with(authentication(createJwtAuthenticationToken(OnboardingStatus.TERMS_PENDING)))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andDo(print())
@@ -106,7 +100,7 @@ class OnBoardingControllerTest {
 
             // when & then
             mockMvc.perform(post(TERMS_ENDPOINT)
-                            .with(authentication(createJwtAuthenticationToken()))
+                            .with(authentication(createJwtAuthenticationToken(OnboardingStatus.TERMS_PENDING)))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andDo(print())
@@ -121,7 +115,7 @@ class OnBoardingControllerTest {
 
             // when & then
             mockMvc.perform(post(TERMS_ENDPOINT)
-                            .with(authentication(createJwtAuthenticationToken()))
+                            .with(authentication(createJwtAuthenticationToken(OnboardingStatus.TERMS_PENDING)))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(requestJson))
                     .andDo(print())
@@ -160,13 +154,9 @@ class OnBoardingControllerTest {
                     1L
             );
 
-            // Interceptor에서 약관 동의 여부 확인
-            given(userAgreementRepository.hasAgreedToAllMandatoryTerms(USER_ID)).willReturn(true);
-            willDoNothing().given(onBoardingService).setupProfile(eq(USER_ID), any(ProfileSetupRequest.class));
-
             // when & then
             mockMvc.perform(post(PROFILE_ENDPOINT)
-                            .with(authentication(createJwtAuthenticationToken()))
+                            .with(authentication(createJwtAuthenticationToken(OnboardingStatus.PROFILE_PENDING)))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andDo(print())
@@ -177,7 +167,7 @@ class OnBoardingControllerTest {
         }
 
         @Test
-        @DisplayName("약관 미동의 시 403 에러 (Interceptor)")
+        @DisplayName("약관 미동의 시 403 에러 (JWT 상태 체크)")
         void setupProfile_TermsNotAgreed_Forbidden() throws Exception {
             // given
             ProfileSetupRequest request = new ProfileSetupRequest(
@@ -187,12 +177,10 @@ class OnBoardingControllerTest {
                     1L
             );
 
-            // Interceptor에서 차단
-            given(userAgreementRepository.hasAgreedToAllMandatoryTerms(USER_ID)).willReturn(false);
-
+            // JWT 상태가 TERMS_PENDING이면 차단됨
             // when & then
             mockMvc.perform(post(PROFILE_ENDPOINT)
-                            .with(authentication(createJwtAuthenticationToken()))
+                            .with(authentication(createJwtAuthenticationToken(OnboardingStatus.TERMS_PENDING)))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andDo(print())
@@ -210,11 +198,9 @@ class OnBoardingControllerTest {
                     1L
             );
 
-            given(userAgreementRepository.hasAgreedToAllMandatoryTerms(USER_ID)).willReturn(true);
-
             // when & then
             mockMvc.perform(post(PROFILE_ENDPOINT)
-                            .with(authentication(createJwtAuthenticationToken()))
+                            .with(authentication(createJwtAuthenticationToken(OnboardingStatus.PROFILE_PENDING)))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andDo(print())
@@ -232,11 +218,9 @@ class OnBoardingControllerTest {
                     1L
             );
 
-            given(userAgreementRepository.hasAgreedToAllMandatoryTerms(USER_ID)).willReturn(true);
-
             // when & then
             mockMvc.perform(post(PROFILE_ENDPOINT)
-                            .with(authentication(createJwtAuthenticationToken()))
+                            .with(authentication(createJwtAuthenticationToken(OnboardingStatus.PROFILE_PENDING)))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andDo(print())
@@ -254,11 +238,9 @@ class OnBoardingControllerTest {
                     1L
             );
 
-            given(userAgreementRepository.hasAgreedToAllMandatoryTerms(USER_ID)).willReturn(true);
-
             // when & then
             mockMvc.perform(post(PROFILE_ENDPOINT)
-                            .with(authentication(createJwtAuthenticationToken()))
+                            .with(authentication(createJwtAuthenticationToken(OnboardingStatus.PROFILE_PENDING)))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andDo(print())
@@ -276,11 +258,9 @@ class OnBoardingControllerTest {
                     1L
             );
 
-            given(userAgreementRepository.hasAgreedToAllMandatoryTerms(USER_ID)).willReturn(true);
-
             // when & then
             mockMvc.perform(post(PROFILE_ENDPOINT)
-                            .with(authentication(createJwtAuthenticationToken()))
+                            .with(authentication(createJwtAuthenticationToken(OnboardingStatus.PROFILE_PENDING)))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andDo(print())
@@ -298,12 +278,9 @@ class OnBoardingControllerTest {
                     1L
             );
 
-            given(userAgreementRepository.hasAgreedToAllMandatoryTerms(USER_ID)).willReturn(true);
-            willDoNothing().given(onBoardingService).setupProfile(eq(USER_ID), any(ProfileSetupRequest.class));
-
             // when & then
             mockMvc.perform(post(PROFILE_ENDPOINT)
-                            .with(authentication(createJwtAuthenticationToken()))
+                            .with(authentication(createJwtAuthenticationToken(OnboardingStatus.PROFILE_PENDING)))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andDo(print())
@@ -321,12 +298,9 @@ class OnBoardingControllerTest {
                     1L
             );
 
-            given(userAgreementRepository.hasAgreedToAllMandatoryTerms(USER_ID)).willReturn(true);
-            willDoNothing().given(onBoardingService).setupProfile(eq(USER_ID), any(ProfileSetupRequest.class));
-
             // when & then
             mockMvc.perform(post(PROFILE_ENDPOINT)
-                            .with(authentication(createJwtAuthenticationToken()))
+                            .with(authentication(createJwtAuthenticationToken(OnboardingStatus.PROFILE_PENDING)))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andDo(print())
@@ -339,8 +313,8 @@ class OnBoardingControllerTest {
     private static final String USER_EMAIL = "test@example.com";
     private static final String PROVIDER = "google";
 
-    private JwtAuthenticationToken createJwtAuthenticationToken() {
-        JwtTokenClaims claims = new JwtTokenClaims(USER_ID, USER_EMAIL, PROVIDER);
+    private JwtAuthenticationToken createJwtAuthenticationToken(OnboardingStatus status) {
+        JwtTokenClaims claims = new JwtTokenClaims(USER_ID, USER_EMAIL, PROVIDER, status);
         return JwtAuthenticationToken.authenticated(claims);
     }
 }

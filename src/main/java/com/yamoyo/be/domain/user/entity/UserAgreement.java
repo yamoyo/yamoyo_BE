@@ -13,9 +13,16 @@ import java.time.LocalDateTime;
  * Role:
  * - 사용자의 약관 동의 정보를 저장하는 엔티티
  * - 어떤 사용자가 어떤 약관에 동의했는지 추적
+ * - (user_id, terms_id) 유니크 제약조건으로 중복 동의 방지
  */
 @Getter
-@Table(name = "user_agreements")
+@Table(
+        name = "user_agreements",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_user_agreements_user_terms",
+                columnNames = {"user_id", "terms_id"}
+        )
+)
 @Entity
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class UserAgreement {
