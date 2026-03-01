@@ -351,7 +351,7 @@ class NotificationEventListenerTest {
             UserDevice leaderDevice = createUserDevice(leaderUser, "leaderToken");
 
             given(teamRoomRepository.findById(TEAM_ROOM_ID)).willReturn(Optional.of(teamRoom));
-            given(teamMemberRepository.findByTeamRoomIdAndTeamRole(TEAM_ROOM_ID, TeamRole.LEADER))
+            given(teamMemberRepository.findByTeamRoomIdAndTeamRoleWithUser(TEAM_ROOM_ID, TeamRole.LEADER))
                     .willReturn(Optional.of(leaderMember));
             given(userDeviceRepository.findAllByUserIdIn(List.of(1L))).willReturn(List.of(leaderDevice));
 
@@ -382,7 +382,7 @@ class NotificationEventListenerTest {
             TeamRoom teamRoom = mock(TeamRoom.class);
 
             given(teamRoomRepository.findById(TEAM_ROOM_ID)).willReturn(Optional.of(teamRoom));
-            given(teamMemberRepository.findByTeamRoomIdAndTeamRole(TEAM_ROOM_ID, TeamRole.LEADER))
+            given(teamMemberRepository.findByTeamRoomIdAndTeamRoleWithUser(TEAM_ROOM_ID, TeamRole.LEADER))
                     .willReturn(Optional.empty());
 
             // when

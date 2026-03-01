@@ -139,9 +139,9 @@ public class NotificationEventListener {
     private List<User> determineReceivers(NotificationEvent event) {
         return switch (event.type()) {
             case TOOL_SUGGESTION -> {
-                // LEADER에게만 알림
+                // LEADER에게만 알림 (비동기 환경에서 User Fetch Join 필요)
                 yield teamMemberRepository
-                        .findByTeamRoomIdAndTeamRole(event.teamRoomId(), TeamRole.LEADER)
+                        .findByTeamRoomIdAndTeamRoleWithUser(event.teamRoomId(), TeamRole.LEADER)
                         .map(leader -> List.of(leader.getUser()))
                         .orElse(Collections.emptyList());
             }
