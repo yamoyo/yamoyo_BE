@@ -1,5 +1,7 @@
 package com.yamoyo.be.event.listener;
 
+import com.yamoyo.be.domain.collabtool.entity.ToolProposal;
+import com.yamoyo.be.domain.collabtool.repository.ToolProposalRepository;
 import com.yamoyo.be.domain.fcm.entity.UserDevice;
 import com.yamoyo.be.domain.fcm.repository.UserDeviceRepository;
 import com.yamoyo.be.domain.fcm.service.FcmService;
@@ -8,9 +10,11 @@ import com.yamoyo.be.domain.notification.entity.NotificationType;
 import com.yamoyo.be.domain.notification.service.NotificationService;
 import com.yamoyo.be.domain.teamroom.entity.TeamMember;
 import com.yamoyo.be.domain.teamroom.entity.TeamRoom;
+import com.yamoyo.be.domain.teamroom.entity.enums.TeamRole;
 import com.yamoyo.be.domain.teamroom.repository.TeamMemberRepository;
 import com.yamoyo.be.domain.teamroom.repository.TeamRoomRepository;
 import com.yamoyo.be.domain.user.entity.User;
+import com.yamoyo.be.domain.user.repository.UserRepository;
 import com.yamoyo.be.event.event.NotificationEvent;
 import com.yamoyo.be.exception.ErrorCode;
 import com.yamoyo.be.exception.YamoyoException;
@@ -69,6 +73,12 @@ class NotificationEventListenerTest {
 
     @Mock
     private TeamMemberRepository teamMemberRepository;
+
+    @Mock
+    private ToolProposalRepository toolProposalRepository;
+
+    @Mock
+    private UserRepository userRepository;
 
     @InjectMocks
     private NotificationEventListener notificationEventListener;
@@ -226,7 +236,7 @@ class NotificationEventListenerTest {
         }
 
         @Test
-        @DisplayName("실패: 존재하지 않는 팀룸")
+        @DisplayName("실패: 존재하지 않는 팀룸 - 예외 발생 시 알림/FCM 발송 안 함")
         void handleNotificationEvent_TeamRoomNotFound() {
             // given
             NotificationEvent event = new NotificationEvent(
@@ -235,11 +245,12 @@ class NotificationEventListenerTest {
 
             given(teamRoomRepository.findById(TEAM_ROOM_ID)).willReturn(Optional.empty());
 
-            // when & then
-            assertThatThrownBy(() -> notificationEventListener.handleNotificationEvent(event))
-                    .isInstanceOf(YamoyoException.class)
-                    .satisfies(e -> assertThat(((YamoyoException) e).getErrorCode())
-                            .isEqualTo(ErrorCode.TEAMROOM_NOT_FOUND));
+            // when - 예외가 catch 블록에서 처리됨
+            notificationEventListener.handleNotificationEvent(event);
+
+            // then - 알림 저장 및 FCM 발송이 호출되지 않음
+            then(notificationService).should(never()).saveAll(anyList());
+            then(fcmService).should(never()).sendMessage(anyList(), anyString(), anyString(), any(Map.class));
         }
 
         @Test
@@ -323,6 +334,214 @@ class NotificationEventListenerTest {
 
             Map<String, String> capturedData = dataCaptor.getValue();
             assertThat(capturedData).doesNotContainKey("targetId");
+        }
+
+        @Test
+        @DisplayName("성공: TOOL_SUGGESTION 이벤트 시 LEADER에게만 알림")
+        void handleNotificationEvent_ToolSuggestion_OnlyLeader() {
+            // given
+            Long proposalId = 10L;
+            NotificationEvent event = new NotificationEvent(
+                    TEAM_ROOM_ID, proposalId, NotificationType.TOOL_SUGGESTION, null, null
+            );
+
+            TeamRoom teamRoom = createTeamRoom();
+            User leaderUser = createUser(1L, "leader@test.com", true);
+            TeamMember leaderMember = createTeamMember(leaderUser);
+            UserDevice leaderDevice = createUserDevice(leaderUser, "leaderToken");
+
+            given(teamRoomRepository.findById(TEAM_ROOM_ID)).willReturn(Optional.of(teamRoom));
+            given(teamMemberRepository.findByTeamRoomIdAndTeamRole(TEAM_ROOM_ID, TeamRole.LEADER))
+                    .willReturn(Optional.of(leaderMember));
+            given(userDeviceRepository.findAllByUserIdIn(List.of(1L))).willReturn(List.of(leaderDevice));
+
+            // when
+            notificationEventListener.handleNotificationEvent(event);
+
+            // then
+            ArgumentCaptor<List<Notification>> notificationCaptor = ArgumentCaptor.forClass(List.class);
+            then(notificationService).should().saveAll(notificationCaptor.capture());
+            // LEADER에게만 알림 저장
+            assertThat(notificationCaptor.getValue()).hasSize(1);
+
+            ArgumentCaptor<List<String>> tokenCaptor = ArgumentCaptor.forClass(List.class);
+            then(fcmService).should().sendMessage(tokenCaptor.capture(), anyString(), anyString(), any(Map.class));
+            assertThat(tokenCaptor.getValue()).containsExactly("leaderToken");
+        }
+
+        @Test
+        @DisplayName("성공: TOOL_SUGGESTION 이벤트 시 LEADER 없으면 알림 없음")
+        void handleNotificationEvent_ToolSuggestion_NoLeader() {
+            // given
+            Long proposalId = 10L;
+            NotificationEvent event = new NotificationEvent(
+                    TEAM_ROOM_ID, proposalId, NotificationType.TOOL_SUGGESTION, null, null
+            );
+
+            // receivers가 비어있으면 getTitle() 호출 전에 return하므로 getId()만 stubbing
+            TeamRoom teamRoom = mock(TeamRoom.class);
+
+            given(teamRoomRepository.findById(TEAM_ROOM_ID)).willReturn(Optional.of(teamRoom));
+            given(teamMemberRepository.findByTeamRoomIdAndTeamRole(TEAM_ROOM_ID, TeamRole.LEADER))
+                    .willReturn(Optional.empty());
+
+            // when
+            notificationEventListener.handleNotificationEvent(event);
+
+            // then
+            then(notificationService).should(never()).saveAll(anyList());
+            then(fcmService).should(never()).sendMessage(anyList(), anyString(), anyString(), any(Map.class));
+        }
+
+        @Test
+        @DisplayName("성공: TOOL_APPROVED 이벤트 시 전체 팀원에게 알림")
+        void handleNotificationEvent_ToolApproved_AllMembers() {
+            // given
+            Long proposalId = 10L;
+            NotificationEvent event = new NotificationEvent(
+                    TEAM_ROOM_ID, proposalId, NotificationType.TOOL_APPROVED, null, null
+            );
+
+            TeamRoom teamRoom = createTeamRoom();
+            User user1 = createUser(1L, "user1@test.com", true);
+            User user2 = createUser(2L, "user2@test.com", true);
+            User user3 = createUser(3L, "user3@test.com", true);
+            TeamMember member1 = createTeamMember(user1);
+            TeamMember member2 = createTeamMember(user2);
+            TeamMember member3 = createTeamMember(user3);
+            UserDevice device1 = createUserDevice(user1, "token1");
+            UserDevice device2 = createUserDevice(user2, "token2");
+            UserDevice device3 = createUserDevice(user3, "token3");
+
+            given(teamRoomRepository.findById(TEAM_ROOM_ID)).willReturn(Optional.of(teamRoom));
+            given(teamMemberRepository.findByTeamRoomId(TEAM_ROOM_ID)).willReturn(List.of(member1, member2, member3));
+            given(userDeviceRepository.findAllByUserIdIn(anyList())).willReturn(List.of(device1, device2, device3));
+
+            // when
+            notificationEventListener.handleNotificationEvent(event);
+
+            // then
+            ArgumentCaptor<List<Notification>> notificationCaptor = ArgumentCaptor.forClass(List.class);
+            then(notificationService).should().saveAll(notificationCaptor.capture());
+            // 전체 3명에게 알림 저장
+            assertThat(notificationCaptor.getValue()).hasSize(3);
+
+            ArgumentCaptor<List<String>> tokenCaptor = ArgumentCaptor.forClass(List.class);
+            then(fcmService).should().sendMessage(tokenCaptor.capture(), anyString(), anyString(), any(Map.class));
+            assertThat(tokenCaptor.getValue()).containsExactlyInAnyOrder("token1", "token2", "token3");
+        }
+
+        @Test
+        @DisplayName("성공: TOOL_REJECTED 이벤트 시 제안자에게만 알림")
+        void handleNotificationEvent_ToolRejected_OnlyProposer() {
+            // given
+            Long proposalId = 10L;
+            Long proposerUserId = 2L;
+            NotificationEvent event = new NotificationEvent(
+                    TEAM_ROOM_ID, proposalId, NotificationType.TOOL_REJECTED, null, null
+            );
+
+            TeamRoom teamRoom = createTeamRoom();
+            User proposerUser = createUser(proposerUserId, "proposer@test.com", true);
+            UserDevice proposerDevice = createUserDevice(proposerUser, "proposerToken");
+
+            ToolProposal proposal = mock(ToolProposal.class);
+            given(proposal.getRequestedBy()).willReturn(proposerUserId);
+
+            given(teamRoomRepository.findById(TEAM_ROOM_ID)).willReturn(Optional.of(teamRoom));
+            given(toolProposalRepository.existsByIdAndTeamRoomId(proposalId, TEAM_ROOM_ID)).willReturn(true);
+            given(toolProposalRepository.findById(proposalId)).willReturn(Optional.of(proposal));
+            given(userRepository.findById(proposerUserId)).willReturn(Optional.of(proposerUser));
+            given(userDeviceRepository.findAllByUserIdIn(List.of(proposerUserId))).willReturn(List.of(proposerDevice));
+
+            // when
+            notificationEventListener.handleNotificationEvent(event);
+
+            // then
+            ArgumentCaptor<List<Notification>> notificationCaptor = ArgumentCaptor.forClass(List.class);
+            then(notificationService).should().saveAll(notificationCaptor.capture());
+            // 제안자에게만 알림 저장
+            assertThat(notificationCaptor.getValue()).hasSize(1);
+
+            ArgumentCaptor<List<String>> tokenCaptor = ArgumentCaptor.forClass(List.class);
+            then(fcmService).should().sendMessage(tokenCaptor.capture(), anyString(), anyString(), any(Map.class));
+            assertThat(tokenCaptor.getValue()).containsExactly("proposerToken");
+        }
+
+        @Test
+        @DisplayName("보안: TOOL_REJECTED 이벤트 시 제안이 팀룸에 속하지 않으면 알림 없음")
+        void handleNotificationEvent_ToolRejected_ProposalNotInTeamRoom() {
+            // given
+            Long proposalId = 10L;
+            NotificationEvent event = new NotificationEvent(
+                    TEAM_ROOM_ID, proposalId, NotificationType.TOOL_REJECTED, null, null
+            );
+
+            // 팀룸은 존재하지만 proposalId가 해당 팀룸에 속하지 않음
+            TeamRoom teamRoom = mock(TeamRoom.class);
+
+            given(teamRoomRepository.findById(TEAM_ROOM_ID)).willReturn(Optional.of(teamRoom));
+            given(toolProposalRepository.existsByIdAndTeamRoomId(proposalId, TEAM_ROOM_ID)).willReturn(false);
+
+            // when
+            notificationEventListener.handleNotificationEvent(event);
+
+            // then - 보안 검증 실패로 알림/FCM 발송 안 함
+            then(toolProposalRepository).should(never()).findById(any());
+            then(notificationService).should(never()).saveAll(anyList());
+            then(fcmService).should(never()).sendMessage(anyList(), anyString(), anyString(), any(Map.class));
+        }
+
+        @Test
+        @DisplayName("실패: TOOL_REJECTED 이벤트 시 제안이 없으면 알림/FCM 발송 안 함")
+        void handleNotificationEvent_ToolRejected_ProposalNotFound() {
+            // given
+            Long proposalId = 10L;
+            NotificationEvent event = new NotificationEvent(
+                    TEAM_ROOM_ID, proposalId, NotificationType.TOOL_REJECTED, null, null
+            );
+
+            // 예외 발생 전에 return 하므로 getTitle() 호출 안됨
+            TeamRoom teamRoom = mock(TeamRoom.class);
+
+            given(teamRoomRepository.findById(TEAM_ROOM_ID)).willReturn(Optional.of(teamRoom));
+            given(toolProposalRepository.existsByIdAndTeamRoomId(proposalId, TEAM_ROOM_ID)).willReturn(true);
+            given(toolProposalRepository.findById(proposalId)).willReturn(Optional.empty());
+
+            // when - 예외가 catch 블록에서 처리됨
+            notificationEventListener.handleNotificationEvent(event);
+
+            // then - 알림 저장 및 FCM 발송이 호출되지 않음
+            then(notificationService).should(never()).saveAll(anyList());
+            then(fcmService).should(never()).sendMessage(anyList(), anyString(), anyString(), any(Map.class));
+        }
+
+        @Test
+        @DisplayName("실패: TOOL_REJECTED 이벤트 시 제안자 유저 없으면 알림/FCM 발송 안 함")
+        void handleNotificationEvent_ToolRejected_ProposerNotFound() {
+            // given
+            Long proposalId = 10L;
+            Long proposerUserId = 2L;
+            NotificationEvent event = new NotificationEvent(
+                    TEAM_ROOM_ID, proposalId, NotificationType.TOOL_REJECTED, null, null
+            );
+
+            // 예외 발생 전에 return 하므로 getTitle() 호출 안됨
+            TeamRoom teamRoom = mock(TeamRoom.class);
+            ToolProposal proposal = mock(ToolProposal.class);
+            given(proposal.getRequestedBy()).willReturn(proposerUserId);
+
+            given(teamRoomRepository.findById(TEAM_ROOM_ID)).willReturn(Optional.of(teamRoom));
+            given(toolProposalRepository.existsByIdAndTeamRoomId(proposalId, TEAM_ROOM_ID)).willReturn(true);
+            given(toolProposalRepository.findById(proposalId)).willReturn(Optional.of(proposal));
+            given(userRepository.findById(proposerUserId)).willReturn(Optional.empty());
+
+            // when - 예외가 catch 블록에서 처리됨
+            notificationEventListener.handleNotificationEvent(event);
+
+            // then - 알림 저장 및 FCM 발송이 호출되지 않음
+            then(notificationService).should(never()).saveAll(anyList());
+            then(fcmService).should(never()).sendMessage(anyList(), anyString(), anyString(), any(Map.class));
         }
     }
 
