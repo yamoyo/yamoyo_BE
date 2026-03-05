@@ -3,7 +3,6 @@ package com.yamoyo.be.common.interceptor;
 import com.yamoyo.be.domain.security.jwt.JwtTokenClaims;
 import com.yamoyo.be.domain.security.jwt.authentication.JwtAuthenticationToken;
 import com.yamoyo.be.domain.user.entity.OnboardingStatus;
-import com.yamoyo.be.domain.user.repository.UserRepository;
 import com.yamoyo.be.exception.ErrorCode;
 import com.yamoyo.be.exception.YamoyoException;
 import jakarta.servlet.http.HttpServletResponse;
@@ -11,7 +10,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -28,15 +26,13 @@ import static org.mockito.Mockito.mock;
  * OnboardingInterceptor 단위 테스트
  *
  * 테스트 내용:
- * 1. 약관 동의 사용자 - 요청 허용
+ * 1. 온보딩 완료 사용자 - 요청 허용
  * 2. 약관 미동의 사용자 - 요청 차단 (403)
- * 3. 인증되지 않은 요청 - 통과 (Spring Security에서 처리)
+ * 3. 프로필 미설정 사용자 - 요청 차단 (403)
+ * 4. 인증되지 않은 요청 - 통과 (Spring Security에서 처리)
  */
 @ExtendWith(MockitoExtension.class)
 class OnboardingInterceptorTest {
-
-    @Mock
-    private UserRepository userRepository;
 
     private OnboardingInterceptor interceptor;
 
@@ -47,20 +43,17 @@ class OnboardingInterceptorTest {
 
     @BeforeEach
     void setUp() {
-        interceptor = new OnboardingInterceptor(userRepository);
+        interceptor = new OnboardingInterceptor();
         request = new MockHttpServletRequest();
         response = new MockHttpServletResponse();
         request.setRequestURI("/api/onboarding/profile");
     }
 
     @Test
-    @DisplayName("약관 동의 사용자 - 요청 허용")
-    void preHandle_TermsAgreed_AllowRequest() throws Exception {
+    @DisplayName("온보딩 완료 사용자 - 요청 허용")
+    void preHandle_OnboardingCompleted_AllowRequest() throws Exception {
         // given
-        setupSecurityContext(USER_ID);
-        UserRepository.OnboardingCheckProjection onboardingStatus = createOnboardingStatus(true, true);
-        given(userRepository.findOnboardingStatusByUserId(USER_ID))
-                .willReturn(java.util.Optional.of(onboardingStatus));
+        setupSecurityContext(USER_ID, OnboardingStatus.COMPLETED);
 
         // when
         boolean result = interceptor.preHandle(request, response, new Object());
@@ -74,10 +67,7 @@ class OnboardingInterceptorTest {
     @DisplayName("약관 미동의 사용자 - 요청 차단 (403)")
     void preHandle_TermsNotAgreed_BlockRequest() throws Exception {
         // given
-        setupSecurityContext(USER_ID);
-        UserRepository.OnboardingCheckProjection onboardingStatus = createOnboardingStatus(false, true);
-        given(userRepository.findOnboardingStatusByUserId(USER_ID))
-                .willReturn(java.util.Optional.of(onboardingStatus));
+        setupSecurityContext(USER_ID, OnboardingStatus.TERMS_PENDING);
 
         // when & then
         assertThatThrownBy(() -> interceptor.preHandle(request, response, new Object()))
@@ -86,6 +76,22 @@ class OnboardingInterceptorTest {
                     YamoyoException ye = (YamoyoException) ex;
                     assertThat(ye.getErrorCode()).isEqualTo(ErrorCode.ONBOARDING_REQUIRED);
                     assertThat(ye.getDetails()).containsEntry("onboardingStatus", OnboardingStatus.TERMS_PENDING.name());
+                });
+    }
+
+    @Test
+    @DisplayName("프로필 미설정 사용자 - 요청 차단 (403)")
+    void preHandle_ProfileNotCompleted_BlockRequest() throws Exception {
+        // given
+        setupSecurityContext(USER_ID, OnboardingStatus.PROFILE_PENDING);
+
+        // when & then
+        assertThatThrownBy(() -> interceptor.preHandle(request, response, new Object()))
+                .isInstanceOf(YamoyoException.class)
+                .satisfies(ex -> {
+                    YamoyoException ye = (YamoyoException) ex;
+                    assertThat(ye.getErrorCode()).isEqualTo(ErrorCode.ONBOARDING_REQUIRED);
+                    assertThat(ye.getDetails()).containsEntry("onboardingStatus", OnboardingStatus.PROFILE_PENDING.name());
                 });
     }
 
@@ -120,56 +126,17 @@ class OnboardingInterceptorTest {
         assertThat(result).isTrue();
     }
 
-    @Test
-    @DisplayName("userId가 null인 경우 - 통과")
-    void preHandle_UserIdNull_PassThrough() throws Exception {
-        // given
-        setupSecurityContextWithNullUserId();
-
-        // when
-        boolean result = interceptor.preHandle(request, response, new Object());
-
-        // then
-        assertThat(result).isTrue();
-    }
-
     // ========== Helper Methods ==========
 
     private static final String USER_EMAIL = "test@example.com";
     private static final String PROVIDER = "google";
 
-    private void setupSecurityContext(Long userId) {
-        JwtTokenClaims claims = new JwtTokenClaims(userId, USER_EMAIL, PROVIDER);
+    private void setupSecurityContext(Long userId, OnboardingStatus status) {
+        JwtTokenClaims claims = new JwtTokenClaims(userId, USER_EMAIL, PROVIDER, status);
         JwtAuthenticationToken authentication = JwtAuthenticationToken.authenticated(claims);
 
         SecurityContext securityContext = mock(SecurityContext.class);
         given(securityContext.getAuthentication()).willReturn(authentication);
         SecurityContextHolder.setContext(securityContext);
-    }
-
-    private void setupSecurityContextWithNullUserId() {
-        JwtTokenClaims claims = new JwtTokenClaims(null, USER_EMAIL, PROVIDER);
-        JwtAuthenticationToken authentication = JwtAuthenticationToken.authenticated(claims);
-
-        SecurityContext securityContext = mock(SecurityContext.class);
-        given(securityContext.getAuthentication()).willReturn(authentication);
-        SecurityContextHolder.setContext(securityContext);
-    }
-
-    private UserRepository.OnboardingCheckProjection createOnboardingStatus(boolean hasAgreedToTerms, boolean profileCompleted) {
-        return new TestOnboardingStatus(hasAgreedToTerms, profileCompleted);
-    }
-
-    private record TestOnboardingStatus(boolean hasAgreedToTerms, boolean profileCompleted)
-            implements UserRepository.OnboardingCheckProjection {
-        @Override
-        public Boolean getHasAgreedToTerms() {
-            return hasAgreedToTerms;
-        }
-
-        @Override
-        public Boolean getProfileCompleted() {
-            return profileCompleted;
-        }
     }
 }

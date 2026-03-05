@@ -71,11 +71,12 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
                 .orElseThrow(() -> new IllegalStateException(
                         "OAuth2 로그인 성공했으나 DB에 사용자가 없습니다. Email: " + email));
 
-        // JWT 토큰 생성
+        // JWT 토큰 생성 (onboardingStatus 포함)
         JwtTokenDto jwtToken = jwtTokenProvider.generateToken(
                 user.getId(),
                 user.getEmail(),
-                provider
+                provider,
+                user.getOnboardingStatus()
         );
 
         log.info("JWT 토큰 발급 완료 - UserId: {}, Email: {}", user.getId(), user.getEmail());
@@ -87,13 +88,12 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         addRefreshTokenCookie(response, jwtToken.refreshToken(), jwtProperties.refreshTokenExpiration());
 
         // OnboardingStatus에 따른 리다이렉트
-        String redirectUri = determineRedirectUri(oAuth2User);
-        log.info("리다이렉트 - OnboardingStatus: {}, URI: {}", oAuth2User.getOnboardingStatus(), redirectUri);
+        String redirectUri = determineRedirectUri(user.getOnboardingStatus());
+        log.info("리다이렉트 - OnboardingStatus: {}, URI: {}", user.getOnboardingStatus(), redirectUri);
         getRedirectStrategy().sendRedirect(request, response, redirectUri);
     }
 
-    private String determineRedirectUri(CustomOAuth2User oAuth2User) {
-        OnboardingStatus status = oAuth2User.getOnboardingStatus();
+    private String determineRedirectUri(OnboardingStatus status) {
 
         return switch (status) {
             case TERMS_PENDING -> frontBaseUrl + onboardingTermsPath;

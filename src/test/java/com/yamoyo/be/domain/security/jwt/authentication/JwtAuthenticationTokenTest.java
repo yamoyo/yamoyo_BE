@@ -1,6 +1,7 @@
 package com.yamoyo.be.domain.security.jwt.authentication;
 
 import com.yamoyo.be.domain.security.jwt.JwtTokenClaims;
+import com.yamoyo.be.domain.user.entity.OnboardingStatus;
 import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -10,7 +11,7 @@ class JwtAuthenticationTokenTest {
     void getName_returnsUserIdToString() {
         // Given
         Long userId = 12345L;
-        JwtTokenClaims claims = new JwtTokenClaims(userId, "test@example.com", "google");
+        JwtTokenClaims claims = new JwtTokenClaims(userId, "test@example.com", "google", OnboardingStatus.COMPLETED);
         JwtAuthenticationToken token = JwtAuthenticationToken.authenticated(claims);
 
         // When
@@ -24,7 +25,7 @@ class JwtAuthenticationTokenTest {
     void principal_isJwtTokenClaims() {
         // Given
         Long userId = 12345L;
-        JwtTokenClaims claims = new JwtTokenClaims(userId, "test@example.com", "google");
+        JwtTokenClaims claims = new JwtTokenClaims(userId, "test@example.com", "google", OnboardingStatus.COMPLETED);
         JwtAuthenticationToken token = JwtAuthenticationToken.authenticated(claims);
 
         // When

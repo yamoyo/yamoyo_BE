@@ -3,6 +3,7 @@ package com.yamoyo.be.domain.user.service;
 import com.yamoyo.be.domain.user.dto.request.ProfileSetupRequest;
 import com.yamoyo.be.domain.user.dto.request.TermsAgreementRequest;
 import com.yamoyo.be.domain.user.dto.request.TermsAgreementRequest.TermAgreement;
+import com.yamoyo.be.domain.user.entity.OnboardingStatus;
 import com.yamoyo.be.domain.user.entity.Term;
 import com.yamoyo.be.domain.user.entity.User;
 import com.yamoyo.be.domain.user.entity.UserAgreement;
@@ -85,6 +86,9 @@ public class OnBoardingService {
 
         userAgreementRepository.saveAll(agreements);
 
+        // User 온보딩 상태 업데이트
+        user.updateOnboardingStatus(OnboardingStatus.PROFILE_PENDING);
+
         log.info("약관 동의 완료 - UserId: {}, AgreementCount: {}", userId, agreements.size());
     }
 
@@ -109,6 +113,9 @@ public class OnBoardingService {
 
         // 4. UserRole 변경 (GUEST → USER)
         user.completeOnboarding();
+
+        // 5. 온보딩 상태 업데이트
+        user.updateOnboardingStatus(OnboardingStatus.COMPLETED);
 
         log.info("프로필 설정 완료 - UserId: {}, Name: {}, Major: {}, MBTI: {}, UserRole: {}",
                 userId, request.name(), request.major(), request.mbti(), user.getUserRole());

@@ -50,6 +50,10 @@ public class User {
     @Enumerated(EnumType.STRING)
     private UserRole userRole = UserRole.GUEST;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "onboarding_status")
+    private OnboardingStatus onboardingStatus = OnboardingStatus.TERMS_PENDING;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -110,6 +114,13 @@ public class User {
      */
     public void completeOnboarding() {
         this.userRole = UserRole.USER;
+    }
+
+    /**
+     * 온보딩 상태 업데이트
+     */
+    public void updateOnboardingStatus(OnboardingStatus status) {
+        this.onboardingStatus = status;
     }
 
     /**

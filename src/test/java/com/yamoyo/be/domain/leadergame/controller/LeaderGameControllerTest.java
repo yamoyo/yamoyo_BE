@@ -5,6 +5,7 @@ import com.yamoyo.be.domain.leadergame.dto.response.VolunteerPhaseResponse;
 import com.yamoyo.be.domain.leadergame.service.LeaderGameService;
 import com.yamoyo.be.domain.leadergame.service.GameStateRedisService;
 import com.yamoyo.be.domain.security.jwt.JwtTokenClaims;
+import com.yamoyo.be.domain.user.entity.OnboardingStatus;
 import com.yamoyo.be.domain.teamroom.entity.TeamMember;
 import com.yamoyo.be.domain.teamroom.entity.TeamRoom;
 import com.yamoyo.be.domain.teamroom.entity.enums.TeamRole;
@@ -161,7 +162,7 @@ class LeaderGameControllerTest {
             // given
             Long roomId = 1L;
             Long userId = 100L;
-            JwtTokenClaims claims = new JwtTokenClaims(userId, "host@test.com", "USER");
+            JwtTokenClaims claims = new JwtTokenClaims(userId, "host@test.com", "USER", OnboardingStatus.COMPLETED);
 
             List<GameParticipant> participants = List.of(
                     GameParticipant.of(100L, "Host", "1"),
