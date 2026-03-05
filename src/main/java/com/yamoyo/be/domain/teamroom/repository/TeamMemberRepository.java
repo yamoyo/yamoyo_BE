@@ -65,6 +65,22 @@ public interface TeamMemberRepository extends JpaRepository<TeamMember,Long> {
     Optional<TeamMember> findByTeamRoomIdAndTeamRole(Long teamRoomId, TeamRole teamRole);
 
     /**
+     * 특정 역할 조회 (User Fetch Join)
+     * - 비동기 이벤트 리스너에서 사용 (Hibernate 세션 없는 환경)
+     */
+    @Query("""
+        SELECT tm
+        FROM TeamMember tm
+        JOIN FETCH tm.user
+        WHERE tm.teamRoom.id = :teamRoomId
+          AND tm.teamRole = :teamRole
+        """)
+    Optional<TeamMember> findByTeamRoomIdAndTeamRoleWithUser(
+        @Param("teamRoomId") Long teamRoomId,
+        @Param("teamRole") TeamRole teamRole
+    );
+
+    /**
      * 팀룸에 유저 존재하는지 조회
      */
     boolean existsByTeamRoomIdAndUserId(Long teamRoomId, Long userId);

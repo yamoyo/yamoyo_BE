@@ -106,10 +106,12 @@ public class AuthService {
 
         // 5. 새로운 Access Token + Refresh Token 생성 (Refresh Token Rotation)
         // provider 정보는 기존 토큰의 claims에서 가져옴
+        // onboardingStatus는 DB에서 최신 상태를 조회하여 사용
         JwtTokenDto newTokens = jwtTokenProvider.generateToken(
                 user.getId(),
                 user.getEmail(),
-                claims.provider()
+                claims.provider(),
+                user.getOnboardingStatus()
         );
 
         // 6. DB에 새로운 Refresh Token 저장 (기존 토큰 교체)

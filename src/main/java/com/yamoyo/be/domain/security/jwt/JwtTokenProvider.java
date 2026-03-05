@@ -1,5 +1,6 @@
 package com.yamoyo.be.domain.security.jwt;
 
+import com.yamoyo.be.domain.user.entity.OnboardingStatus;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
@@ -59,9 +60,10 @@ public class JwtTokenProvider {
      * @param userId 사용자 ID
      * @param email 이메일
      * @param provider OAuth2 Provider (google, kakao)
+     * @param onboardingStatus 온보딩 상태
      * @return JwtTokenDto (Access Token, Refresh Token, 만료시간)
      */
-    public JwtTokenDto generateToken(Long userId, String email, String provider) {
+    public JwtTokenDto generateToken(Long userId, String email, String provider, OnboardingStatus onboardingStatus) {
         Date now = new Date();
         Date accessTokenExpiry = new Date(now.getTime() + jwtProperties.accessTokenExpiration());
         Date refreshTokenExpiry = new Date(now.getTime() + jwtProperties.refreshTokenExpiration());
@@ -71,6 +73,7 @@ public class JwtTokenProvider {
                 .subject(String.valueOf(userId))  // 사용자 ID를 subject에 저장
                 .claim("email", email)
                 .claim("provider", provider)
+                .claim("onboardingStatus", onboardingStatus.name())
                 .issuer(jwtProperties.issuer())
                 .issuedAt(now)
                 .expiration(accessTokenExpiry)
@@ -82,6 +85,7 @@ public class JwtTokenProvider {
                 .subject(String.valueOf(userId))
                 .claim("email", email)
                 .claim("provider", provider)
+                .claim("onboardingStatus", onboardingStatus.name())
                 .issuer(jwtProperties.issuer())
                 .issuedAt(now)
                 .expiration(refreshTokenExpiry)
@@ -125,7 +129,7 @@ public class JwtTokenProvider {
      * - JwtAuthenticationFilter에서 SecurityContext에 저장할 때 사용
      *
      * @param token JWT 토큰
-     * @return JwtTokenClaims (userId, email, role, provider)
+     * @return JwtTokenClaims (userId, email, provider, onboardingStatus)
      */
     public JwtTokenClaims parseClaims(String token) {
         Claims claims = Jwts.parser()
@@ -137,7 +141,8 @@ public class JwtTokenProvider {
         return new JwtTokenClaims(
                 Long.parseLong(claims.getSubject()),
                 claims.get("email", String.class),
-                claims.get("provider", String.class)
+                claims.get("provider", String.class),
+                OnboardingStatus.valueOf(claims.get("onboardingStatus", String.class))
         );
     }
 
@@ -149,7 +154,7 @@ public class JwtTokenProvider {
      * - 만료된 Access Token에서 사용자 정보를 추출하여 새 토큰 발급
      *
      * @param token 만료된 JWT 토큰
-     * @return JwtTokenClaims (userId, email, role, provider)
+     * @return JwtTokenClaims (userId, email, provider, onboardingStatus)
      */
     public JwtTokenClaims parseClaimsFromExpiredToken(String token) {
         try {
@@ -162,7 +167,8 @@ public class JwtTokenProvider {
             return new JwtTokenClaims(
                     Long.parseLong(claims.getSubject()),
                     claims.get("email", String.class),
-                    claims.get("provider", String.class)
+                    claims.get("provider", String.class),
+                    OnboardingStatus.valueOf(claims.get("onboardingStatus", String.class))
             );
         } catch (ExpiredJwtException e) {
             // 만료된 토큰의 경우 ExpiredJwtException에서 Claims 추출
@@ -170,7 +176,8 @@ public class JwtTokenProvider {
             return new JwtTokenClaims(
                     Long.parseLong(claims.getSubject()),
                     claims.get("email", String.class),
-                    claims.get("provider", String.class)
+                    claims.get("provider", String.class),
+                    OnboardingStatus.valueOf(claims.get("onboardingStatus", String.class))
             );
         }
     }

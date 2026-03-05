@@ -4,7 +4,7 @@ import com.yamoyo.be.common.dto.ApiResponse;
 import com.yamoyo.be.domain.security.jwt.JwtTokenClaims;
 import com.yamoyo.be.domain.user.dto.request.ProfileSetupRequest;
 import com.yamoyo.be.domain.user.dto.request.TermsAgreementRequest;
-import com.yamoyo.be.domain.user.repository.UserAgreementRepository;
+import com.yamoyo.be.domain.user.entity.OnboardingStatus;
 import com.yamoyo.be.domain.user.service.OnBoardingService;
 import com.yamoyo.be.exception.ErrorCode;
 import com.yamoyo.be.exception.YamoyoException;
@@ -39,12 +39,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class OnBoardingController {
 
     private final OnBoardingService onBoardingService;
-    private final UserAgreementRepository userAgreementRepository;
 
     @Operation(summary = "약관 동의", description = "서비스 이용약관 및 개인정보 처리방침에 동의합니다. 필수 약관에 모두 동의해야 온보딩을 진행할 수 있습니다.")
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "약관 동의 성공"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청 (필수 약관 미동의 등)"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청 (필수 약관 미동의 또는 이미 동의 완료)"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "약관을 찾을 수 없음")
     })
@@ -55,6 +54,11 @@ public class OnBoardingController {
     ) {
         log.info("약관 동의 요청 - UserId: {}, Agreements: {}", claims.userId(), request.agreements().size());
 
+        // JWT 상태 체크로 이미 약관 동의한 사용자 차단
+        if (claims.onboardingStatus() != OnboardingStatus.TERMS_PENDING) {
+            throw new YamoyoException(ErrorCode.TERMS_ALREADY_AGREED);
+        }
+
         onBoardingService.agreeToTerms(claims.userId(), request);
 
         return ApiResponse.success();
@@ -63,7 +67,7 @@ public class OnBoardingController {
     @Operation(summary = "프로필 설정", description = "사용자 프로필을 설정합니다. 이름, 전공, MBTI, 프로필 이미지를 입력합니다.")
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "프로필 설정 성공"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청 (유효성 검증 실패)"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청 (유효성 검증 실패 또는 이미 완료)"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음")
     })
@@ -75,9 +79,13 @@ public class OnBoardingController {
         log.info("프로필 설정 요청 - UserId: {}, Name: {}, Major: {}, MBTI: {}",
                 claims.userId(), request.name(), request.major(), request.mbti());
 
-        // WebConfig에서 /api/onboarding/** 를 Interceptor 예외로 두고 있어,
-        // 프로필 설정은 컨트롤러 레벨에서 약관 동의 여부를 한 번 더 검증한다.
-        if (!userAgreementRepository.hasAgreedToAllMandatoryTerms(claims.userId())) {
+        // JWT 상태 체크로 이미 프로필 설정 완료한 사용자 차단
+        if (claims.onboardingStatus() == OnboardingStatus.COMPLETED) {
+            throw new YamoyoException(ErrorCode.PROFILE_ALREADY_COMPLETED);
+        }
+
+        // 약관 동의 전인 사용자 차단 (JWT 기반)
+        if (claims.onboardingStatus() == OnboardingStatus.TERMS_PENDING) {
             throw new YamoyoException(ErrorCode.TERMS_NOT_AGREED);
         }
 

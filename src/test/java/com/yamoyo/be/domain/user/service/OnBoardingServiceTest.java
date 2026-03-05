@@ -3,6 +3,7 @@ package com.yamoyo.be.domain.user.service;
 import com.yamoyo.be.domain.user.dto.request.ProfileSetupRequest;
 import com.yamoyo.be.domain.user.dto.request.TermsAgreementRequest;
 import com.yamoyo.be.domain.user.dto.request.TermsAgreementRequest.TermAgreement;
+import com.yamoyo.be.domain.user.entity.OnboardingStatus;
 import com.yamoyo.be.domain.user.entity.Term;
 import com.yamoyo.be.domain.user.entity.User;
 import com.yamoyo.be.domain.user.entity.UserRole;
@@ -27,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -84,6 +86,7 @@ class OnBoardingServiceTest {
 
             // then
             verify(userAgreementRepository).saveAll(anyList());
+            assertThat(user.getOnboardingStatus()).isEqualTo(OnboardingStatus.PROFILE_PENDING);
         }
 
         @Test
@@ -207,6 +210,7 @@ class OnBoardingServiceTest {
             assertThat(user.getMbti()).isEqualTo("INTJ");
             assertThat(user.getProfileImageId()).isEqualTo(1L);
             assertThat(user.getUserRole()).isEqualTo(UserRole.USER);
+            assertThat(user.getOnboardingStatus()).isEqualTo(OnboardingStatus.COMPLETED);
         }
 
         @Test
