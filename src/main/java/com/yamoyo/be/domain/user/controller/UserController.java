@@ -78,4 +78,21 @@ public class UserController {
 
         return ApiResponse.success(response);
     }
+
+    @Operation(summary = "알림 설정 변경", description = "푸시 알림 수신 설정을 변경합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "설정 변경 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음")
+    })
+    @PatchMapping("/me/alarm")
+    public ApiResponse<Boolean> updateAlarmSetting(
+            @AuthenticationPrincipal JwtTokenClaims claims,
+            @Parameter(description = "알림 수신 여부") @RequestParam Boolean enabled) {
+        log.info("PATCH /api/users/me/alarm - 알림 설정 변경 요청, UserId: {}, enabled: {}", claims.userId(), enabled);
+
+        boolean updatedAlarmOn = userService.updateAlarmSetting(claims.userId(), enabled);
+
+        return ApiResponse.success(updatedAlarmOn);
+    }
 }

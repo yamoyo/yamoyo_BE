@@ -89,4 +89,26 @@ public class UserService {
 
         return UserResponse.from(user);
     }
+
+    /**
+     * 알림 설정 변경
+     *
+     * @param userId 사용자 ID (JWT 토큰에서 추출)
+     * @param enabled 알림 수신 여부
+     * @return boolean 변경된 알림 설정 상태
+     * @throws YamoyoException 사용자를 찾을 수 없는 경우
+     */
+    @Transactional
+    public boolean updateAlarmSetting(Long userId, boolean enabled) {
+        log.info("알림 설정 변경 - UserId: {}, enabled: {}", userId, enabled);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.USER_NOT_FOUND));
+
+        user.updateAlarmSetting(enabled);
+
+        log.info("알림 설정 변경 완료 - UserId: {}, isAlarmOn: {}", userId, user.isAlarmOn());
+
+        return user.isAlarmOn();
+    }
 }

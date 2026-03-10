@@ -132,6 +132,9 @@ public class User {
     }
 
     /**
-     *
+     * 알림 설정 변경
      */
+    public void updateAlarmSetting(boolean enabled) {
+        this.isAlarmOn = enabled;
+    }
 }
