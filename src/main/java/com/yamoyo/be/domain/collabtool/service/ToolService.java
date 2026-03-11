@@ -5,6 +5,7 @@ import com.yamoyo.be.domain.collabtool.dto.request.ProposeToolRequest;
 import com.yamoyo.be.domain.collabtool.dto.request.ToolVoteRequest;
 import com.yamoyo.be.domain.collabtool.dto.response.ConfirmedToolsResponse;
 import com.yamoyo.be.domain.collabtool.dto.response.ProposalDetailResponse;
+import com.yamoyo.be.domain.collabtool.dto.response.MyToolVoteResponse;
 import com.yamoyo.be.domain.collabtool.dto.response.ToolVoteCountResponse;
 import com.yamoyo.be.domain.collabtool.dto.response.ToolVoteParticipationResponse;
 import com.yamoyo.be.domain.collabtool.entity.MemberToolVote;
@@ -105,6 +106,43 @@ public class ToolService {
         }
 
         log.info("협업툴 투표 일괄 제출 완료 - 총 {}개 투표 저장", allVotes.size());
+    }
+
+    /**
+     * 내 협업툴 투표 내역 조회
+     * - 투표 여부 + 카테고리별 선택한 툴 목록
+     */
+    public MyToolVoteResponse getMyToolVote(Long teamRoomId, Long userId) {
+        log.info("내 협업툴 투표 내역 조회 - teamRoomId: {}, userId: {}", teamRoomId, userId);
+
+        // 1. 팀룸 조회
+        teamRoomRepository.findById(teamRoomId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
+
+        // 2. 팀원 확인
+        TeamMember member = teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
+
+        // 3. 투표 여부 확인
+        boolean voted = toolVoteRepository.existsByMemberId(member.getId());
+
+        if (!voted) {
+            return new MyToolVoteResponse(false, List.of());
+        }
+
+        // 4. 내 투표 내역 조회 → 카테고리별 그룹화
+        List<MemberToolVote> myVotes = toolVoteRepository.findByTeamRoomIdAndMemberId(teamRoomId, member.getId());
+
+        List<MyToolVoteResponse.CategoryVote> categoryVotes = myVotes.stream()
+                .collect(Collectors.groupingBy(
+                        MemberToolVote::getCategoryId,
+                        Collectors.mapping(MemberToolVote::getToolId, Collectors.toList())
+                ))
+                .entrySet().stream()
+                .map(entry -> new MyToolVoteResponse.CategoryVote(entry.getKey(), entry.getValue()))
+                .toList();
+
+        return new MyToolVoteResponse(true, categoryVotes);
     }
 
     /**

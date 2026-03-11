@@ -3,6 +3,7 @@ package com.yamoyo.be.domain.rule.service;
 import com.yamoyo.be.domain.notification.entity.NotificationType;
 import com.yamoyo.be.domain.rule.dto.request.TeamRuleRequest;
 import com.yamoyo.be.domain.rule.dto.request.RuleVoteRequest;
+import com.yamoyo.be.domain.rule.dto.response.MyRuleVoteResponse;
 import com.yamoyo.be.domain.rule.dto.response.RuleVoteParticipationResponse;
 import com.yamoyo.be.domain.rule.dto.response.RuleVoteParticipationResponse.MemberInfo;
 import com.yamoyo.be.domain.rule.dto.response.TeamRulesResponse;
@@ -95,6 +96,38 @@ public class RuleService {
                 );
 
         confirmRules(teamRoomId);
+    }
+
+    /**
+     * 내 규칙 투표 내역 조회
+     */
+    public MyRuleVoteResponse getMyRuleVote(Long teamRoomId, Long userId) {
+        log.info("내 규칙 투표 내역 조회 - teamRoomId: {}, userId: {}", teamRoomId, userId);
+
+        // 1. 팀룸 조회
+        teamRoomRepository.findById(teamRoomId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
+
+        // 2. 팀원 확인
+        TeamMember member = teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
+
+        // 3. 내 투표 내역 조회
+        List<MemberRuleVote> myVotes = memberRuleVoteRepository.findByTeamRoomIdAndMemberId(teamRoomId, member.getId());
+
+        // 4. 전체 규칙 수와 비교하여 투표 완료 여부 판단
+        long totalRules = ruleTemplateRepository.count();
+        boolean voted = myVotes.size() >= totalRules;
+
+        // 5. 투표 내역 변환
+        List<MyRuleVoteResponse.RuleVoteDetail> voteDetails = myVotes.stream()
+                .map(vote -> new MyRuleVoteResponse.RuleVoteDetail(
+                        vote.getRuleTemplate().getId(),
+                        vote.isAgree()
+                ))
+                .toList();
+
+        return new MyRuleVoteResponse(voted, voteDetails);
     }
 
     /**
