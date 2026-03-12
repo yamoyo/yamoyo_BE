@@ -3,6 +3,7 @@ package com.yamoyo.be.domain.rule.controller;
 import com.yamoyo.be.common.dto.ApiResponse;
 import com.yamoyo.be.domain.rule.dto.request.TeamRuleRequest;
 import com.yamoyo.be.domain.rule.dto.request.RuleVoteRequest;
+import com.yamoyo.be.domain.rule.dto.response.MyRuleVoteResponse;
 import com.yamoyo.be.domain.rule.dto.response.RuleVoteParticipationResponse;
 import com.yamoyo.be.domain.rule.dto.response.TeamRulesResponse;
 import com.yamoyo.be.domain.rule.service.RuleService;
@@ -42,6 +43,23 @@ public class RuleController {
         Long userId = claims.userId();
         ruleService.submitRuleVote(teamRoomId, request, userId);
         return ApiResponse.success();
+    }
+
+    @Operation(summary = "내 규칙 투표 내역 조회", description = "내가 투표한 규칙 내역을 조회합니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "권한 없음"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "팀룸을 찾을 수 없음")
+    })
+    @GetMapping("/votes/me")
+    public ApiResponse<MyRuleVoteResponse> getMyRuleVote(
+            @Parameter(description = "팀룸 ID", required = true) @PathVariable Long teamRoomId,
+            @Parameter(hidden = true) @AuthenticationPrincipal JwtTokenClaims claims
+    ) {
+        Long userId = claims.userId();
+        MyRuleVoteResponse response = ruleService.getMyRuleVote(teamRoomId, userId);
+        return ApiResponse.success(response);
     }
 
     @Operation(summary = "규칙 투표 참여 현황 조회", description = "팀룸 내 규칙 투표의 참여 현황을 조회합니다.")

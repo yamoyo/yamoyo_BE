@@ -5,6 +5,7 @@ import com.yamoyo.be.domain.collabtool.dto.request.ProposeToolRequest;
 import com.yamoyo.be.domain.collabtool.dto.request.ToolVoteRequest;
 import com.yamoyo.be.domain.collabtool.dto.response.ConfirmedToolsResponse;
 import com.yamoyo.be.domain.collabtool.dto.response.ProposalDetailResponse;
+import com.yamoyo.be.domain.collabtool.dto.response.MyToolVoteResponse;
 import com.yamoyo.be.domain.collabtool.dto.response.ToolVoteCountResponse;
 import com.yamoyo.be.domain.collabtool.dto.response.ToolVoteParticipationResponse;
 import com.yamoyo.be.domain.collabtool.entity.MemberToolVote;
@@ -105,6 +106,26 @@ public class ToolService {
         }
 
         log.info("협업툴 투표 일괄 제출 완료 - 총 {}개 투표 저장", allVotes.size());
+    }
+
+    /**
+     * 내 협업툴 투표 여부 조회
+     */
+    public MyToolVoteResponse getMyToolVote(Long teamRoomId, Long userId) {
+        log.info("내 협업툴 투표 여부 조회 - teamRoomId: {}, userId: {}", teamRoomId, userId);
+
+        // 1. 팀룸 조회
+        teamRoomRepository.findById(teamRoomId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
+
+        // 2. 팀원 확인
+        TeamMember member = teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId)
+                .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
+
+        // 3. 투표 여부 확인
+        boolean voted = toolVoteRepository.existsByMemberId(member.getId());
+
+        return new MyToolVoteResponse(voted);
     }
 
     /**
