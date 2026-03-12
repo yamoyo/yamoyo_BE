@@ -15,9 +15,6 @@ public interface MemberRuleVoteRepository extends JpaRepository<MemberRuleVote, 
             Long teamRoomId, Long memberId, Long ruleTemplateId
     );
 
-    /** 특정 팀원의 전체 투표 내역 조회 (내 투표 조회용) */
-    List<MemberRuleVote> findByTeamRoomIdAndMemberId(Long teamRoomId, Long memberId);
-
     /** 팀룸의 모든 투표 조회 */
     List<MemberRuleVote> findByTeamRoomId(Long teamRoomId);
 

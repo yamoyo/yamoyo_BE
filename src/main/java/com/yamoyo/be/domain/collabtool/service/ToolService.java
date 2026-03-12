@@ -109,11 +109,10 @@ public class ToolService {
     }
 
     /**
-     * 내 협업툴 투표 내역 조회
-     * - 투표 여부 + 카테고리별 선택한 툴 목록
+     * 내 협업툴 투표 여부 조회
      */
     public MyToolVoteResponse getMyToolVote(Long teamRoomId, Long userId) {
-        log.info("내 협업툴 투표 내역 조회 - teamRoomId: {}, userId: {}", teamRoomId, userId);
+        log.info("내 협업툴 투표 여부 조회 - teamRoomId: {}, userId: {}", teamRoomId, userId);
 
         // 1. 팀룸 조회
         teamRoomRepository.findById(teamRoomId)
@@ -126,23 +125,7 @@ public class ToolService {
         // 3. 투표 여부 확인
         boolean voted = toolVoteRepository.existsByMemberId(member.getId());
 
-        if (!voted) {
-            return new MyToolVoteResponse(false, List.of());
-        }
-
-        // 4. 내 투표 내역 조회 → 카테고리별 그룹화
-        List<MemberToolVote> myVotes = toolVoteRepository.findByTeamRoomIdAndMemberId(teamRoomId, member.getId());
-
-        List<MyToolVoteResponse.CategoryVote> categoryVotes = myVotes.stream()
-                .collect(Collectors.groupingBy(
-                        MemberToolVote::getCategoryId,
-                        Collectors.mapping(MemberToolVote::getToolId, Collectors.toList())
-                ))
-                .entrySet().stream()
-                .map(entry -> new MyToolVoteResponse.CategoryVote(entry.getKey(), entry.getValue()))
-                .toList();
-
-        return new MyToolVoteResponse(true, categoryVotes);
+        return new MyToolVoteResponse(voted);
     }
 
     /**

@@ -42,11 +42,6 @@ public interface MemberToolVoteRepository extends JpaRepository<MemberToolVote,L
     boolean existsByMemberId(Long memberId);
 
     /**
-     * 특정 멤버의 투표 내역 조회 (내 투표 조회용)
-     */
-    List<MemberToolVote> findByTeamRoomIdAndMemberId(Long teamRoomId, Long memberId);
-
-    /**
      * 팀룸의 모든 투표 조회 (확정 처리용)
      */
     @Query("""
