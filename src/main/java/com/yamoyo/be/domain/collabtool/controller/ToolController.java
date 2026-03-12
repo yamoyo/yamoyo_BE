@@ -5,6 +5,7 @@ import com.yamoyo.be.domain.collabtool.dto.request.ApproveProposalRequest;
 import com.yamoyo.be.domain.collabtool.dto.request.ProposeToolRequest;
 import com.yamoyo.be.domain.collabtool.dto.request.ToolVoteRequest;
 import com.yamoyo.be.domain.collabtool.dto.response.ConfirmedToolsResponse;
+import com.yamoyo.be.domain.collabtool.dto.response.MyToolVoteResponse;
 import com.yamoyo.be.domain.collabtool.dto.response.ProposalDetailResponse;
 import com.yamoyo.be.domain.collabtool.dto.response.ToolVoteCountResponse;
 import com.yamoyo.be.domain.collabtool.dto.response.ToolVoteParticipationResponse;
@@ -44,6 +45,23 @@ public class ToolController {
         Long userId = claims.userId();
         toolService.submitAllToolVotes(teamRoomId, userId, request);
         return ApiResponse.success();
+    }
+
+    @Operation(summary = "내 협업툴 투표 내역 조회", description = "내가 투표한 협업툴 내역을 조회합니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "권한 없음"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "팀룸을 찾을 수 없음")
+    })
+    @GetMapping("/votes/me")
+    public ApiResponse<MyToolVoteResponse> getMyToolVote(
+            @Parameter(description = "팀룸 ID", required = true) @PathVariable Long teamRoomId,
+            @Parameter(hidden = true) @AuthenticationPrincipal JwtTokenClaims claims
+    ) {
+        Long userId = claims.userId();
+        MyToolVoteResponse response = toolService.getMyToolVote(teamRoomId, userId);
+        return ApiResponse.success(response);
     }
 
     @Operation(summary = "카테고리별 득표 현황 조회", description = "협업툴 카테고리별 득표 현황을 조회합니다.")
