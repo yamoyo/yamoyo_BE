@@ -54,44 +54,25 @@ jobs:
           docker push "$IMAGE"
 
       # ========================================
-      # 6. 서버에 docker-compose.prod.yml 복사
-      # ========================================
-      - name: Copy docker-compose to server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          port: ${{ secrets.SERVER_SSH_PORT }}
-          source: "docker-compose.prod.yml"
-          target: "/srv/yamoyo/"
-          strip_components: 0
-
-      # ========================================
-      # 7. 서버 배포
+      # 6. 서버 배포 (self-hosted runner이므로 직접 실행)
       # ========================================
       - name: Deploy to Server
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          port: ${{ secrets.SERVER_SSH_PORT }}
-          script: |
-            set -e
-            cd /srv/yamoyo
-            docker compose -f docker-compose.prod.yml pull backend
-            docker compose -f docker-compose.prod.yml up -d backend
-            
-            echo "Waiting for backend to start..."
-            sleep 10
-            docker compose -f docker-compose.prod.yml ps
-            docker compose -f docker-compose.prod.yml logs --tail=50 backend
-            
-            docker image prune -f
+        run: |
+          set -e
+          cp docker-compose.prod.yml /srv/yamoyo/docker-compose.prod.yml
+          cd /srv/yamoyo
+          docker compose -f docker-compose.prod.yml pull backend
+          docker compose -f docker-compose.prod.yml up -d backend
+
+          echo "Waiting for backend to start..."
+          sleep 10
+          docker compose -f docker-compose.prod.yml ps
+          docker compose -f docker-compose.prod.yml logs --tail=50 backend
+
+          docker image prune -f
 
       # ========================================
-      # 8. 배포 완료 알림
+      # 7. 배포 완료 알림
       # ========================================
       - name: Notify deployment success
         if: success()
