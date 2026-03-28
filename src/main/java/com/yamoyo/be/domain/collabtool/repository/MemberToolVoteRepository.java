@@ -37,6 +37,17 @@ public interface MemberToolVoteRepository extends JpaRepository<MemberToolVote,L
     List<Long> findVotedMemberIds(@Param("teamRoomId") Long teamRoomId);
 
     /**
+     * 투표 완료한 멤버 수 (COUNT)
+     * - 전원 투표 완료 여부 체크용
+     */
+    @Query("""
+        SELECT COUNT(DISTINCT tv.memberId)
+        FROM MemberToolVote tv
+        WHERE tv.teamRoomId = :teamRoomId
+        """)
+    long countVotedMembers(@Param("teamRoomId") Long teamRoomId);
+
+    /**
      * 특정 멤버가 이미 투표했는지 확인 (중복 투표 방지)
      */
     boolean existsByMemberId(Long memberId);

@@ -59,20 +59,16 @@ public class ToolService {
     public void submitAllToolVotes(Long teamRoomId, Long userId, ToolVoteRequest request) {
         log.info("협업툴 투표 일괄 제출 시작 - teamRoomId: {}, userId: {}", teamRoomId, userId);
 
-        // 1. 팀룸 조회
-        TeamRoom teamRoom = teamRoomRepository.findById(teamRoomId)
-                .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
-
-        // 2. 팀원 여부 확인
+        // 1. 팀원 여부 확인
         TeamMember member = teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId)
                 .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
 
-        // 3. 중복 투표 방지 (이미 일괄 제출한 경우)
+        // 2. 중복 투표 방지 (이미 일괄 제출한 경우)
         if (toolVoteRepository.existsByMemberId(member.getId())) {
             throw new YamoyoException(ErrorCode.ALREADY_VOTED);
         }
 
-        // 4. 모든 카테고리 투표를 하나의 리스트로 생성
+        // 3. 모든 카테고리 투표를 하나의 리스트로 생성
         List<MemberToolVote> allVotes = new ArrayList<>();
 
         for (ToolVoteRequest.CategoryToolVote categoryVote : request.toolVotes()) {
@@ -91,12 +87,12 @@ public class ToolService {
                     categoryVote.categoryId(), votes.size());
         }
 
-        // 5. 한 트랜잭션에서 일괄 저장
+        // 4. 한 트랜잭션에서 일괄 저장
         toolVoteRepository.saveAll(allVotes);
 
-        // 6. 전원 투표 완료 체크
+        // 5. 전원 투표 완료 체크
         long totalMembers = teamMemberRepository.countByTeamRoomId(teamRoomId);
-        long votedMembers = toolVoteRepository.findVotedMemberIds(teamRoomId).size();
+        long votedMembers = toolVoteRepository.countVotedMembers(teamRoomId);
 
         log.info("투표 현황 - 전체: {}, 투표완료: {}", totalMembers, votedMembers);
 
@@ -114,15 +110,11 @@ public class ToolService {
     public MyToolVoteResponse getMyToolVote(Long teamRoomId, Long userId) {
         log.info("내 협업툴 투표 여부 조회 - teamRoomId: {}, userId: {}", teamRoomId, userId);
 
-        // 1. 팀룸 조회
-        teamRoomRepository.findById(teamRoomId)
-                .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
-
-        // 2. 팀원 확인
+        // 1. 팀원 확인
         TeamMember member = teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId)
                 .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
 
-        // 3. 투표 여부 확인
+        // 2. 투표 여부 확인
         boolean voted = toolVoteRepository.existsByMemberId(member.getId());
 
         return new MyToolVoteResponse(voted);
@@ -135,18 +127,14 @@ public class ToolService {
     public ToolVoteCountResponse getVoteCountByCategory(Long teamRoomId, Long userId, Integer categoryId) {
         log.info("카테고리별 득표 현황 조회 시작 - teamRoomId: {}, categoryId: {}", teamRoomId, categoryId);
 
-        // 1. 팀룸 조회
-        TeamRoom teamRoom = teamRoomRepository.findById(teamRoomId)
-                .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
-
-        // 2. 요청자가 팀원인지 확인
+        // 1. 요청자가 팀원인지 확인
         teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId)
                 .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
 
-        // 3. 카테고리별 득표 현황 조회
+        // 2. 카테고리별 득표 현황 조회
         List<Object[]> results = toolVoteRepository.countVotesByCategory(teamRoomId, categoryId);
 
-        // 4. DTO 변환
+        // 3. DTO 변환
         List<ToolVoteCountResponse.ToolVoteInfo> tools = results.stream()
                 .map(row -> new ToolVoteCountResponse.ToolVoteInfo(
                         (Integer) row[0],  // toolId
@@ -167,22 +155,18 @@ public class ToolService {
     public ToolVoteParticipationResponse getVotedMemberParticipation(Long teamRoomId, Long userId) {
         log.info("투표 참여 현황 조회 시작 - teamRoomId: {}", teamRoomId);
 
-        // 1. 팀룸 조회
-        TeamRoom teamRoom = teamRoomRepository.findById(teamRoomId)
-                .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
-
-        // 2. 요청자가 팀원인지 확인
+        // 1. 요청자가 팀원인지 확인
         teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId)
                 .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
 
-        // 3. 전체 팀원 조회
+        // 2. 전체 팀원 조회
         List<TeamMember> allMembers = teamMemberRepository.findByTeamRoomId(teamRoomId);
 
-        // 4. 투표 완료한 멤버 ID 목록 조회
+        // 5. 투표 완료한 멤버 ID 목록 조회
         List<Long> votedMemberIds = toolVoteRepository.findVotedMemberIds(teamRoomId);
         Set<Long> votedMemberIdSet = new HashSet<>(votedMemberIds);
 
-        // 5. 투표 완료/미완료 분류
+        // 4. 투표 완료/미완료 분류
         List<ToolVoteParticipationResponse.MemberInfo> voted = new ArrayList<>();
         List<ToolVoteParticipationResponse.MemberInfo> notVoted = new ArrayList<>();
 
@@ -295,25 +279,21 @@ public class ToolService {
     public ConfirmedToolsResponse getConfirmedTools(Long teamRoomId, Long userId) {
         log.info("확정된 협업툴 조회 시작 - teamRoomId: {}, userId: {}", teamRoomId, userId);
 
-        // 1. 팀룸 조회
-        TeamRoom teamRoom = teamRoomRepository.findById(teamRoomId)
-                .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
-
-        // 2. 요청자가 팀원인지 확인
+        // 1. 요청자가 팀원인지 확인
         teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId)
                 .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
 
-        // 3. 확정된 협업툴 조회
+        // 2. 확정된 협업툴 조회
         List<TeamTool> teamTools = teamToolRepository.findByTeamRoomId(teamRoomId);
 
-        // 4. 카테고리별로 그룹화
+        // 3. 카테고리별로 그룹화
         Map<Integer, List<Integer>> toolsByCategory = teamTools.stream()
                 .collect(Collectors.groupingBy(
                         TeamTool::getCategoryId,
                         Collectors.mapping(TeamTool::getToolId, Collectors.toList())
                 ));
 
-        // 5. DTO 변환
+        // 4. DTO 변환
         List<ConfirmedToolsResponse.CategoryTools> confirmedTools = toolsByCategory.entrySet().stream()
                 .map(entry -> new ConfirmedToolsResponse.CategoryTools(
                         entry.getKey(),
@@ -334,11 +314,7 @@ public class ToolService {
         log.info("협업툴 삭제 시작 - teamRoomId: {}, teamToolId: {}, userId: {}",
                 teamRoomId, teamToolId, userId);
 
-        // 1. 팀룸 조회
-        TeamRoom teamRoom = teamRoomRepository.findById(teamRoomId)
-                .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
-
-        // 2. 팀장 권한 확인
+        // 1. 팀장 권한 확인
         TeamMember member = teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId)
                 .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
 
@@ -346,12 +322,12 @@ public class ToolService {
             throw new YamoyoException(ErrorCode.NOT_TEAM_MANAGER);
         }
 
-        // 3. 협업툴이 해당 팀룸에 속하는지 확인
+        // 2. 협업툴이 해당 팀룸에 속하는지 확인
         if (!teamToolRepository.existsByIdAndTeamRoomId(teamToolId, teamRoomId)) {
             throw new YamoyoException(ErrorCode.TOOL_NOT_FOUND);
         }
 
-        // 4. 협업툴 삭제
+        // 3. 협업툴 삭제
         teamToolRepository.deleteById(teamToolId);
 
         log.info("협업툴 삭제 완료 - teamToolId: {}", teamToolId);
@@ -365,22 +341,18 @@ public class ToolService {
         log.info("협업툴 제안 시작 - teamRoomId: {}, userId: {}, categoryId: {}, toolIds: {}",
                 teamRoomId, userId, request.categoryId(), request.toolIds());
 
-        // 1. 팀룸 조회
-        TeamRoom teamRoom = teamRoomRepository.findById(teamRoomId)
-                .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
-
-        // 2. 팀원 확인
-        teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId)
+        // 1. 팀원 확인
+        TeamMember member = teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId)
                 .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
 
-        // 3. 제안 다건 생성
+        // 2. 제안 다건 생성
         List<ToolProposal> proposals = request.toolIds().stream()
-                .map(toolId -> ToolProposal.create(teamRoom, request.categoryId(), toolId, userId))
+                .map(toolId -> ToolProposal.create(member.getTeamRoom(), request.categoryId(), toolId, userId))
                 .toList();
 
         toolProposalRepository.saveAll(proposals);
 
-        // 4. 제안 알림 이벤트 발행
+        // 3. 제안 알림 이벤트 발행
         proposals.forEach(proposal ->
                 eventPublisher.publishEvent(NotificationEvent.ofSingle(
                         teamRoomId, proposal.getId(), NotificationType.TOOL_SUGGESTION))
@@ -397,11 +369,7 @@ public class ToolService {
         log.info("제안 승인/반려 시작 - teamRoomId: {}, proposalId: {}, isApproved: {}",
                 teamRoomId, proposalId, request.isApproved());
 
-        // 1. 팀룸 조회
-        TeamRoom teamRoom = teamRoomRepository.findById(teamRoomId)
-                .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
-
-        // 2. 팀장 권한 확인
+        // 1. 팀장 권한 확인
         TeamMember member = teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId)
                 .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
 
@@ -409,22 +377,21 @@ public class ToolService {
             throw new YamoyoException(ErrorCode.NOT_TEAM_MANAGER);
         }
 
-        // 3. 제안 조회
+        // 2. 제안 조회 + 팀룸 소속 확인 (1쿼리)
         ToolProposal proposal = toolProposalRepository.findById(proposalId)
                 .orElseThrow(() -> new YamoyoException(ErrorCode.PROPOSAL_NOT_FOUND));
 
-        // 4. 제안이 해당 팀룸에 속하는지 확인
-        if (!toolProposalRepository.existsByIdAndTeamRoomId(proposalId, teamRoomId)) {
+        if (!proposal.getTeamRoom().getId().equals(teamRoomId)) {
             throw new YamoyoException(ErrorCode.PROPOSAL_NOT_FOUND);
         }
 
-        // 5. 승인/반려 처리
+        // 3. 승인/반려 처리
         proposal.updateApprovalStatus(request.isApproved());
 
-        // 6. 승인 시 확정 테이블에 추가
+        // 4. 승인 시 확정 테이블에 추가
         if (request.isApproved()) {
             TeamTool teamTool = TeamTool.create(
-                    teamRoom,
+                    member.getTeamRoom(),
                     proposal.getCategoryId(),
                     proposal.getToolId()
             );
@@ -456,11 +423,7 @@ public class ToolService {
     public ProposalDetailResponse getProposalDetail(Long teamRoomId, Long proposalId, Long userId) {
         log.info("제안 상세 조회 - teamRoomId: {}, proposalId: {}", teamRoomId, proposalId);
 
-        // 1. 팀룸 조회
-        TeamRoom teamRoom = teamRoomRepository.findById(teamRoomId)
-                .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
-
-        // 2. 팀장 권한 확인
+        // 1. 팀장 권한 확인
         TeamMember member = teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId)
                 .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
 
@@ -468,16 +431,15 @@ public class ToolService {
             throw new YamoyoException(ErrorCode.NOT_TEAM_MANAGER);
         }
 
-        // 3. 제안 조회
+        // 2. 제안 조회 + 팀룸 소속 확인
         ToolProposal proposal = toolProposalRepository.findById(proposalId)
                 .orElseThrow(() -> new YamoyoException(ErrorCode.PROPOSAL_NOT_FOUND));
 
-        // 4. 제안이 해당 팀룸에 속하는지 확인
-        if (!toolProposalRepository.existsByIdAndTeamRoomId(proposalId, teamRoomId)) {
+        if (!proposal.getTeamRoom().getId().equals(teamRoomId)) {
             throw new YamoyoException(ErrorCode.PROPOSAL_NOT_FOUND);
         }
 
-        // 5. 제안자 정보 조회 (1명만)
+        // 3. 제안자 정보 조회 (1명만)
         User proposer = userRepository.findById(proposal.getRequestedBy())
                 .orElseThrow(() -> new YamoyoException(ErrorCode.USER_NOT_FOUND));
 
