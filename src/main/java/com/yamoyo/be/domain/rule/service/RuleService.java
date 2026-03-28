@@ -63,19 +63,16 @@ public class RuleService {
             return; // 이미 확정되었으면 더 처리할 필요 없음
         }
 
-        // 1. 팀룸 조회
-        TeamRoom teamRoom = teamRoomRepository.findById(teamRoomId)
-                .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
-
-        // 2. 팀원 여부 확인
+        // 1. 팀원 여부 확인
         TeamMember member = teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId)
                 .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
+        TeamRoom teamRoom = member.getTeamRoom();
 
-        // 3. 규칙 템플릿 조회
+        // 2. 규칙 템플릿 조회
         RuleTemplate ruleTemplate = ruleTemplateRepository.findById(request.ruleId())
                 .orElseThrow(() -> new YamoyoException(ErrorCode.RULE_NOT_FOUND));
 
-        // 4. 중복 투표 처리 (수정 허용)
+        // 3. 중복 투표 처리 (수정 허용)
         memberRuleVoteRepository.findByTeamRoomIdAndMemberIdAndRuleTemplateId(teamRoomId, member.getId(), request.ruleId())
                 .ifPresentOrElse(
                         // 이미 투표한 경우 → 수정
@@ -104,18 +101,14 @@ public class RuleService {
     public MyRuleVoteResponse getMyRuleVote(Long teamRoomId, Long userId) {
         log.info("내 규칙 투표 여부 조회 - teamRoomId: {}, userId: {}", teamRoomId, userId);
 
-        // 1. 팀룸 조회
-        teamRoomRepository.findById(teamRoomId)
-                .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
-
-        // 2. 팀원 확인
+        // 1. 팀원 확인
         TeamMember member = teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId)
                 .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
 
-        // 3. 전체 규칙 투표 완료 여부 판단
+        // 2. 본인이 전체 규칙 투표 완료했는지 확인
         long totalRules = ruleTemplateRepository.count();
-        List<Long> completedMemberIds = memberRuleVoteRepository.findMemberIdsWhoCompletedAllRules(teamRoomId, totalRules);
-        boolean voted = completedMemberIds.contains(member.getId());
+        long votedRules = memberRuleVoteRepository.countDistinctRulesVotedByMember(teamRoomId, member.getId());
+        boolean voted = votedRules == totalRules;
 
         return new MyRuleVoteResponse(voted);
     }
@@ -127,25 +120,21 @@ public class RuleService {
     public RuleVoteParticipationResponse getRuleVoteParticipation(Long teamRoomId, Long userId) {
         log.info("규칙 투표 참여 현황 조회 시작 - teamRoomId: {}, userId: {}", teamRoomId, userId);
 
-        // 1. 팀룸 조회
-        teamRoomRepository.findById(teamRoomId)
-                .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
-
-        // 2. 요청자가 팀원인지 확인
+        // 1. 요청자가 팀원인지 확인
         teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId)
                 .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
 
-        // 3. 전체 팀원 조회
+        // 2. 전체 팀원 조회
         List<TeamMember> allMembers = teamMemberRepository.findByTeamRoomId(teamRoomId);
 
-        // 4. 투표한 팀원 ID 목록 조회 (중복 제거)
+        // 3. 투표한 팀원 ID 목록 조회 (중복 제거)
         long totalRules = ruleTemplateRepository.count();
 
         Set<Long> completedMemberIds = new HashSet<>(
                 memberRuleVoteRepository.findMemberIdsWhoCompletedAllRules(teamRoomId, totalRules)
         );
 
-        // 5. 투표 완료/미완료 팀원 분류
+        // 4. 투표 완료/미완료 팀원 분류
         List<MemberInfo> voted = new ArrayList<>();
         List<MemberInfo> notVoted = new ArrayList<>();
 
@@ -270,18 +259,14 @@ public class RuleService {
     public TeamRulesResponse getTeamRules(Long teamRoomId, Long userId) {
         log.info("확정된 규칙 조회 시작 - teamRoomId: {}, userId: {}", teamRoomId, userId);
 
-        // 1. 팀룸 조회
-        teamRoomRepository.findById(teamRoomId)
-                .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
-
-        // 2. 요청자가 팀원인지 확인
+        // 1. 요청자가 팀원인지 확인
         teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId)
                 .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
 
-        // 3. 확정된 규칙 조회
+        // 2. 확정된 규칙 조회
         List<TeamRule> teamRules = teamRuleRepository.findByTeamRoomId(teamRoomId);
 
-        // 4. DTO 변환
+        // 3. DTO 변환
         List<TeamRulesResponse.TeamRuleInfo> teamRuleInfos = teamRules.stream()
                 .map(rule -> new TeamRulesResponse.TeamRuleInfo(
                         rule.getId(),
@@ -301,11 +286,7 @@ public class RuleService {
     public void addTeamRule(Long teamRoomId, TeamRuleRequest request, Long userId) {
         log.info("규칙 추가 시작 - teamRoomId: {}, userId: {}", teamRoomId, userId);
 
-        // 1. 팀룸 조회
-        TeamRoom teamRoom = teamRoomRepository.findById(teamRoomId)
-                .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
-
-        // 2. 팀장 권한 확인
+        // 1. 팀장 권한 확인 (TeamRoom fetch join → 1쿼리)
         TeamMember member = teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId)
                 .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
 
@@ -313,8 +294,8 @@ public class RuleService {
             throw new YamoyoException(ErrorCode.NOT_TEAM_MANAGER);
         }
 
-        // 3. 규칙 생성
-        TeamRule teamRule = TeamRule.create(teamRoom, request.content());
+        // 2. 규칙 생성
+        TeamRule teamRule = TeamRule.create(member.getTeamRoom(), request.content());
         teamRuleRepository.save(teamRule);
 
         eventPublisher.publishEvent(NotificationEvent.ofSingle(
