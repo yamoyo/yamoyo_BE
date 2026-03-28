@@ -234,17 +234,16 @@ public class RuleService {
 
         log.info("과반수 달성한 규칙 수: {}", confirmedRuleIds.size());
 
-        // 6. 팀 규칙으로 저장
-        for (Long ruleId : confirmedRuleIds) {
-            RuleTemplate template = ruleTemplateRepository.findById(ruleId)
-                    .orElseThrow(() -> new YamoyoException(ErrorCode.RULE_NOT_FOUND));
+        // 6. 팀 규칙으로 저장 (배치 조회 + 배치 저장)
+        List<RuleTemplate> templates = ruleTemplateRepository.findAllById(confirmedRuleIds);
+        List<TeamRule> teamRules = templates.stream()
+                .map(template -> TeamRule.create(teamRoom, template.getContent()))
+                .toList();
+        teamRuleRepository.saveAll(teamRules);
 
-            TeamRule teamRule = TeamRule.create(teamRoom, template.getContent());
-            teamRuleRepository.save(teamRule);
-
-            log.info("규칙 확정 저장 완료 - ruleId: {}, teamRuleId: {}, content: {}",
-                    ruleId, teamRule.getId(), template.getContent());
-        }
+        teamRules.forEach(teamRule ->
+                log.info("규칙 확정 저장 완료 - teamRuleId: {}, content: {}",
+                        teamRule.getId(), teamRule.getContent()));
 
         // 7. Setup 상태 업데이트
         setup.completeRuleSetup();

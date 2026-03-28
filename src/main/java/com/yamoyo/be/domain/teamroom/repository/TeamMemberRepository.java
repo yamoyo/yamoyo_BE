@@ -43,13 +43,14 @@ public interface TeamMemberRepository extends JpaRepository<TeamMember,Long> {
     long countByTeamRoomId(Long teamRoomId);
 
     /**
-     * 팀룸 전체 멤버 조회 (User 정보 포함)
+     * 팀룸 전체 멤버 조회 (User, TeamRoom 정보 포함)
      * - N+1 문제 방지를 위해 Fetch Join 사용
      */
     @Query("""
     SELECT tm
     FROM TeamMember tm
     JOIN FETCH tm.user
+    JOIN FETCH tm.teamRoom
     WHERE tm.teamRoom.id = :teamRoomId
     """)
     List<TeamMember> findByTeamRoomId(@Param("teamRoomId") Long teamRoomId);
@@ -79,6 +80,18 @@ public interface TeamMemberRepository extends JpaRepository<TeamMember,Long> {
         @Param("teamRoomId") Long teamRoomId,
         @Param("teamRole") TeamRole teamRole
     );
+
+    /**
+     * 여러 팀룸의 멤버를 한 번에 조회 (User 정보 포함)
+     * - 팀룸 목록 조회 시 N+1 방지
+     */
+    @Query("""
+    SELECT tm
+    FROM TeamMember tm
+    JOIN FETCH tm.user
+    WHERE tm.teamRoom.id IN :teamRoomIds
+    """)
+    List<TeamMember> findByTeamRoomIdIn(@Param("teamRoomIds") List<Long> teamRoomIds);
 
     /**
      * 팀룸에 유저 존재하는지 조회

@@ -238,6 +238,8 @@ public class ToolService {
                 .collect(Collectors.groupingBy(MemberToolVote::getCategoryId));
 
         // 4. 각 카테고리별로 Top3 확정 처리
+        List<TeamTool> toolsToSave = new ArrayList<>();
+
         for (Map.Entry<Integer, List<MemberToolVote>> entry : votesByCategory.entrySet()) {
             Integer categoryId = entry.getKey();
             List<MemberToolVote> categoryVotes = entry.getValue();
@@ -266,14 +268,14 @@ public class ToolService {
                     .map(Map.Entry::getKey)
                     .toList();
 
-            // 확정 툴 저장
             for (Integer toolId : confirmedToolIds) {
-                TeamTool teamTool = TeamTool.create(teamRoom, categoryId, toolId);
-                teamToolRepository.save(teamTool);
-
+                toolsToSave.add(TeamTool.create(teamRoom, categoryId, toolId));
                 log.info("협업툴 확정 - categoryId: {}, toolId: {}", categoryId, toolId);
             }
         }
+
+        // 배치 저장
+        teamToolRepository.saveAll(toolsToSave);
 
         // 5. Setup 상태 업데이트
         setup.completeToolSetup();
