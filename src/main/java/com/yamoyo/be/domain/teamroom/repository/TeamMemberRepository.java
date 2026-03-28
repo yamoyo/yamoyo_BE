@@ -31,11 +31,20 @@ public interface TeamMemberRepository extends JpaRepository<TeamMember,Long> {
                                                     @Param("lifecycle") Lifecycle lifecycle);
 
     /**
-     * 팀룸 내 특정 사용자 조회
+     * 팀룸 내 특정 사용자 조회 (User, TeamRoom Fetch Join)
      * - 해당 사용자가 팀원인지 확인
      * - 해당 팀원의 역할 확인
+     * - TeamRoom fetch join으로 teamRoomRepository.findById 중복 쿼리 제거
      */
-    Optional<TeamMember> findByTeamRoomIdAndUserId(Long teamRoomId, Long userId);
+    @Query("""
+    SELECT tm FROM TeamMember tm
+    JOIN FETCH tm.user
+    JOIN FETCH tm.teamRoom
+    WHERE tm.teamRoom.id = :teamRoomId
+      AND tm.user.id = :userId
+    """)
+    Optional<TeamMember> findByTeamRoomIdAndUserId(@Param("teamRoomId") Long teamRoomId,
+                                                   @Param("userId") Long userId);
 
     /**
      * 팀룸 멤버 수 카운트 (12명 정원 체크)
