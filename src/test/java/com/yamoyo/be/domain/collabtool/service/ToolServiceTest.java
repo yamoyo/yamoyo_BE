@@ -34,6 +34,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.BDDMockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -82,16 +83,13 @@ class ToolServiceTest {
                     new ToolVoteRequest.CategoryToolVote(2, List.of(3))
             ));
 
-            TeamRoom teamRoom = mock(TeamRoom.class);
             TeamMember member = mock(TeamMember.class);
-            TeamRoomSetup setup = mock(TeamRoomSetup.class);
-            given(setupRepository.findByTeamRoomId(teamRoomId)).willReturn(Optional.of(setup));
-
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
                     .willReturn(Optional.of(member));
             given(member.getId()).willReturn(1L);
             given(toolVoteRepository.existsByMemberId(1L)).willReturn(false);
+            given(teamMemberRepository.countByTeamRoomId(teamRoomId)).willReturn(5L);
+            given(toolVoteRepository.countVotedMembers(teamRoomId)).willReturn(1L);
 
             // when
             toolService.submitAllToolVotes(teamRoomId, userId, request);
@@ -101,25 +99,7 @@ class ToolServiceTest {
         }
 
         @Test
-        @DisplayName("실패: 팀룸을 찾을 수 없음")
-        void submitAllToolVotes_Fail_TeamRoomNotFound() {
-            // given
-            Long teamRoomId = 1L;
-            Long userId = 1L;
-            ToolVoteRequest request = new ToolVoteRequest(List.of(
-                    new ToolVoteRequest.CategoryToolVote(1, List.of(1, 2))
-            ));
-
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.empty());
-
-            // when & then
-            assertThatThrownBy(() -> toolService.submitAllToolVotes(teamRoomId, userId, request))
-                    .isInstanceOf(YamoyoException.class)
-                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.TEAMROOM_NOT_FOUND);
-        }
-
-        @Test
-        @DisplayName("실패: 팀원이 아님")
+        @DisplayName("실패: 팀원이 아님 (팀룸 없는 경우 포함)")
         void submitAllToolVotes_Fail_NotTeamMember() {
             // given
             Long teamRoomId = 1L;
@@ -128,9 +108,6 @@ class ToolServiceTest {
                     new ToolVoteRequest.CategoryToolVote(1, List.of(1, 2))
             ));
 
-            TeamRoom teamRoom = mock(TeamRoom.class);
-
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
                     .willReturn(Optional.empty());
 
@@ -150,10 +127,7 @@ class ToolServiceTest {
                     new ToolVoteRequest.CategoryToolVote(1, List.of(1, 2))
             ));
 
-            TeamRoom teamRoom = mock(TeamRoom.class);
             TeamMember member = mock(TeamMember.class);
-
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
                     .willReturn(Optional.of(member));
             given(member.getId()).willReturn(1L);
@@ -178,10 +152,7 @@ class ToolServiceTest {
             Long userId = 1L;
             Integer categoryId = 1;
 
-            TeamRoom teamRoom = mock(TeamRoom.class);
             TeamMember member = mock(TeamMember.class);
-
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
                     .willReturn(Optional.of(member));
             given(toolVoteRepository.countVotesByCategory(teamRoomId, categoryId))
@@ -201,32 +172,13 @@ class ToolServiceTest {
         }
 
         @Test
-        @DisplayName("실패: 팀룸을 찾을 수 없음")
-        void getVoteCountByCategory_Fail_TeamRoomNotFound() {
-            // given
-            Long teamRoomId = 1L;
-            Long userId = 1L;
-            Integer categoryId = 1;
-
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.empty());
-
-            // when & then
-            assertThatThrownBy(() -> toolService.getVoteCountByCategory(teamRoomId, userId, categoryId))
-                    .isInstanceOf(YamoyoException.class)
-                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.TEAMROOM_NOT_FOUND);
-        }
-
-        @Test
-        @DisplayName("실패: 팀원이 아님")
+        @DisplayName("실패: 팀원이 아님 (팀룸 없는 경우 포함)")
         void getVoteCountByCategory_Fail_NotTeamMember() {
             // given
             Long teamRoomId = 1L;
             Long userId = 1L;
             Integer categoryId = 1;
 
-            TeamRoom teamRoom = mock(TeamRoom.class);
-
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
                     .willReturn(Optional.empty());
 
@@ -248,7 +200,6 @@ class ToolServiceTest {
             Long teamRoomId = 1L;
             Long userId = 1L;
 
-            TeamRoom teamRoom = mock(TeamRoom.class);
             TeamMember requestMember = mock(TeamMember.class);
 
             User votedUser = mock(User.class);
@@ -257,7 +208,6 @@ class ToolServiceTest {
             User notVotedUser = mock(User.class);
             TeamMember notVotedMember = mock(TeamMember.class);
 
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
                     .willReturn(Optional.of(requestMember));
             given(teamMemberRepository.findByTeamRoomId(teamRoomId))
@@ -288,30 +238,12 @@ class ToolServiceTest {
         }
 
         @Test
-        @DisplayName("실패: 팀룸을 찾을 수 없음")
-        void getVotedMemberParticipation_Fail_TeamRoomNotFound() {
-            // given
-            Long teamRoomId = 1L;
-            Long userId = 1L;
-
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.empty());
-
-            // when & then
-            assertThatThrownBy(() -> toolService.getVotedMemberParticipation(teamRoomId, userId))
-                    .isInstanceOf(YamoyoException.class)
-                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.TEAMROOM_NOT_FOUND);
-        }
-
-        @Test
-        @DisplayName("실패: 팀원이 아님")
+        @DisplayName("실패: 팀원이 아님 (팀룸 없는 경우 포함)")
         void getVotedMemberParticipation_Fail_NotTeamMember() {
             // given
             Long teamRoomId = 1L;
             Long userId = 1L;
 
-            TeamRoom teamRoom = mock(TeamRoom.class);
-
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
                     .willReturn(Optional.empty());
 
@@ -337,9 +269,9 @@ class ToolServiceTest {
             TeamRoom teamRoom = mock(TeamRoom.class);
             TeamMember member = mock(TeamMember.class);
 
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
                     .willReturn(Optional.of(member));
+            given(member.getTeamRoom()).willReturn(teamRoom);
 
             // when
             toolService.proposeTool(teamRoomId, userId, request);
@@ -350,32 +282,13 @@ class ToolServiceTest {
         }
 
         @Test
-        @DisplayName("실패: 팀룸을 찾을 수 없음")
-        void proposeTool_Fail_TeamRoomNotFound() {
-            // given
-            Long teamRoomId = 1L;
-            Long userId = 1L;
-            ProposeToolRequest request = new ProposeToolRequest(1, List.of(5));
-
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.empty());
-
-            // when & then
-            assertThatThrownBy(() -> toolService.proposeTool(teamRoomId, userId, request))
-                    .isInstanceOf(YamoyoException.class)
-                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.TEAMROOM_NOT_FOUND);
-        }
-
-        @Test
-        @DisplayName("실패: 팀원이 아님")
+        @DisplayName("실패: 팀원이 아님 (팀룸 없는 경우 포함)")
         void proposeTool_Fail_NotTeamMember() {
             // given
             Long teamRoomId = 1L;
             Long userId = 1L;
             ProposeToolRequest request = new ProposeToolRequest(1, List.of(5));
 
-            TeamRoom teamRoom = mock(TeamRoom.class);
-
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
                     .willReturn(Optional.empty());
 
@@ -403,12 +316,13 @@ class ToolServiceTest {
             TeamMember member = mock(TeamMember.class);
             ToolProposal proposal = mock(ToolProposal.class);
 
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
                     .willReturn(Optional.of(member));
             given(member.hasManagementAuthority()).willReturn(true);
+            given(member.getTeamRoom()).willReturn(teamRoom);
             given(toolProposalRepository.findById(proposalId)).willReturn(Optional.of(proposal));
-            given(toolProposalRepository.existsByIdAndTeamRoomId(proposalId, teamRoomId)).willReturn(true);
+            given(proposal.getTeamRoom()).willReturn(teamRoom);
+            given(teamRoom.getId()).willReturn(teamRoomId);
             given(proposal.getCategoryId()).willReturn(1);
             given(proposal.getToolId()).willReturn(5);
             given(toolProposalRepository.findPendingByCategoryAndTool(teamRoomId, 1, 5, proposalId))
@@ -437,12 +351,13 @@ class ToolServiceTest {
             ToolProposal duplicateProposal1 = mock(ToolProposal.class);
             ToolProposal duplicateProposal2 = mock(ToolProposal.class);
 
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
                     .willReturn(Optional.of(member));
             given(member.hasManagementAuthority()).willReturn(true);
+            given(member.getTeamRoom()).willReturn(teamRoom);
             given(toolProposalRepository.findById(proposalId)).willReturn(Optional.of(proposal));
-            given(toolProposalRepository.existsByIdAndTeamRoomId(proposalId, teamRoomId)).willReturn(true);
+            given(proposal.getTeamRoom()).willReturn(teamRoom);
+            given(teamRoom.getId()).willReturn(teamRoomId);
             given(proposal.getCategoryId()).willReturn(1);
             given(proposal.getToolId()).willReturn(5);
             given(toolProposalRepository.findPendingByCategoryAndTool(teamRoomId, 1, 5, proposalId))
@@ -471,12 +386,12 @@ class ToolServiceTest {
             TeamMember member = mock(TeamMember.class);
             ToolProposal proposal = mock(ToolProposal.class);
 
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
                     .willReturn(Optional.of(member));
             given(member.hasManagementAuthority()).willReturn(true);
             given(toolProposalRepository.findById(proposalId)).willReturn(Optional.of(proposal));
-            given(toolProposalRepository.existsByIdAndTeamRoomId(proposalId, teamRoomId)).willReturn(true);
+            given(proposal.getTeamRoom()).willReturn(teamRoom);
+            given(teamRoom.getId()).willReturn(teamRoomId);
 
             // when
             toolService.approveOrRejectProposal(teamRoomId, proposalId, userId, request);
@@ -487,24 +402,7 @@ class ToolServiceTest {
         }
 
         @Test
-        @DisplayName("실패: 팀룸을 찾을 수 없음")
-        void approveOrRejectProposal_Fail_TeamRoomNotFound() {
-            // given
-            Long teamRoomId = 1L;
-            Long proposalId = 1L;
-            Long userId = 1L;
-            ApproveProposalRequest request = new ApproveProposalRequest(true);
-
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.empty());
-
-            // when & then
-            assertThatThrownBy(() -> toolService.approveOrRejectProposal(teamRoomId, proposalId, userId, request))
-                    .isInstanceOf(YamoyoException.class)
-                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.TEAMROOM_NOT_FOUND);
-        }
-
-        @Test
-        @DisplayName("실패: 팀원이 아님")
+        @DisplayName("실패: 팀원이 아님 (팀룸 없는 경우 포함)")
         void approveOrRejectProposal_Fail_NotTeamMember() {
             // given
             Long teamRoomId = 1L;
@@ -512,9 +410,6 @@ class ToolServiceTest {
             Long userId = 1L;
             ApproveProposalRequest request = new ApproveProposalRequest(true);
 
-            TeamRoom teamRoom = mock(TeamRoom.class);
-
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
                     .willReturn(Optional.empty());
 
@@ -533,10 +428,8 @@ class ToolServiceTest {
             Long userId = 1L;
             ApproveProposalRequest request = new ApproveProposalRequest(true);
 
-            TeamRoom teamRoom = mock(TeamRoom.class);
             TeamMember member = mock(TeamMember.class);
 
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
                     .willReturn(Optional.of(member));
             given(member.hasManagementAuthority()).willReturn(false);
@@ -556,10 +449,8 @@ class ToolServiceTest {
             Long userId = 1L;
             ApproveProposalRequest request = new ApproveProposalRequest(true);
 
-            TeamRoom teamRoom = mock(TeamRoom.class);
             TeamMember member = mock(TeamMember.class);
 
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
                     .willReturn(Optional.of(member));
             given(member.hasManagementAuthority()).willReturn(true);
@@ -580,16 +471,16 @@ class ToolServiceTest {
             Long userId = 1L;
             ApproveProposalRequest request = new ApproveProposalRequest(true);
 
-            TeamRoom teamRoom = mock(TeamRoom.class);
+            TeamRoom otherTeamRoom = mock(TeamRoom.class);
             TeamMember member = mock(TeamMember.class);
             ToolProposal proposal = mock(ToolProposal.class);
 
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
                     .willReturn(Optional.of(member));
             given(member.hasManagementAuthority()).willReturn(true);
             given(toolProposalRepository.findById(proposalId)).willReturn(Optional.of(proposal));
-            given(toolProposalRepository.existsByIdAndTeamRoomId(proposalId, teamRoomId)).willReturn(false);
+            given(proposal.getTeamRoom()).willReturn(otherTeamRoom);
+            given(otherTeamRoom.getId()).willReturn(999L);
 
             // when & then
             assertThatThrownBy(() -> toolService.approveOrRejectProposal(teamRoomId, proposalId, userId, request))
@@ -616,12 +507,12 @@ class ToolServiceTest {
             ToolProposal proposal = mock(ToolProposal.class);
             User proposer = mock(User.class);
 
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
                     .willReturn(Optional.of(member));
             given(member.hasManagementAuthority()).willReturn(true);
             given(toolProposalRepository.findById(proposalId)).willReturn(Optional.of(proposal));
-            given(toolProposalRepository.existsByIdAndTeamRoomId(proposalId, teamRoomId)).willReturn(true);
+            given(proposal.getTeamRoom()).willReturn(teamRoom);
+            given(teamRoom.getId()).willReturn(teamRoomId);
             given(proposal.getRequestedBy()).willReturn(proposerId);
             given(userRepository.findById(proposerId)).willReturn(Optional.of(proposer));
 
@@ -634,32 +525,13 @@ class ToolServiceTest {
         }
 
         @Test
-        @DisplayName("실패: 팀룸을 찾을 수 없음")
-        void getProposalDetail_Fail_TeamRoomNotFound() {
-            // given
-            Long teamRoomId = 1L;
-            Long proposalId = 1L;
-            Long userId = 1L;
-
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.empty());
-
-            // when & then
-            assertThatThrownBy(() -> toolService.getProposalDetail(teamRoomId, proposalId, userId))
-                    .isInstanceOf(YamoyoException.class)
-                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.TEAMROOM_NOT_FOUND);
-        }
-
-        @Test
-        @DisplayName("실패: 팀원이 아님")
+        @DisplayName("실패: 팀원이 아님 (팀룸 없는 경우 포함)")
         void getProposalDetail_Fail_NotTeamMember() {
             // given
             Long teamRoomId = 1L;
             Long proposalId = 1L;
             Long userId = 1L;
 
-            TeamRoom teamRoom = mock(TeamRoom.class);
-
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
                     .willReturn(Optional.empty());
 
@@ -677,10 +549,8 @@ class ToolServiceTest {
             Long proposalId = 1L;
             Long userId = 1L;
 
-            TeamRoom teamRoom = mock(TeamRoom.class);
             TeamMember member = mock(TeamMember.class);
 
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
                     .willReturn(Optional.of(member));
             given(member.hasManagementAuthority()).willReturn(false);
@@ -699,10 +569,8 @@ class ToolServiceTest {
             Long proposalId = 1L;
             Long userId = 1L;
 
-            TeamRoom teamRoom = mock(TeamRoom.class);
             TeamMember member = mock(TeamMember.class);
 
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
                     .willReturn(Optional.of(member));
             given(member.hasManagementAuthority()).willReturn(true);
@@ -722,16 +590,16 @@ class ToolServiceTest {
             Long proposalId = 1L;
             Long userId = 1L;
 
-            TeamRoom teamRoom = mock(TeamRoom.class);
+            TeamRoom otherTeamRoom = mock(TeamRoom.class);
             TeamMember member = mock(TeamMember.class);
             ToolProposal proposal = mock(ToolProposal.class);
 
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
                     .willReturn(Optional.of(member));
             given(member.hasManagementAuthority()).willReturn(true);
             given(toolProposalRepository.findById(proposalId)).willReturn(Optional.of(proposal));
-            given(toolProposalRepository.existsByIdAndTeamRoomId(proposalId, teamRoomId)).willReturn(false);
+            given(proposal.getTeamRoom()).willReturn(otherTeamRoom);
+            given(otherTeamRoom.getId()).willReturn(999L);
 
             // when & then
             assertThatThrownBy(() -> toolService.getProposalDetail(teamRoomId, proposalId, userId))
@@ -752,12 +620,12 @@ class ToolServiceTest {
             TeamMember member = mock(TeamMember.class);
             ToolProposal proposal = mock(ToolProposal.class);
 
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
                     .willReturn(Optional.of(member));
             given(member.hasManagementAuthority()).willReturn(true);
             given(toolProposalRepository.findById(proposalId)).willReturn(Optional.of(proposal));
-            given(toolProposalRepository.existsByIdAndTeamRoomId(proposalId, teamRoomId)).willReturn(true);
+            given(proposal.getTeamRoom()).willReturn(teamRoom);
+            given(teamRoom.getId()).willReturn(teamRoomId);
             given(proposal.getRequestedBy()).willReturn(proposerId);
             given(userRepository.findById(proposerId)).willReturn(Optional.empty());
 

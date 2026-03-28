@@ -38,8 +38,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
@@ -75,7 +74,10 @@ class TeamRoomServiceTest {
     // ==================== 공통 헬퍼 메서드 ====================
 
     private User createMockUser(Long userId, String email, String name) {
-        User user = User.create(email, name);
+        User user = mock(User.class);
+        given(user.getId()).willReturn(userId);
+        given(user.getName()).willReturn(name);
+        given(user.getProfileImageId()).willReturn(null);
         return user;
     }
 
@@ -401,10 +403,8 @@ class TeamRoomServiceTest {
 
             given(teamMemberRepository.findTeamRoomsByUserIdAndLifecycle(userId, lifecycle))
                     .willReturn(Arrays.asList(teamRoom1, teamRoom2));
-            given(teamMemberRepository.findByTeamRoomId(10L))
-                    .willReturn(Arrays.asList(member1));
-            given(teamMemberRepository.findByTeamRoomId(20L))
-                    .willReturn(Arrays.asList(member2));
+            given(teamMemberRepository.findByTeamRoomIdIn(anyList()))
+                    .willReturn(Arrays.asList(member1, member2));
 
             // when
             List<TeamRoomListResponse> response = teamRoomService.getTeamRoomList(userId, lifecycle);
@@ -416,7 +416,7 @@ class TeamRoomServiceTest {
             assertThat(response.get(1).teamRoomId()).isEqualTo(20L);
 
             verify(teamMemberRepository).findTeamRoomsByUserIdAndLifecycle(userId, lifecycle);
-            verify(teamMemberRepository, times(2)).findByTeamRoomId(anyLong());
+            verify(teamMemberRepository).findByTeamRoomIdIn(anyList());
         }
     }
 
@@ -436,10 +436,7 @@ class TeamRoomServiceTest {
             User user = createMockUser(userId, "test@example.com", "테스트유저");
             TeamRoom teamRoom = createMockTeamRoom(teamRoomId, "팀룸 제목");
             TeamMember myMember = createMockTeamMember(1L, teamRoom, user, TeamRole.MEMBER);
-            
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
-            given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
-                    .willReturn(Optional.of(myMember));
+
             given(teamMemberRepository.findByTeamRoomId(teamRoomId))
                     .willReturn(Arrays.asList(myMember));
 
@@ -452,9 +449,9 @@ class TeamRoomServiceTest {
             assertThat(response.title()).isEqualTo("팀룸 제목");
             assertThat(response.myRole()).isEqualTo(TeamRole.MEMBER);
 
-            verify(teamRoomRepository).findById(teamRoomId);
-            verify(teamMemberRepository).findByTeamRoomIdAndUserId(teamRoomId, userId);
             verify(teamMemberRepository).findByTeamRoomId(teamRoomId);
+            verify(teamRoomRepository, never()).findById(anyLong());
+            verify(teamMemberRepository, never()).findByTeamRoomIdAndUserId(anyLong(), anyLong());
         }
 
         @Test
@@ -465,19 +462,20 @@ class TeamRoomServiceTest {
             Long teamRoomId = 10L;
 
             TeamRoom teamRoom = createMockTeamRoom(teamRoomId, "팀룸 제목");
+            User otherUser = createMockUser(999L, "other@example.com", "다른유저");
+            TeamMember otherMember = createMockTeamMember(2L, teamRoom, otherUser, TeamRole.MEMBER);
 
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
-            given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
-                    .willReturn(Optional.empty());
+            given(teamMemberRepository.findByTeamRoomId(teamRoomId))
+                    .willReturn(Arrays.asList(otherMember));
 
             // when / then
             assertThatThrownBy(() -> teamRoomService.getTeamRoomDetail(teamRoomId, userId))
                     .isInstanceOf(YamoyoException.class)
                     .hasMessageContaining(ErrorCode.NOT_TEAM_MEMBER.getMessage());
 
-            verify(teamRoomRepository).findById(teamRoomId);
-            verify(teamMemberRepository).findByTeamRoomIdAndUserId(teamRoomId, userId);
-            verify(teamMemberRepository, never()).findByTeamRoomId(anyLong());
+            verify(teamMemberRepository).findByTeamRoomId(teamRoomId);
+            verify(teamRoomRepository, never()).findById(anyLong());
+            verify(teamMemberRepository, never()).findByTeamRoomIdAndUserId(anyLong(), anyLong());
         }
 
         @Test
@@ -507,9 +505,6 @@ class TeamRoomServiceTest {
             TeamRoomSetup setup = mock(TeamRoomSetup.class);
             given(setup.getCreatedAt()).willReturn(setupCreatedAt);
 
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
-            given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
-                    .willReturn(Optional.of(myMember));
             given(teamMemberRepository.findByTeamRoomId(teamRoomId))
                     .willReturn(Arrays.asList(myMember));
             given(setupRepository.findByTeamRoomId(teamRoomId))
@@ -524,10 +519,10 @@ class TeamRoomServiceTest {
             assertThat(response.workflow()).isEqualTo(Workflow.SETUP);
             assertThat(response.setupCreatedAt()).isEqualTo(setupCreatedAt);
 
-            verify(teamRoomRepository).findById(teamRoomId);
-            verify(teamMemberRepository).findByTeamRoomIdAndUserId(teamRoomId, userId);
             verify(teamMemberRepository).findByTeamRoomId(teamRoomId);
             verify(setupRepository).findByTeamRoomId(teamRoomId);
+            verify(teamRoomRepository, never()).findById(anyLong());
+            verify(teamMemberRepository, never()).findByTeamRoomIdAndUserId(anyLong(), anyLong());
         }
 
         @Test
@@ -541,9 +536,6 @@ class TeamRoomServiceTest {
             TeamRoom teamRoom = createMockTeamRoom(teamRoomId, "팀룸 제목"); // Workflow.PENDING
             TeamMember myMember = createMockTeamMember(1L, teamRoom, user, TeamRole.MEMBER);
 
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
-            given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
-                    .willReturn(Optional.of(myMember));
             given(teamMemberRepository.findByTeamRoomId(teamRoomId))
                     .willReturn(Arrays.asList(myMember));
 
@@ -556,10 +548,10 @@ class TeamRoomServiceTest {
             assertThat(response.workflow()).isEqualTo(Workflow.PENDING);
             assertThat(response.setupCreatedAt()).isNull();
 
-            verify(teamRoomRepository).findById(teamRoomId);
-            verify(teamMemberRepository).findByTeamRoomIdAndUserId(teamRoomId, userId);
             verify(teamMemberRepository).findByTeamRoomId(teamRoomId);
             verify(setupRepository, never()).findByTeamRoomId(anyLong());
+            verify(teamRoomRepository, never()).findById(anyLong());
+            verify(teamMemberRepository, never()).findByTeamRoomIdAndUserId(anyLong(), anyLong());
         }
     }
 
