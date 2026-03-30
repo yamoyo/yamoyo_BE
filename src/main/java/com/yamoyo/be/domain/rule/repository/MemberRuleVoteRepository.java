@@ -33,7 +33,7 @@ public interface MemberRuleVoteRepository extends JpaRepository<MemberRuleVote, 
                                                    @Param("memberIds") List<Long> memberIds);
 
 
-    /** 팀룸에서 투표 완료한 팀원 수 */
+    /** 팀룸에서 투표 완료한 팀원 ID 목록 (전원 완료 여부 집계용) */
     @Query("""
         SELECT v.member.id
         FROM MemberRuleVote v
@@ -43,5 +43,15 @@ public interface MemberRuleVoteRepository extends JpaRepository<MemberRuleVote, 
     """)
     List<Long> findMemberIdsWhoCompletedAllRules(@Param("teamRoomId") Long teamRoomId,
                                                  @Param("totalRules") long totalRules);
+
+    /** 특정 팀원이 투표한 규칙 수 (본인 투표 완료 여부 확인용) */
+    @Query("""
+        SELECT COUNT(DISTINCT v.ruleTemplate.id)
+        FROM MemberRuleVote v
+        WHERE v.teamRoom.id = :teamRoomId
+          AND v.member.id = :memberId
+    """)
+    long countDistinctRulesVotedByMember(@Param("teamRoomId") Long teamRoomId,
+                                         @Param("memberId") Long memberId);
 
 }

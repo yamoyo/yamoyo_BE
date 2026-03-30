@@ -26,13 +26,14 @@ public interface TeamRoomSetupRepository extends JpaRepository<TeamRoomSetup, Lo
     /**
      * 마감 시각이 지난 Setup 조회 (스케줄러용)
      * - 협업툴, 규칙, 정기회의 중 미완료된 항목이 있는 경우만 조회
+     * - TeamRoom fetch join으로 N+1 방지
      */
-    @Query(value = """
-        SELECT s.*
-        FROM team_room_setups s
+    @Query("""
+        SELECT s FROM TeamRoomSetup s
+        JOIN FETCH s.teamRoom
         WHERE s.deadline < :now
-        AND (s.tool_completed = 0 OR s.rule_completed = 0 OR s.meeting_completed = 0)
-        """, nativeQuery = true)
+        AND (s.toolCompleted = false OR s.ruleCompleted = false OR s.meetingCompleted = false)
+        """)
     List<TeamRoomSetup> findExpiredSetups(@Param("now") LocalDateTime now);
 
     /**

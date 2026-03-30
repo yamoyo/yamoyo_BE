@@ -29,7 +29,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -37,6 +36,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.BDDMockito.*;
 import static org.mockito.Mockito.times;
 
@@ -86,20 +86,20 @@ class RuleServiceTest {
             TeamMember member = mock(TeamMember.class);
             RuleTemplate ruleTemplate = mock(RuleTemplate.class);
 
-            // submitRuleVote 시작 시 setup 조회 및 체크
             given(setupRepository.findByTeamRoomIdForUpdate(teamRoomId))
                     .willReturn(Optional.of(setup));
             given(setup.isRuleCompleted()).willReturn(false);
 
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
                     .willReturn(Optional.of(member));
             given(member.getId()).willReturn(1L);
+            given(member.getTeamRoom()).willReturn(teamRoom);
             given(ruleTemplateRepository.findById(ruleId)).willReturn(Optional.of(ruleTemplate));
             given(memberRuleVoteRepository.findByTeamRoomIdAndMemberIdAndRuleTemplateId(teamRoomId, 1L, ruleId))
                     .willReturn(Optional.empty());
 
             // confirmRules 호출 시 필요한 mock (전원 완료 아님)
+            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.countByTeamRoomId(teamRoomId)).willReturn(5L);
             given(ruleTemplateRepository.count()).willReturn(10L);
             given(memberRuleVoteRepository.findMemberIdsWhoCompletedAllRules(teamRoomId, 10L))
@@ -127,21 +127,21 @@ class RuleServiceTest {
             RuleTemplate ruleTemplate = mock(RuleTemplate.class);
             MemberRuleVote existingVote = mock(MemberRuleVote.class);
 
-            // submitRuleVote 시작 시 setup 조회 및 체크
             given(setupRepository.findByTeamRoomIdForUpdate(teamRoomId))
                     .willReturn(Optional.of(setup));
             given(setup.isRuleCompleted()).willReturn(false);
 
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
                     .willReturn(Optional.of(member));
             given(member.getId()).willReturn(1L);
+            given(member.getTeamRoom()).willReturn(teamRoom);
             given(ruleTemplateRepository.findById(ruleId)).willReturn(Optional.of(ruleTemplate));
             given(memberRuleVoteRepository.findByTeamRoomIdAndMemberIdAndRuleTemplateId(teamRoomId, 1L, ruleId))
                     .willReturn(Optional.of(existingVote));
             given(existingVote.getId()).willReturn(1L);
 
             // confirmRules 호출 시 필요한 mock (전원 완료 아님)
+            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.countByTeamRoomId(teamRoomId)).willReturn(5L);
             given(ruleTemplateRepository.count()).willReturn(10L);
             given(memberRuleVoteRepository.findMemberIdsWhoCompletedAllRules(teamRoomId, 10L))
@@ -190,33 +190,11 @@ class RuleServiceTest {
             ruleService.submitRuleVote(teamRoomId, request, userId);
 
             // then
-            then(teamRoomRepository).should(never()).findById(any());
             then(memberRuleVoteRepository).should(never()).save(any());
         }
 
         @Test
-        @DisplayName("실패: 팀룸을 찾을 수 없음")
-        void submitRuleVote_Fail_TeamRoomNotFound() {
-            // given
-            Long teamRoomId = 1L;
-            Long userId = 1L;
-            RuleVoteRequest request = new RuleVoteRequest(1L, true);
-
-            TeamRoomSetup setup = mock(TeamRoomSetup.class);
-
-            given(setupRepository.findByTeamRoomIdForUpdate(teamRoomId))
-                    .willReturn(Optional.of(setup));
-            given(setup.isRuleCompleted()).willReturn(false);
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.empty());
-
-            // when & then
-            assertThatThrownBy(() -> ruleService.submitRuleVote(teamRoomId, request, userId))
-                    .isInstanceOf(YamoyoException.class)
-                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.TEAMROOM_NOT_FOUND);
-        }
-
-        @Test
-        @DisplayName("실패: 팀원이 아님")
+        @DisplayName("실패: 팀원이 아님 (팀룸 없는 경우 포함)")
         void submitRuleVote_Fail_NotTeamMember() {
             // given
             Long teamRoomId = 1L;
@@ -224,12 +202,10 @@ class RuleServiceTest {
             RuleVoteRequest request = new RuleVoteRequest(1L, true);
 
             TeamRoomSetup setup = mock(TeamRoomSetup.class);
-            TeamRoom teamRoom = mock(TeamRoom.class);
 
             given(setupRepository.findByTeamRoomIdForUpdate(teamRoomId))
                     .willReturn(Optional.of(setup));
             given(setup.isRuleCompleted()).willReturn(false);
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
                     .willReturn(Optional.empty());
 
@@ -249,13 +225,11 @@ class RuleServiceTest {
             RuleVoteRequest request = new RuleVoteRequest(ruleId, true);
 
             TeamRoomSetup setup = mock(TeamRoomSetup.class);
-            TeamRoom teamRoom = mock(TeamRoom.class);
             TeamMember member = mock(TeamMember.class);
 
             given(setupRepository.findByTeamRoomIdForUpdate(teamRoomId))
                     .willReturn(Optional.of(setup));
             given(setup.isRuleCompleted()).willReturn(false);
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
                     .willReturn(Optional.of(member));
             given(ruleTemplateRepository.findById(ruleId)).willReturn(Optional.empty());
@@ -279,40 +253,40 @@ class RuleServiceTest {
             TeamRoom teamRoom = mock(TeamRoom.class);
             TeamMember member = mock(TeamMember.class);
             RuleTemplate ruleTemplate = mock(RuleTemplate.class);
-            RuleTemplate ruleTemplate2 = mock(RuleTemplate.class);
+            RuleTemplate confirmedTemplate = mock(RuleTemplate.class);
 
-            // submitRuleVote 시작 시 setup 조회 및 체크
             given(setupRepository.findByTeamRoomIdForUpdate(teamRoomId))
                     .willReturn(Optional.of(setup));
             given(setup.isRuleCompleted()).willReturn(false);
 
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
                     .willReturn(Optional.of(member));
             given(member.getId()).willReturn(1L);
+            given(member.getTeamRoom()).willReturn(teamRoom);
             given(ruleTemplateRepository.findById(ruleId)).willReturn(Optional.of(ruleTemplate));
             given(memberRuleVoteRepository.findByTeamRoomIdAndMemberIdAndRuleTemplateId(teamRoomId, 1L, ruleId))
                     .willReturn(Optional.empty());
 
             // confirmRules 호출 시 - 전원 완료
+            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.countByTeamRoomId(teamRoomId)).willReturn(5L);
             given(ruleTemplateRepository.count()).willReturn(10L);
             given(memberRuleVoteRepository.findMemberIdsWhoCompletedAllRules(teamRoomId, 10L))
-                    .willReturn(List.of(1L, 2L, 3L, 4L, 5L)); // 전원 완료
+                    .willReturn(List.of(1L, 2L, 3L, 4L, 5L));
 
             // 규칙별 동의 득표 수: 규칙1=4표 (과반수 달성)
             List<Object[]> agreeCountResults = Collections.singletonList(new Object[]{1L, 4L});
             given(memberRuleVoteRepository.countAgreeVotesByRuleForMembers(teamRoomId, List.of(1L, 2L, 3L, 4L, 5L)))
                     .willReturn(agreeCountResults);
-            given(ruleTemplateRepository.findById(1L)).willReturn(Optional.of(ruleTemplate2));
-            given(ruleTemplate2.getContent()).willReturn("규칙 내용");
+            given(ruleTemplateRepository.findAllById(anyList())).willReturn(List.of(confirmedTemplate));
+            given(confirmedTemplate.getContent()).willReturn("규칙 내용");
 
             // when
             ruleService.submitRuleVote(teamRoomId, request, userId);
 
             // then
             then(memberRuleVoteRepository).should().save(any(MemberRuleVote.class));
-            then(teamRuleRepository).should().save(any(TeamRule.class));
+            then(teamRuleRepository).should().saveAll(anyList());
             then(setup).should().completeRuleSetup();
             then(eventPublisher).should().publishEvent(any(NotificationEvent.class));
         }
@@ -338,10 +312,9 @@ class RuleServiceTest {
             given(teamMemberRepository.countByTeamRoomId(teamRoomId)).willReturn(5L);
             given(ruleTemplateRepository.count()).willReturn(10L);
             given(memberRuleVoteRepository.findMemberIdsWhoCompletedAllRules(teamRoomId, 10L))
-                    .willReturn(List.of(1L, 2L, 3L, 4L, 5L)); // 전원 완료
+                    .willReturn(List.of(1L, 2L, 3L, 4L, 5L));
 
-            // 규칙별 동의 득표 수: 규칙1=4표, 규칙2=2표
-            // 과반수 기준: (5/2)+1=3표
+            // 규칙별 동의 득표 수: 규칙1=4표, 규칙2=2표 / 과반수 기준: (5/2)+1=3표
             List<Object[]> agreeCountResults = Arrays.asList(
                     new Object[]{1L, 4L},  // 규칙1: 4표 (과반수 달성)
                     new Object[]{2L, 2L}   // 규칙2: 2표 (과반수 미달)
@@ -349,14 +322,14 @@ class RuleServiceTest {
             given(memberRuleVoteRepository.countAgreeVotesByRuleForMembers(
                     teamRoomId, List.of(1L, 2L, 3L, 4L, 5L)))
                     .willReturn(agreeCountResults);
-            given(ruleTemplateRepository.findById(1L)).willReturn(Optional.of(ruleTemplate1));
+            given(ruleTemplateRepository.findAllById(anyList())).willReturn(List.of(ruleTemplate1));
             given(ruleTemplate1.getContent()).willReturn("규칙1 내용");
 
             // when
             ruleService.confirmRules(teamRoomId);
 
             // then
-            then(teamRuleRepository).should(times(1)).save(any(TeamRule.class));
+            then(teamRuleRepository).should(times(1)).saveAll(anyList());
             then(setup).should().completeRuleSetup();
             then(eventPublisher).should().publishEvent(any(NotificationEvent.class));
         }
@@ -390,13 +363,13 @@ class RuleServiceTest {
             given(teamMemberRepository.countByTeamRoomId(teamRoomId)).willReturn(5L);
             given(ruleTemplateRepository.count()).willReturn(10L);
             given(memberRuleVoteRepository.findMemberIdsWhoCompletedAllRules(teamRoomId, 10L))
-                    .willReturn(List.of(1L, 2L)); // 2명만 완료
+                    .willReturn(List.of(1L, 2L));
 
             // when
             ruleService.confirmRules(teamRoomId);
 
             // then
-            then(teamRuleRepository).should(never()).save(any());
+            then(teamRuleRepository).should(never()).saveAll(any());
             then(setup).should(never()).completeRuleSetup();
         }
     }
@@ -412,7 +385,6 @@ class RuleServiceTest {
             Long teamRoomId = 1L;
             Long userId = 1L;
 
-            TeamRoom teamRoom = mock(TeamRoom.class);
             TeamMember requestMember = mock(TeamMember.class);
 
             User votedUser = mock(User.class);
@@ -421,16 +393,14 @@ class RuleServiceTest {
             User notVotedUser = mock(User.class);
             TeamMember notVotedMember = mock(TeamMember.class);
 
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
                     .willReturn(Optional.of(requestMember));
             given(teamMemberRepository.findByTeamRoomId(teamRoomId))
                     .willReturn(List.of(votedMember, notVotedMember));
 
-            // 투표 완료 판단: 모든 규칙(10개)에 투표 완료한 팀원만
             given(ruleTemplateRepository.count()).willReturn(10L);
             given(memberRuleVoteRepository.findMemberIdsWhoCompletedAllRules(teamRoomId, 10L))
-                    .willReturn(List.of(1L)); // votedMember.getId()
+                    .willReturn(List.of(1L));
 
             given(votedMember.getId()).willReturn(1L);
             given(votedMember.getUser()).willReturn(votedUser);
@@ -455,18 +425,19 @@ class RuleServiceTest {
         }
 
         @Test
-        @DisplayName("실패: 팀룸을 찾을 수 없음")
-        void getRuleVoteParticipation_Fail_TeamRoomNotFound() {
+        @DisplayName("실패: 팀원이 아님 (팀룸 없는 경우 포함)")
+        void getRuleVoteParticipation_Fail_NotTeamMember() {
             // given
             Long teamRoomId = 1L;
             Long userId = 1L;
 
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.empty());
+            given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
+                    .willReturn(Optional.empty());
 
             // when & then
             assertThatThrownBy(() -> ruleService.getRuleVoteParticipation(teamRoomId, userId))
                     .isInstanceOf(YamoyoException.class)
-                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.TEAMROOM_NOT_FOUND);
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.NOT_TEAM_MEMBER);
         }
     }
 
@@ -481,12 +452,10 @@ class RuleServiceTest {
             Long teamRoomId = 1L;
             Long userId = 1L;
 
-            TeamRoom teamRoom = mock(TeamRoom.class);
             TeamMember member = mock(TeamMember.class);
             TeamRule rule1 = mock(TeamRule.class);
             TeamRule rule2 = mock(TeamRule.class);
 
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
                     .willReturn(Optional.of(member));
             given(teamRuleRepository.findByTeamRoomId(teamRoomId))
@@ -520,10 +489,10 @@ class RuleServiceTest {
             TeamRoom teamRoom = mock(TeamRoom.class);
             TeamMember leader = mock(TeamMember.class);
 
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
                     .willReturn(Optional.of(leader));
             given(leader.hasManagementAuthority()).willReturn(true);
+            given(leader.getTeamRoom()).willReturn(teamRoom);
 
             // when
             ruleService.addTeamRule(teamRoomId, request, userId);
@@ -541,10 +510,8 @@ class RuleServiceTest {
             Long userId = 1L;
             TeamRuleRequest request = new TeamRuleRequest("새로운 규칙");
 
-            TeamRoom teamRoom = mock(TeamRoom.class);
             TeamMember member = mock(TeamMember.class);
 
-            given(teamRoomRepository.findById(teamRoomId)).willReturn(Optional.of(teamRoom));
             given(teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId))
                     .willReturn(Optional.of(member));
             given(member.hasManagementAuthority()).willReturn(false);
@@ -659,7 +626,7 @@ class RuleServiceTest {
             given(leader.hasManagementAuthority()).willReturn(true);
             given(teamRuleRepository.findById(teamRuleId)).willReturn(Optional.of(teamRule));
             given(teamRule.getTeamRoom()).willReturn(teamRoom);
-            given(teamRoom.getId()).willReturn(999L); // 다른 팀룸
+            given(teamRoom.getId()).willReturn(999L);
 
             // when & then
             assertThatThrownBy(() -> ruleService.deleteTeamRule(teamRoomId, teamRuleId, userId))

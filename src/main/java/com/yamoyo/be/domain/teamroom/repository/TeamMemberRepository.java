@@ -31,11 +31,20 @@ public interface TeamMemberRepository extends JpaRepository<TeamMember,Long> {
                                                     @Param("lifecycle") Lifecycle lifecycle);
 
     /**
-     * 팀룸 내 특정 사용자 조회
+     * 팀룸 내 특정 사용자 조회 (User, TeamRoom Fetch Join)
      * - 해당 사용자가 팀원인지 확인
      * - 해당 팀원의 역할 확인
+     * - TeamRoom fetch join으로 teamRoomRepository.findById 중복 쿼리 제거
      */
-    Optional<TeamMember> findByTeamRoomIdAndUserId(Long teamRoomId, Long userId);
+    @Query("""
+    SELECT tm FROM TeamMember tm
+    JOIN FETCH tm.user
+    JOIN FETCH tm.teamRoom
+    WHERE tm.teamRoom.id = :teamRoomId
+      AND tm.user.id = :userId
+    """)
+    Optional<TeamMember> findByTeamRoomIdAndUserId(@Param("teamRoomId") Long teamRoomId,
+                                                   @Param("userId") Long userId);
 
     /**
      * 팀룸 멤버 수 카운트 (12명 정원 체크)
@@ -43,13 +52,14 @@ public interface TeamMemberRepository extends JpaRepository<TeamMember,Long> {
     long countByTeamRoomId(Long teamRoomId);
 
     /**
-     * 팀룸 전체 멤버 조회 (User 정보 포함)
+     * 팀룸 전체 멤버 조회 (User, TeamRoom 정보 포함)
      * - N+1 문제 방지를 위해 Fetch Join 사용
      */
     @Query("""
     SELECT tm
     FROM TeamMember tm
     JOIN FETCH tm.user
+    JOIN FETCH tm.teamRoom
     WHERE tm.teamRoom.id = :teamRoomId
     """)
     List<TeamMember> findByTeamRoomId(@Param("teamRoomId") Long teamRoomId);
@@ -79,6 +89,18 @@ public interface TeamMemberRepository extends JpaRepository<TeamMember,Long> {
         @Param("teamRoomId") Long teamRoomId,
         @Param("teamRole") TeamRole teamRole
     );
+
+    /**
+     * 여러 팀룸의 멤버를 한 번에 조회 (User 정보 포함)
+     * - 팀룸 목록 조회 시 N+1 방지
+     */
+    @Query("""
+    SELECT tm
+    FROM TeamMember tm
+    JOIN FETCH tm.user
+    WHERE tm.teamRoom.id IN :teamRoomIds
+    """)
+    List<TeamMember> findByTeamRoomIdIn(@Param("teamRoomIds") List<Long> teamRoomIds);
 
     /**
      * 팀룸에 유저 존재하는지 조회

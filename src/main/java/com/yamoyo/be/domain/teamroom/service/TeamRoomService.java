@@ -26,9 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -205,20 +203,29 @@ public class TeamRoomService {
         // 1. 사용자가 속한 팀룸 조회 (이미 최신순 정렬됨)
         List<TeamRoom> teamRooms = teamMemberRepository.findTeamRoomsByUserIdAndLifecycle(userId, lifecycle);
 
-        // 2. 각 팀룸에 대한 상세 정보 조회 및 DTO 변환
+        if (teamRooms.isEmpty()) {
+            return List.of();
+        }
+
+        // 2. 모든 팀룸의 멤버를 한 번에 조회 (N+1 방지)
+        List<Long> teamRoomIds = teamRooms.stream().map(TeamRoom::getId).toList();
+        List<TeamMember> allMembers = teamMemberRepository.findByTeamRoomIdIn(teamRoomIds);
+
+        // 3. 팀룸별로 멤버 그룹화
+        Map<Long, List<TeamMember>> membersByTeamRoom = allMembers.stream()
+                .collect(Collectors.groupingBy(tm -> tm.getTeamRoom().getId()));
+
+        // 4. DTO 변환
         return teamRooms.stream()
                 .map(teamRoom -> {
-                    // 전체 팀원 조회
-                    List<TeamMember> members = teamMemberRepository.findByTeamRoomId(teamRoom.getId());
+                    List<TeamMember> members = membersByTeamRoom.getOrDefault(teamRoom.getId(), List.of());
 
-                    // 팀원 요약 정보 생성(userId, 프로필 이미지)
                     List<TeamRoomListResponse.MemberSummary> memberSummaries = members.stream()
                             .map(member -> new TeamRoomListResponse.MemberSummary(
                                     member.getUser().getId(),
                                     member.getUser().getProfileImageId()
                             )).collect(Collectors.toList());
 
-                    // 응답 DTO 생성
                     return new TeamRoomListResponse(
                             teamRoom.getId(),
                             teamRoom.getTitle(),
@@ -243,18 +250,22 @@ public class TeamRoomService {
     public TeamRoomDetailResponse getTeamRoomDetail(Long teamRoomId, Long userId) {
         log.info("팀룸 상세 조회 시작 - teamRoomId: {}, userId: {}", teamRoomId, userId);
 
-        // 1. 팀룸 조회
-        TeamRoom teamRoom = teamRoomRepository.findById(teamRoomId)
-                .orElseThrow(() -> new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND));
-
-        // 2. 요청자가 팀원인지 확인 (권한 체크)
-        TeamMember myMember = teamMemberRepository.findByTeamRoomIdAndUserId(teamRoomId, userId)
-                .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
-
-        // 3. 전체 팀원 조회
+        // 1. 전체 팀원 조회 (User + TeamRoom Fetch Join → 1쿼리)
         List<TeamMember> members = teamMemberRepository.findByTeamRoomId(teamRoomId);
 
-        // 4. 팀원 요약 정보 생성(HOST → LEADER → MEMBER 순 정렬)
+        if (members.isEmpty()) {
+            throw new YamoyoException(ErrorCode.TEAMROOM_NOT_FOUND);
+        }
+
+        // 2. 요청자가 팀원인지 확인
+        TeamMember myMember = members.stream()
+                .filter(m -> m.getUser().getId().equals(userId))
+                .findFirst()
+                .orElseThrow(() -> new YamoyoException(ErrorCode.NOT_TEAM_MEMBER));
+
+        TeamRoom teamRoom = myMember.getTeamRoom();
+
+        // 3. 팀원 요약 정보 생성(HOST → LEADER → MEMBER 순 정렬)
         List<TeamRoomDetailResponse.MemberSummary> memberSummaries = members.stream()
                 .map(member -> new TeamRoomDetailResponse.MemberSummary(
                         member.getUser().getId(),
@@ -265,13 +276,13 @@ public class TeamRoomService {
                 .sorted(Comparator.comparing(TeamRoomDetailResponse.MemberSummary::role))
                 .collect(Collectors.toList());
 
-        // 5. Setup 시작 시간 조회 (SETUP 단계일 때만)
+        // 4. Setup 시작 시간 조회 (SETUP 단계일 때만)
         LocalDateTime setupCreatedAt = null;
         if (teamRoom.getWorkflow() == Workflow.SETUP) {
             setupCreatedAt = getSetupCreatedAt(teamRoomId);
         }
 
-        // 6. 응답 DTO 생성
+        // 5. 응답 DTO 생성
         return new TeamRoomDetailResponse(
                 teamRoom.getId(),
                 teamRoom.getTitle(),
