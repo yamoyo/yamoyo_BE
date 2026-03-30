@@ -30,6 +30,10 @@ CREATE INDEX idx_team_rooms_lifecycle_deadline
 CREATE INDEX idx_team_room_setups_team_room_id
     ON team_room_setups (team_room_id);
 
+-- team_room_setups: 스케줄러(findExpiredSetups)에서 deadline < :now 조건 필터링
+CREATE INDEX idx_team_room_setups_deadline
+    ON team_room_setups (deadline);
+
 -- team_rules: team_room_id 기반 규칙 조회
 CREATE INDEX idx_team_rules_team_room_id
     ON team_rules (team_room_id);
